@@ -5,7 +5,7 @@ Format: version · date, then commit-anchored entries, newest first.
 No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
-- (nothing yet)
+- `pending` — Perf: solver early-exit (abandons candidates provably outside the difficulty band mid-scan; duels skip the mirror solve unless side one qualifies) — roughly halves worst-case level generation, which is difficulty 0, i.e. a new player's very first level. New `GenerationPerfTest` guardrails with printed timings; aim preview measured at 0.065ms/call (no action needed, documented so nobody re-optimizes it). Art: `AmbientBackdrop` — drifting starfield, nebula wash and a slow comet behind every menu screen at a 30fps cap, with translucent panels so the sky shows through; `OrbitRule` divider available. Findings recorded in docs/PERFORMANCE.md.
 
 ## [0.3.0] — 2026-08-04
 - `pending` — In-app feedback → agent inbox pipeline: Settings "Write feedback" + match-summary "Report a problem" (auto-attaches the match replay code = exact reproduction). Composes a parseable `GGFB1` blob sent via the player's own share sheet (app still has zero network). Repo side: `feedback/inbox/` + `feedback/archive/` with triage protocol (feedback/README.md); AGENTS.md session-start checklist now mandates inbox triage before feature work. Privacy policy updated for accuracy. versionName 0.3.0 / code 3 (SemVer MINOR).

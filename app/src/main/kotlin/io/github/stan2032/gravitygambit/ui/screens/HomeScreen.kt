@@ -28,7 +28,7 @@ import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.AccentPurple
 import io.github.stan2032.gravitygambit.ui.GameLaunch
 import io.github.stan2032.gravitygambit.ui.Nav
-import io.github.stan2032.gravitygambit.ui.PanelColor
+import io.github.stan2032.gravitygambit.ui.PanelTranslucent
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
@@ -100,7 +100,7 @@ private fun MenuEntry(icon: String, title: String, note: String, onClick: () -> 
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = PanelColor),
+        colors = CardDefaults.cardColors(containerColor = PanelTranslucent),
     ) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(icon, fontSize = 26.sp)
@@ -119,7 +119,7 @@ private fun SmallEntry(title: String, modifier: Modifier = Modifier, onClick: ()
         modifier = modifier
             .padding(vertical = 6.dp)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = PanelColor),
+        colors = CardDefaults.cardColors(containerColor = PanelTranslucent),
     ) {
         Text(
             title,

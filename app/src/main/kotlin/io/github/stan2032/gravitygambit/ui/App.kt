@@ -69,6 +69,10 @@ fun App(
     LaunchedEffect(profile.soundEnabled) { sound.enabled = profile.soundEnabled }
 
     Box(Modifier.fillMaxSize().background(BgColor)) {
+        // Living backdrop everywhere except the match itself, which renders its
+        // own (far richer) universe.
+        if (nav !is Nav.Game) AmbientBackdrop()
+
         when (val n = nav) {
             is Nav.Home -> HomeScreen(profile = profile, onNavigate = { nav = it })
             is Nav.Campaign -> CampaignScreen(profile = profile, onNavigate = { nav = it })

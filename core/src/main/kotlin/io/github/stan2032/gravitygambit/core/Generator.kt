@@ -29,13 +29,19 @@ object SystemGenerator {
 
         for (attempt in 0 until MAX_ATTEMPTS) {
             val candidate = candidate(seed, attempt, difficulty) ?: continue
-            val rate = solveRate(candidate, shooter = 0)
+            val rate = solveRate(candidate, shooter = 0, lo, hi)
             if (mode == GameMode.DUEL) {
-                val rate2 = solveRate(candidate, shooter = 1)
-                if (rate2 < lo || rate < lo) continue
-                val ratio = if (rate2 > 0) rate / rate2 else 99.0
-                if (ratio > 4.0 || ratio < 0.25) continue   // both sides must have a fair shot
-                if (rate <= hi) return candidate.copy(solverHitRate = rate)
+                // Only solve the mirror side when this one is already in band —
+                // an out-of-band candidate can never be accepted, so the second
+                // (equally expensive) scan would be wasted work.
+                if (rate in lo..hi) {
+                    val rate2 = solveRate(candidate, shooter = 1, lo, hi)
+                    val ratio = if (rate2 > 0) rate / rate2 else 99.0
+                    // Both sides must have a real shot, and comparably so.
+                    if (rate2 >= lo && ratio <= 4.0 && ratio >= 0.25) {
+                        return candidate.copy(solverHitRate = rate)
+                    }
+                }
             } else {
                 if (rate in lo..hi) return candidate.copy(solverHitRate = rate)
             }
@@ -52,21 +58,38 @@ object SystemGenerator {
     }
 
     /** Fraction of sampled aim space (STANDARD shot) that hits the opponent station. */
-    fun solveRate(spec: SystemSpec, shooter: Int): Double {
+    fun solveRate(spec: SystemSpec, shooter: Int): Double = solveRate(spec, shooter, 0.0, 1.0)
+
+    /**
+     * Same measurement, but allowed to stop early once the final rate is
+     * provably outside [lo, hi] — the caller only needs the in/out verdict for
+     * rejected candidates. Cuts worst-case generation (easy levels, which need
+     * a rare high-hit-rate layout) by exiting hopeless candidates mid-scan.
+     * The returned value is exact whenever it lands inside the band, so an
+     * accepted spec's recorded solverHitRate is unchanged.
+     */
+    fun solveRate(spec: SystemSpec, shooter: Int, lo: Double, hi: Double): Double {
         val target = 1 - shooter
+        val total = (3600 / SOLVER_ANGLE_STEP) * SOLVER_POWERS.size
         var hits = 0
-        var total = 0
+        var done = 0
         var angle = 0
         while (angle < 3600) {
             for (power in SOLVER_POWERS) {
-                total++
                 val shot = LiveShot(
                     spec.bodies, spec.stations, shooter, angle, power,
                     ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
                 )
                 val res = shot.runToCompletion()
                 if (res.stationHits.any { it == target }) hits++
+                done++
             }
+            // Bounds on the achievable final rate given what's left to sample.
+            val remaining = total - done
+            val minPossible = hits.toDouble() / total
+            val maxPossible = (hits + remaining).toDouble() / total
+            if (minPossible > hi) return minPossible      // provably too easy
+            if (maxPossible < lo) return maxPossible      // provably too hard
             angle += SOLVER_ANGLE_STEP
         }
         return hits.toDouble() / total

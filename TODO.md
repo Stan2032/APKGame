@@ -46,6 +46,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] Perf: solver early-exit (~2x faster worst-case generation = difficulty 0 = first level played); GenerationPerfTest guardrails; aim preview measured cheap (0.065ms) and documented as do-not-touch.
+- [x] [A] Art: AmbientBackdrop (starfield/nebula/comet) behind all menus + translucent panels; OrbitRule divider.
 - [x] [A] In-app feedback → `feedback/inbox/` agent pipeline (GGFB1 blob + replay attach + triage protocol + session-start mandate). v0.3.0.
 - [x] [A] R8 + resource shrinking with serialization keep rules; release APK 12.4MB → 1.7MB. (was LATER; pulled forward under performance directive)
 - [x] [A] Sound design v1: 7 synthesized SFX + SoundManager + settings toggle (`tools/gen_sfx.py`).

@@ -8,6 +8,10 @@ import androidx.compose.ui.graphics.Color
 val BgColor = Color(0xFF070B18)
 val PanelColor = Color(0xFF121A30)
 val PanelColorLight = Color(0xFF1B2544)
+
+/** Menu surfaces sit over the ambient starfield, so they let a little sky through. */
+val PanelTranslucent = Color(0xE6121A30)
+val PanelTranslucentLight = Color(0xE61B2544)
 val AccentCyan = Color(0xFF4DD0E1)
 val AccentPurple = Color(0xFF9575FF)
 val StarYellow = Color(0xFFFFD54F)

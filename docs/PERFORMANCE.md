@@ -35,6 +35,19 @@ gameplay change gets audited against this doc before merge.
    canvas animates continuously. Lever if battery reports appear: drop the
    ambience clock to 30fps during AIMING by frame-skipping in the clock loop.
 
+## Measured numbers (desktop JVM; phones ~3-6x slower) — `GenerationPerfTest`
+- **Level generation, worst case = difficulty 0** (~100-200ms). Counter-intuitive
+  but correct: easy levels need a *rare* high-hit-rate layout, so the generator
+  burns more candidate attempts; hard levels accept common low-rate layouts and
+  finish in <10ms. Consequence: the first level a new player ever loads is the
+  slowest — it runs on Dispatchers.Default behind the "Charting the system"
+  screen. Halved by solver early-exit (bounds the achievable rate mid-scan and
+  abandons provably out-of-band candidates); duel mode additionally skips the
+  mirror-side solve unless side one is already in band.
+- **Aim preview: ~0.065ms/call** at the highest tier with a splitting shot.
+  Runs per drag event during composition; three orders of magnitude under a
+  frame. **Do not "optimize" this** — it was measured, not assumed.
+
 ## Current implementation notes (2026-08-04)
 - `RenderCache` rebuilds only on system change or canvas resize.
 - Verified-green loop: `./gradlew :core:test :app:assembleDebug :app:lintDebug`.

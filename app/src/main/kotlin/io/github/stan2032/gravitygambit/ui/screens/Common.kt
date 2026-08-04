@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.stan2032.gravitygambit.ui.PanelColor
+import io.github.stan2032.gravitygambit.ui.PanelTranslucent
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
 
@@ -74,7 +74,7 @@ fun ScreenFrame(
 fun SectionCard(content: @Composable () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = PanelColor),
+        colors = CardDefaults.cardColors(containerColor = PanelTranslucent),
     ) {
         Box(Modifier.padding(16.dp)) { content() }
     }
