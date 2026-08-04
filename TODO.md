@@ -19,6 +19,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] Host docs/PRIVACY_POLICY.md publicly (GitHub Pages ok) → URL into Play Console.
 - [ ] [H] Play Console: app content forms (Data Safety = none collected; content rating; ads = no).
 - [ ] [H] After first AAB upload: create IAP products (3 INAPP + 2 SUBS ids in docs/MONETIZATION.md).
+- [ ] [A] Set `ShareMessages.STORE_URL` to the real Play listing URL once live — every shared duel code then doubles as an install link (one-line change, guarded by a test that forbids placeholder links pre-launch).
 - [ ] [A] Release QA script pass (docs/RELEASE.md) — MUST run on the R8 build and exercise save/load, corrupted-code rejection, and purchase-restore paths specifically (minification risk areas).
 - [ ] [A] Wire CI release signing via secrets (blocked on [H] keystore existing).
 - [ ] [H] Approve or restyle store graphics drafts in `store/` (regen via tools/store_assets.py).
@@ -27,7 +28,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] v1.1 Play Games Services v2: sign-in + Snapshots cloud save + daily leaderboard + achievements (facts: docs/reference/play-policy-snapshot.md §PGS; Data Safety update required).
 - [ ] [A] AdMob rewarded integration IF retention data justifies (docs/ADS.md playbook; needs [H] AdMob account; UMP consent; Data Safety + privacy policy update; app-ads.txt).
 - [ ] [A] Ambient audio: seed-derived per-system drone pad (SFX shipped 0.2.0; music/ambience still open).
-- [ ] [A] Localization pass (externalize inline strings → res; es/pt/de/fr/ja first).
+- [ ] [A] Localization pass (externalize inline strings → res; es/pt/de/fr/ja first). **Deliberately deferred until after first playtest**: copy is still volatile (feel/tuning feedback will rewrite wording), and externalizing early means every copy tweak edits XML instead of the composable. Do it once the wording settles — ideally right before the v1.0 store push. Note `:core` display names (projectile/trail names) are game terms; decide then whether they map to string resources or stay untranslated proper nouns.
 - [ ] [A] Tablet/landscape HUD polish (world letterboxes already; HUD could two-column).
 - [ ] [A] Baseline Profile + Macrobenchmark once a device lab exists (docs/PERFORMANCE.md).
 - [ ] [A] In-app "what's new" + rate prompt (post-retention only, never nagging).
@@ -46,6 +47,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] Share messages rewritten to be legible to a stranger (a duel code is often first contact with the game); `ShareMessages` + tests; STORE_URL hook for launch.
+- [x] [A] GeneratorSweepTest: ~50 systems across sectors/extreme difficulties/a month of dailies/duels all proven solvable and sane; daily numbering pinned to 2026-08-01.
 - [x] [A] Accessibility pass: canvas + level-cell content descriptions, decorative canvases excluded, large-font clipping fixed (heightIn/FlowRow), AccessibilityTest at 2x font scale.
 - [x] [A] Robolectric UI smoke tests + MatchControllerTest (13 app-module tests incl. full code-duel round trip); CI now runs app tests + lint before artifacts.
 - [x] [A] Perf: solver early-exit (~2x faster worst-case generation = difficulty 0 = first level played); GenerationPerfTest guardrails; aim preview measured cheap (0.065ms) and documented as do-not-touch.

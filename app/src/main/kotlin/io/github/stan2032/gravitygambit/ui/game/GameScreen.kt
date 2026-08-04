@@ -74,6 +74,7 @@ import io.github.stan2032.gravitygambit.ui.PanelColor
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
+import io.github.stan2032.gravitygambit.ui.ShareMessages
 import io.github.stan2032.gravitygambit.ui.screens.FeedbackDialog
 import io.github.stan2032.gravitygambit.ui.shareText
 import kotlinx.coroutines.Dispatchers
@@ -566,7 +567,10 @@ private fun HandoffOverlay(
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onShare("Your move. ⚔️ $code") }, modifier = Modifier.weight(1f)) { Text("Share") }
+                Button(
+                    onClick = { onShare(ShareMessages.duelChallenge(code)) },
+                    modifier = Modifier.weight(1f),
+                ) { Text("Share") }
                 OutlinedButton(onClick = { onCopy(code) }, modifier = Modifier.weight(1f)) { Text("Copy") }
             }
             Spacer(Modifier.height(8.dp))
@@ -684,7 +688,7 @@ private fun SummaryOverlay(
                 } else {
                     s.duelCode?.let { code ->
                         Button(
-                            onClick = { onShare("Final round — see the result. ⚔️ $code") },
+                            onClick = { onShare(ShareMessages.duelResult(code)) },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Send final code to rival") }
                     }

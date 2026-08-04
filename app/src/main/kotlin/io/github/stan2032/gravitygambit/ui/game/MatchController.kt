@@ -18,6 +18,7 @@ import io.github.stan2032.gravitygambit.core.SystemSpec
 import io.github.stan2032.gravitygambit.core.TurnInput
 import io.github.stan2032.gravitygambit.core.Vec2
 import io.github.stan2032.gravitygambit.ui.GameLaunch
+import io.github.stan2032.gravitygambit.ui.ShareMessages
 import kotlin.math.atan2
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -272,7 +273,7 @@ class MatchController private constructor(
                     subtitle = "${engine.dailyHits} hits · ${engine.score} points",
                     stars = 0,
                     score = engine.score,
-                    shareText = "Gravity Gambit Daily #$n — ${engine.score} pts in ${engine.shotsUsed} shots 🌌\nVerify my run: $code",
+                    shareText = ShareMessages.dailyResult(n, engine.score, engine.shotsUsed) + "\n\n$code",
                     duelCode = null,
                 )
             }
