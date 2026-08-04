@@ -10,9 +10,11 @@ Audience: future Claude/agent sessions. Terse by design. Humans: see README.md.
 
 ## Build/verify protocol
 - Core tests (works everywhere, incl. offline-ish envs): `GG_SKIP_ANDROID=1 ./gradlew :core:test`
-- Full app build needs Android SDK 36 + Google Maven. In Claude remote sessions `dl.google.com` is BLOCKED by egress policy (curl/java both 403; maven.google.com 301s into the same blocked host) → :app CANNOT compile locally there. Verification path = push → GitHub Actions (`.github/workflows/android.yml`) → check run + artifacts via GitHub MCP tools → fix → repeat. Artifacts per green run: debug APK, release APK, release AAB.
-- After pushing, arm a check-in (send_later ~20min) to inspect the run; iterate to green. Never claim green without seeing conclusion=success.
-- Local gradle: preinstalled at /opt/gradle (8.14.3); wrapper committed.
+- Full local build (preferred loop): `./gradlew :core:test :app:assembleDebug :app:bundleRelease :app:lintDebug`. Needs Android SDK at /opt/android-sdk (`local.properties` sdk.dir, gitignored). If missing, install: cmdline-tools zip from dl.google.com → `sdkmanager --licenses` → `"platforms;android-36" "build-tools;36.0.0"`. `dl.google.com` was egress-blocked until 2026-08-04; the owner allowlisted it for this environment. If a future session finds it blocked again, fall back to the CI loop below and keep `GG_SKIP_ANDROID=1` for core work.
+- CI remains the artifact source of truth: push → GitHub Actions (`.github/workflows/android.yml`) → verify conclusion=success + artifacts (debug APK, release APK, release AAB) via GitHub MCP tools. Never claim green without seeing it.
+- If waiting on CI, arm a check-in (send_later ~20min); local-first building makes this rare.
+- Local gradle: preinstalled at /opt/gradle (8.14.3); wrapper committed. Lint is part of the verify loop — `:app:lintDebug` must be error-free.
+- Store graphics regenerate via `python3 tools/store_assets.py` (deterministic; Pillow) → `store/`.
 
 ## Invariants — breaking any of these breaks shipped multiplayer
 1. Determinism (docs/DETERMINISM.md): core sim uses ONLY double +-*/ , Math.sqrt, StrictMath transcendentals, own Rng (SplitMix64). NEVER Math.sin/cos, never platform RNG, never HashMap iteration over sim state, never float from UI entering sim un-quantized.

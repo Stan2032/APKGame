@@ -10,7 +10,7 @@ Done items move to CHANGELOG.md. Owner key: [H]=human-only (needs Stan), [A]=age
 - [ ] [H] Recruit 12+ closed-test testers (14 consecutive days required — longest pole in the tent).
 
 ## NEXT (pre-submission)
-- [ ] [H/A] 512×512 store icon + 1024×500 feature graphic (export from adaptive icon; concept in docs/STORE_LISTING.md).
+- [x] [A] 512×512 store icon + 1024×500 feature graphic → `store/` (regen: `tools/store_assets.py`). [H] approve or request restyle.
 - [ ] [H] 4–8 phone screenshots from real gameplay (shot list in docs/STORE_LISTING.md).
 - [ ] [H] Host docs/PRIVACY_POLICY.md publicly (GitHub Pages ok) → URL into Play Console.
 - [ ] [A] Store listing final copy (draft in docs/STORE_LISTING.md; voice per docs/AI_LOOK_AVOIDANCE.md).

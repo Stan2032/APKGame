@@ -1,6 +1,6 @@
 package io.github.stan2032.gravitygambit.ui.screens
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -157,7 +156,7 @@ fun ShopScreen(
             }
         }
 
-        val activity = LocalContext.current as? Activity
+        val activity = LocalActivity.current
         val adsAvailable by ads.available.collectAsState()
 
         // Opt-in rewarded ad: visible ONLY when an ad is actually loaded, and

@@ -1,8 +1,8 @@
 package io.github.stan2032.gravitygambit.ui.game
 
-import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -520,7 +520,7 @@ private fun SummaryOverlay(
         // Opt-in reward doubling: appears only when an ad is actually loaded,
         // never for Ad Pass holders, and never blocks the flow (docs/ADS.md).
         val adsAvailable by ads.available.collectAsState()
-        val activity = LocalContext.current as? Activity
+        val activity = LocalActivity.current
         var doubled by remember { mutableStateOf(false) }
         if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled && activity != null) {
             Spacer(Modifier.height(8.dp))

@@ -38,6 +38,10 @@ Caption style: mechanism statements ("Real N-body gravity", "PVP that fits in a 
 ## Feature graphic (1024×500)
 Dark #070B18 field; title set in the in-app type treatment (GRAVITY heavy-white / GAMBIT cyan, wide tracking); one planet with a projectile trail arcing a full slingshot around it; no renders, no faces, flat vector shapes consistent with the icon.
 
+**Generated drafts live in `store/`** (`icon-512.png`, `feature-1024x500.png`),
+reproducible via `python3 tools/store_assets.py`. Treat as v1 drafts — restyle
+by editing the script, not by hand, so they stay regenerable.
+
 ## What's-new template (per AI_LOOK_AVOIDANCE §copy)
 ```
 0.x.y

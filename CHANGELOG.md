@@ -5,6 +5,7 @@ Format: date · commit · change. Newest first. [Unreleased] = on branch, pre-Pl
 ## [Unreleased]
 
 ### 2026-08-04
+- `pending` — Local full-build loop enabled (owner allowlisted dl.google.com; SDK 36 installed in env). Lint added to verify loop; fixed its 2 errors (LocalActivity instead of Context-cast in ShopScreen/GameScreen). New MatchRulesTests: duel damage/winner/turn-cap-draw, campaign star math, daily scoring+relocation, heavy damage, seed stability, preview budget. Store listing graphics generated → `store/` via `tools/store_assets.py`.
 - `docs` — Full documentation system: AGENTS.md, TODO.md, CHANGELOG.md, docs/README.md index, DECISIONS.md (ADRs), ARCHITECTURE.md, TUNING.md, TESTING.md, ROADMAP.md, STORE_LISTING.md, AI_LOOK_AVOIDANCE.md.
 - `pending` — Play Games Services v2 research snapshot (identity/cloud-save delegation) + roadmap entry. (docs commit; CI run #4)
 - `e093387` — Rewarded-only ads architecture (opt-in only: shop free-stardust ✦40 ×5/day cap; post-match optional double) behind NoOp provider (no SDK/network yet); Ad Pass subscriptions (`ad_pass_weekly`/`ad_pass_monthly`): 2× match stardust + ✦50 daily + no ads, billing reconciles both directions; pricing math in docs/ADS.md. (CI run #3)
