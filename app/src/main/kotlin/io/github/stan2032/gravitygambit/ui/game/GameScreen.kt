@@ -154,9 +154,19 @@ private fun MatchUI(
     LaunchedEffect(c, c.phase) {
         when (c.phase) {
             Phase.FLYING -> {
+                // Time-based pacing: ticks derive from wall clock, not frame
+                // count, so playback speed is identical on 60/90/120Hz panels.
+                var startNanos = -1L
+                var ticksDone = 0
                 while (isActive && c.phase == Phase.FLYING) {
-                    withFrameNanos { }
-                    c.advanceFrame()
+                    val now = withFrameNanos { it }
+                    if (startNanos < 0) startNanos = now
+                    val target = ((now - startNanos) * MatchController.PLAYBACK_TICKS_PER_SEC / 1_000_000_000L).toInt() + 1
+                    val toRun = (target - ticksDone).coerceIn(0, MatchController.MAX_TICKS_PER_FRAME)
+                    if (toRun > 0) {
+                        c.advanceBy(toRun)
+                        ticksDone += toRun
+                    }
                 }
             }
             Phase.RESOLVING -> {
@@ -226,6 +236,9 @@ private fun MatchUI(
         val def = if (c.isReplaying) Economy.trail("classic") else Economy.trail(profile.selectedTrail)
         def.colors.map { Color(it) }
     }
+    val trailLut = remember(trailColors) { RenderCache.buildTrailLut(trailColors) }
+    // Everything derivable from (system, canvas size) is precomputed once.
+    val cache = remember(c.spec, tr) { tr?.let { RenderCache(c.spec, it) } }
 
     Box(Modifier.fillMaxSize().background(BgColor)) {
         Canvas(
@@ -251,24 +264,31 @@ private fun MatchUI(
                 }
         ) {
             val t = tr ?: return@Canvas
-            // timeSec is read here so ambient animation keeps the canvas alive.
-            drawStarfield(c.spec.seed, timeSec, t)
-            drawBodies(c.spec.bodies, timeSec, t)
-            drawStations(c.engine.stations, c.engine.hp, c.launch.mode, timeSec, t)
+            val cch = cache ?: return@Canvas
+            // timeSec read here = draw-phase-only invalidation for ambience.
+            val time = timeSec
+            drawSpaceBackdrop(cch, time)
+            drawBodies(cch, time)
+            drawStations(c.engine.stations, c.engine.hp, c.launch.mode, time, t, cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawPreview(previewPaths, t)
+            }
+            if (c.trailVersion >= 0) { // draw-phase dependency on trail mutations
+                drawTrail(c.trail, trailLut, t)
+            }
+            c.liveShot?.let { shot ->
+                if (!shot.done) drawProjectilesGlow(shot::visitProjectiles, t)
+            }
+            c.explosion?.let { drawExplosion(it, c.explosionProgress, t, cch) }
+            drawVignette(cch)
+            if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawAim(
                     c.engine.stations[c.engine.currentShooter],
                     c.aimAngleDeci, c.aimPower,
                     if (c.engine.currentShooter == 0) AccentCyan else Color(0xFFFF8A65),
-                    t,
+                    t, cch,
                 )
             }
-            drawTrail(c.trail.toList(), trailColors, t)
-            c.liveShot?.let { shot ->
-                if (!shot.done) drawProjectiles(shot.projectiles(), Color.White, t)
-            }
-            c.explosion?.let { drawExplosion(it, c.explosionProgress, t) }
         }
 
         TopHud(c)

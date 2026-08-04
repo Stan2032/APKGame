@@ -93,6 +93,11 @@ class LiveShot(
     fun projectiles(): List<ProjView> =
         projs.filter { it.alive }.map { ProjView(it.id, it.px, it.py, it.radius) }
 
+    /** Allocation-free iteration for per-frame rendering hot paths. */
+    fun visitProjectiles(visitor: (id: Int, x: Double, y: Double, radius: Double) -> Unit) {
+        for (p in projs) if (p.alive) visitor(p.id, p.px, p.py, p.radius)
+    }
+
     /** The finalized input, including the actual brake tick — this is what gets shared. */
     fun finalInput(): TurnInput = TurnInput(shooter, angleDeci, power, typeId, if (brakeUsed) brakeTick else -1)
 

@@ -1,7 +1,6 @@
 package io.github.stan2032.gravitygambit.ui.game
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.stan2032.gravitygambit.core.GameMode
@@ -74,7 +73,15 @@ class MatchController private constructor(
     var isReplaying by mutableStateOf(false); private set
     var brakeUsed by mutableStateOf(false); private set
 
-    val trail = mutableStateListOf<Vec2>()
+    /**
+     * Trail is a plain deque + a version counter, NOT snapshot state: appending
+     * ~120 points/sec to a SnapshotStateList churns snapshot records. Renderers
+     * read [trailVersion] (draw-phase invalidation) then iterate [trail] directly;
+     * both mutation and draw happen on the main thread.
+     */
+    val trail = ArrayDeque<Vec2>()
+    var trailVersion by mutableStateOf(0); private set
+
     var explosion by mutableStateOf<Explosion?>(null); private set
     var explosionProgress by mutableStateOf(0f)
     var lastResult by mutableStateOf<ShotResult?>(null); private set
@@ -126,7 +133,7 @@ class MatchController private constructor(
         isReplaying = false
         brakeUsed = false
         liveShot = engine.beginShot(aimAngleDeci, aimPower, selectedType)
-        trail.clear()
+        trail.clear(); trailVersion++
         phase = Phase.FLYING
     }
 
@@ -134,7 +141,7 @@ class MatchController private constructor(
         isReplaying = true
         brakeUsed = true // replayed shots brake themselves via presetBrakeTick
         liveShot = engine.beginShot(turn.angleDeci, turn.power, turn.typeId, turn.brakeTick)
-        trail.clear()
+        trail.clear(); trailVersion++
         phase = Phase.FLYING
     }
 
@@ -143,18 +150,22 @@ class MatchController private constructor(
         if (!isReplaying && shot.brakeNow()) brakeUsed = true
     }
 
-    /** Step the live simulation; called once per rendered frame. */
-    fun advanceFrame() {
+    /**
+     * Advance the live simulation by [ticks]. The caller derives tick count
+     * from wall-clock time (PLAYBACK_TICKS_PER_SEC), NOT from frame count —
+     * otherwise playback speed would scale with display refresh rate
+     * (2x too fast on 120Hz panels).
+     */
+    fun advanceBy(ticks: Int) {
         val shot = liveShot ?: return
-        repeat(TICKS_PER_FRAME) {
+        repeat(ticks) {
             if (!shot.done) {
                 shot.step()
-                for (p in shot.projectiles()) {
-                    trail.add(Vec2(p.x, p.y))
-                }
+                shot.visitProjectiles { _, x, y, _ -> trail.addLast(Vec2(x, y)) }
             }
         }
-        while (trail.size > 800) trail.removeAt(0)
+        while (trail.size > TRAIL_CAP) trail.removeFirst()
+        trailVersion++
         if (shot.done) resolve(shot)
     }
 
@@ -287,7 +298,10 @@ class MatchController private constructor(
     }
 
     companion object {
-        const val TICKS_PER_FRAME = 2
+        /** Sim ticks consumed per wall-clock second during playback (2x real time). */
+        const val PLAYBACK_TICKS_PER_SEC = 120
+        const val MAX_TICKS_PER_FRAME = 8   // catch-up clamp after jank/pauses
+        const val TRAIL_CAP = 600
 
         /**
          * Heavy: generates (or verifies + rebuilds) the star system. Run on a

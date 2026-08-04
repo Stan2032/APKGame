@@ -10,6 +10,7 @@ Living state lives at repo root: [TODO.md](../TODO.md) (work queue) · [CHANGELO
 | [DETERMINISM.md](DETERMINISM.md) | Why two phones always compute the identical universe |
 | [MULTIPLAYER.md](MULTIPLAYER.md) | Serverless PVP protocol, anti-cheat, phase-2 realtime plan |
 | [TUNING.md](TUNING.md) | Every constant, safe ranges, coupled invariants, ⚠️ protocol-version rule |
+| [PERFORMANCE.md](PERFORMANCE.md) | Standing frame budget + binding rules for every hot-path change |
 | [TESTING.md](TESTING.md) | Coverage map + rules for extending tests with changes |
 | [MONETIZATION.md](MONETIZATION.md) | Products, prices, philosophy (fairness > extraction) |
 | [ADS.md](ADS.md) | Rewarded-only ad policy, Ad Pass pricing math, AdMob playbook |
