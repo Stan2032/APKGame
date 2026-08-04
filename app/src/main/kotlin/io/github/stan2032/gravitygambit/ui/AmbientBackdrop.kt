@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import io.github.stan2032.gravitygambit.core.Rng
 import kotlinx.coroutines.isActive
 import kotlin.math.cos
@@ -83,7 +84,8 @@ fun AmbientBackdrop(modifier: Modifier = Modifier) {
     }
 
     var scene by remember { mutableStateOf<AmbientScene?>(null) }
-    Canvas(modifier.fillMaxSize()) {
+    // Purely decorative: keep it out of the accessibility tree entirely.
+    Canvas(modifier.fillMaxSize().clearAndSetSemantics { }) {
         val s = scene ?: AmbientScene(size.width, size.height).also { scene = it }
         val t = time
 
@@ -123,7 +125,7 @@ fun AmbientBackdrop(modifier: Modifier = Modifier) {
 /** Thin orbit-motif divider used to break up long menu screens. */
 @Composable
 fun OrbitRule(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
+    Canvas(modifier.clearAndSetSemantics { }) {
         val y = size.height / 2f
         drawLine(
             Brush.horizontalGradient(

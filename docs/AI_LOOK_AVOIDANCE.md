@@ -21,6 +21,13 @@ Voice = a physics nerd who respects you: precise, dry, quietly confident, occasi
 6. Update notes: changelog facts, not "We've been listening! 🎉".
 7. British-vs-US spelling: US, consistent.
 
+## Accessibility (quality floor, not an afterthought)
+1. **Never fixed `height()` on anything containing text** — use `heightIn(min=)`. Users scale fonts past 200%; fixed heights clip labels silently. Guarded by AccessibilityTest.
+2. **Rows of chips/buttons wrap** (`FlowRow`), because four chips that fit at 1.0x do not fit at 2.0x.
+3. **Canvas gets a live `contentDescription`** describing match state; decorative canvases (ambient backdrop, rules) get `clearAndSetSemantics {}` so they never pollute the accessibility tree.
+4. **Symbolic glyphs need spoken equivalents**: "★★☆" reads as noise; the level cell carries "Level 3, 2 of 3 stars" via merged semantics.
+5. Material3 enforces 48dp touch targets by default — do not fight it with smaller fixed sizes.
+
 ## Structural tells to avoid in product + repo
 1. No placeholder anything reaching a build: "Feature 1", lorem, "Coming soon!" walls (empty states must earn their place: billing/ads sections self-hide instead of stubbing).
 2. No dead settings (every toggle works or doesn't exist).

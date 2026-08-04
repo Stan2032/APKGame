@@ -46,6 +46,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] Accessibility pass: canvas + level-cell content descriptions, decorative canvases excluded, large-font clipping fixed (heightIn/FlowRow), AccessibilityTest at 2x font scale.
 - [x] [A] Robolectric UI smoke tests + MatchControllerTest (13 app-module tests incl. full code-duel round trip); CI now runs app tests + lint before artifacts.
 - [x] [A] Perf: solver early-exit (~2x faster worst-case generation = difficulty 0 = first level played); GenerationPerfTest guardrails; aim preview measured cheap (0.065ms) and documented as do-not-touch.
 - [x] [A] Art: AmbientBackdrop (starfield/nebula/comet) behind all menus + translucent panels; OrbitRule divider.

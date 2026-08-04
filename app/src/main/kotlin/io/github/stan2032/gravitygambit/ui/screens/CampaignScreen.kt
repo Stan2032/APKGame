@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -100,10 +103,17 @@ private fun LevelCell(
     val stars = profile.starsFor(sector, level)
     val playable = level == 0 || profile.starsFor(sector, level - 1) > 0
     val bg = if (playable) PanelColorLight else PanelColorLight.copy(alpha = 0.35f)
+    // One spoken label per level; the "★★☆" glyphs below are decorative.
+    val label = "Level ${level + 1}, " + when {
+        !playable -> "locked"
+        stars == 0 -> "not yet cleared"
+        else -> "$stars of 3 stars"
+    }
     Box(
         modifier = modifier
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .background(bg, RoundedCornerShape(10.dp))
+            .semantics(mergeDescendants = true) { contentDescription = label }
             .clickable(enabled = playable) {
                 onNavigate(
                     Nav.Game(

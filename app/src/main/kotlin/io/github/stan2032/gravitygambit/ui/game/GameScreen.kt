@@ -9,11 +9,13 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
@@ -42,6 +44,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -256,9 +260,29 @@ private fun MatchUI(
     val cache = remember(c.spec, tr) { tr?.let { RenderCache(c.spec, it) } }
 
     Box(Modifier.fillMaxSize().background(BgColor)) {
+        // The world is a Canvas, so screen readers get nothing by default.
+        // This description keeps the match legible to TalkBack users even
+        // though aiming itself is a visual/gestural act.
+        val worldDescription = when {
+            c.phase == Phase.FLYING && c.isReplaying -> "Opponent's shot replaying"
+            c.phase == Phase.FLYING -> "Shot in flight"
+            c.phase == Phase.AIMING && c.isMyTurn ->
+                "Star system ${c.spec.name}. Aiming at " +
+                    "${"%.1f".format(c.aimAngleDeci / 10.0)} degrees, " +
+                    "${c.aimPower / 10} percent power. " +
+                    if (c.launch.mode == GameMode.DUEL) {
+                        "Your station ${c.engine.hp[c.localPlayer]} health, " +
+                            "opponent ${c.engine.hp[1 - c.localPlayer]} health."
+                    } else {
+                        "Shot ${c.engine.shotsUsed + 1}."
+                    }
+            else -> "Star system ${c.spec.name}"
+        }
+
         Canvas(
             Modifier
                 .fillMaxSize()
+                .semantics { contentDescription = worldDescription }
                 .onSizeChanged { canvasSize = it }
                 .pointerInput(c) {
                     detectDragGestures(
@@ -449,7 +473,12 @@ private fun BottomControls(c: MatchController, profile: Profile, sound: SoundMan
                         NudgeButton("+1%") { c.nudgePower(10) }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Flow, not Row: at large system font sizes four chips no
+                    // longer fit one line and must wrap rather than clip.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         for (type in ProjectileType.entries) {
                             val unlocked = profile.unlockedProjectiles.contains(type.id)
                             val selected = c.selectedType == type.id
@@ -469,7 +498,12 @@ private fun BottomControls(c: MatchController, profile: Profile, sound: SoundMan
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = { c.fire() }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                    // heightIn, not height: fixed heights clip the label once
+                    // the user's font scale goes up.
+                    Button(
+                        onClick = { c.fire() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    ) {
                         Text("FIRE", fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
                     }
                 }
@@ -480,7 +514,7 @@ private fun BottomControls(c: MatchController, profile: Profile, sound: SoundMan
                             sound.play(SoundManager.Sfx.BRAKE)
                             c.brakeNow()
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed),
                     ) {
                         Text("RETRO BURN", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)

@@ -11,6 +11,7 @@ Everything that can corrupt a wallet, a replay, or a save is in :core and unit-t
 
 ## :app suite (app/src/test)
 - `AppSmokeTest` (Robolectric, phone-sized viewport): Home renders every mode and routes correctly; Daily launch carries today's seed; Campaign gates locked content; Duel rejects garbage codes without navigating; Help and theme render. Note: use `assertExists()` for below-fold content — `assertIsDisplayed()` additionally requires viewport visibility and will fail on long screens.
+- `AccessibilityTest`: renders real screens at 1.8x-2.0x font scale (via a `LocalDensity` override) because fixed-height controls clip their labels at large system font sizes and nothing else catches it; asserts campaign levels expose spoken labels rather than bare star glyphs.
 - `MatchControllerTest`: campaign match drives to summary within its shot cap; **full code-duel round trip** (A fires → code emitted → B imports → verification passes → A's shot replays → seats/HP/hash agree on both devices); forged hash refused; hot-seat handoff alternates and never emits codes; aim nudges wrap/clamp; a feedback report's attached replay code verifies (guards the triage pipeline).
 
 ## Current suite (core/src/test — CoreTests.kt)
