@@ -23,7 +23,7 @@
 >
 > Four projectile types, 0.1° aim precision, style bonuses for showing off, cosmetic trails your rival sees in the replay.
 >
-> Private by construction: no internet permission, no data collection, works in airplane mode. Optional purchases are cosmetics and convenience only — nothing you can buy wins a duel.
+> Private by construction: no accounts, no data collection, no analytics — and the whole game works in airplane mode. Optional purchases are cosmetics and convenience only; nothing you can buy wins a duel.
 
 Keyword notes: gravity, slingshot, artillery, orbit, pvp, duel, offline game, physics puzzle, turn based. Never stuff; Play penalizes.
 

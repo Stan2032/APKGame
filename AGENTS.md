@@ -21,7 +21,8 @@ Audience: future Claude/agent sessions. Terse by design. Humans: see README.md.
 2. Rng constants and Rng.mix are frozen — changing them invalidates every seed in the wild.
 3. Any change to physics/sim constants (Tuning), generator logic, rules in MatchEngine, or hash folding = old share codes verify differently → MUST bump ShareCodec VERSION and handle old-version decode (reject with message). See docs/TUNING.md.
 4. :core stays Android-free (JVM-testable). Rules live ONLY in MatchEngine/core (UI must never duplicate rule math).
-5. App must remain fully functional with billing unavailable and ads NoOp. No INTERNET permission in v1 — adding any network dep is a documented decision (docs/DECISIONS.md D-3), not a drive-by.
+5. App must remain fully functional with billing unavailable and ads NoOp, and airplane-mode-complete. Our code contains NO networking; adding any is a documented decision (docs/DECISIONS.md D-3), never a drive-by. Note the merged manifest already carries INTERNET via Play Billing's transitive datatransport — never claim "no internet permission" in user-facing copy; describe behavior instead. `tools/verify_release_apk.py` fails the build on any permission outside the allowlist.
+6. **Verify claims against artifacts, not sources.** The D-3 correction happened because "no INTERNET permission" was asserted from our AndroidManifest.xml and never checked against the built APK. Before stating what the app does, inspect the thing that ships (aapt2/dexdump/the release build).
 6. Play compliance floor: targetSdk 36, Billing 8+, AAB for store. Sources snapshotted in docs/reference/play-policy-snapshot.md.
 
 ## Session-start checklist

@@ -8,8 +8,15 @@ because the honest answer is: almost none.
 
 ## Data we collect
 
-**None.** The app has no internet permission and makes no network requests.
-We operate no servers, no analytics, no advertising, and no accounts.
+**None.** We operate no servers, no analytics, no advertising, and no
+accounts. Nothing you do in the game is sent to us, because there is nothing
+of ours for it to be sent to.
+
+The app is fully playable offline, including in airplane mode. For
+transparency: the installed app does list the INTERNET permission. We do not
+use it — it is declared by Google's Play Billing library (through its bundled
+data-transport component), which is required to offer in-app purchases
+through Google Play. Our own code contains no networking of any kind.
 
 ## Data stored on your device
 

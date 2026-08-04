@@ -20,7 +20,9 @@ have. Consequences:
 - **Zero server cost** — the user asked for cheap; this is free.
 - **Encryption for free** — the code rides the players' own (E2E-encrypted,
   if they chose such a messenger) channel. We add no network surface at all:
-  the app ships **without the INTERNET permission**.
+  our code contains no networking and the game is airplane-mode-complete.
+  (The merged manifest does carry INTERNET via Play Billing's transitive
+  datatransport component — see DECISIONS.md D-3; we neither use nor need it.)
 - **No accounts, no matchmaking cold-start** — your opponent is anyone you
   can text. A brand-new game with zero install base has working PVP on day one.
 

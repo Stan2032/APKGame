@@ -101,7 +101,7 @@ a designer's guess. The fingerprint (`solverHitRate`) is stored in the spec.
 Stardust flows in from every mode; flows out to projectile unlocks, aim-trace
 upgrades, and cosmetic trails. IAP: two stardust packs and a cosmetics
 bundle, priced at pocket change. No ads in v1 — the Data-Safety story
-("collects nothing, no internet permission") is itself a conversion feature.
+("collects nothing, works offline") is itself a conversion feature.
 
 ## v1 scope (this repository)
 

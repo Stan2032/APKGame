@@ -20,6 +20,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] Play Console: app content forms (Data Safety = none collected; content rating; ads = no).
 - [ ] [H] After first AAB upload: create IAP products (3 INAPP + 2 SUBS ids in docs/MONETIZATION.md).
 - [ ] [A] Set `ShareMessages.STORE_URL` to the real Play listing URL once live — every shared duel code then doubles as an install link (one-line change, guarded by a test that forbids placeholder links pre-launch).
+- [ ] [H/A] Decide whether to attempt excluding `com.google.android.datatransport` to drop INTERNET/ACCESS_NETWORK_STATE (D-3). Needs a device: exclusion risks NoClassDefFoundError inside Play Billing at purchase time. Low priority — current wording is accurate as-is.
 - [ ] [A] Release QA script pass (docs/RELEASE.md) — MUST run on the R8 build and exercise save/load, corrupted-code rejection, and purchase-restore paths specifically (minification risk areas).
 - [ ] [A] Wire CI release signing via secrets (blocked on [H] keystore existing).
 - [ ] [H] Approve or restyle store graphics drafts in `store/` (regen via tools/store_assets.py).
@@ -47,6 +48,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] Release APK audit (`tools/verify_release_apk.py`, wired into CI): permission allowlist, R8 serializer survival, size budget. Caught and corrected the false "no INTERNET permission" claim across all user-facing copy + docs (D-3).
 - [x] [A] Share messages rewritten to be legible to a stranger (a duel code is often first contact with the game); `ShareMessages` + tests; STORE_URL hook for launch.
 - [x] [A] GeneratorSweepTest: ~50 systems across sectors/extreme difficulties/a month of dailies/duels all proven solvable and sane; daily numbering pinned to 2026-08-01.
 - [x] [A] Accessibility pass: canvas + level-cell content descriptions, decorative canvases excluded, large-font clipping fixed (heightIn/FlowRow), AccessibilityTest at 2x font scale.

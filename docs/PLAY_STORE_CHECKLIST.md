@@ -27,8 +27,13 @@ marked ⏳ before acting if significant time has passed.
       by construction.
 - [x] **Play Billing Library ≥ 8** — required for new apps from 2026-08-31
       (we ship 8.3.0).
-- [x] **Permissions**: none beyond billing (added by the library). No
-      INTERNET permission — this makes the Data-Safety form trivial.
+- [x] **Permissions**: we declare none. The merged manifest carries BILLING
+      plus INTERNET/ACCESS_NETWORK_STATE contributed by Play Billing's
+      transitive datatransport component (audited with aapt2; allowlisted and
+      guarded by `tools/verify_release_apk.py`). Our code performs no
+      networking, so the Data-Safety answer is still "no data collected or
+      shared" — but do not claim "no internet permission" anywhere, because a
+      reviewer can see it in the manifest.
 
 ## Release preparation
 
@@ -61,7 +66,7 @@ marked ⏳ before acting if significant time has passed.
 | Common rejection | Our posture |
 |---|---|
 | Broken/placeholder functionality | Every advertised mode works offline; billing UI hides itself when unconfigured. |
-| Data-Safety form contradicts traffic | There is no traffic. |
+| Data-Safety form contradicts traffic | Our code generates no traffic; billing's library is Google's own and is declared as such. |
 | Background location/SMS/etc. permission abuse | No permissions at all. |
 | Payments outside Play Billing | Only Play Billing, cosmetics only. |
 | "Designed for families" mismatches | Do NOT opt into the Families program — just answer the target-audience questionnaire honestly (13+ recommended to keep it simple). |

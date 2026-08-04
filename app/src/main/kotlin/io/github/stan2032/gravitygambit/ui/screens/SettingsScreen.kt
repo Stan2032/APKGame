@@ -75,9 +75,12 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
             Column {
                 CardTitle("Privacy")
                 Subtitle(
-                    "Gravity Gambit collects no data and has no internet permission. " +
-                        "Your progress lives only on this device. Challenge codes contain " +
-                        "only game moves — never personal information."
+                    "Gravity Gambit collects nothing and sends nothing. Your progress lives " +
+                        "only on this device, and the whole game works in airplane mode. " +
+                        "Challenge codes contain game moves and nothing else — never " +
+                        "personal information. (Android lists an internet permission for " +
+                        "this app: it comes from Google's billing library for purchases, " +
+                        "and none of our own code uses it.)"
                 )
             }
         }

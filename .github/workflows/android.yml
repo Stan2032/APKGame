@@ -51,6 +51,9 @@ jobs:
       - name: Build release APK (sideload testing)
         run: ./gradlew :app:assembleRelease
 
+      - name: Audit release APK (permissions allowlist, R8 keep rules, size)
+        run: python3 tools/verify_release_apk.py
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

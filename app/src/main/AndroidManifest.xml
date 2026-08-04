@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Deliberately no INTERNET permission: the entire game, including PVP via
-         share codes, runs fully offline. Best possible privacy posture for the
-         Play Data Safety form. Play Billing talks to the Play Store app via IPC. -->
+    <!-- We declare no permissions ourselves. Note the MERGED manifest does end up
+         with INTERNET + ACCESS_NETWORK_STATE, contributed by Play Billing's
+         transitive datatransport component (verified via the manifest-merger
+         report; guarded by tools/verify_release_apk.py). None of our code uses
+         them: the entire game, PVP included, runs offline. See DECISIONS.md D-3. -->
 
     <application
         android:name=".GravityGambitApp"

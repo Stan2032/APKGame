@@ -4,7 +4,7 @@
 physics duel game for Android: curve shots through real gravity, master
 procedurally generated systems that are *machine-proven solvable*, and duel
 friends over any messenger with cryptographically verifiable challenge
-codes — no servers, no accounts, no internet permission.
+codes — no servers, no accounts, fully playable offline.
 
 | | |
 |---|---|
@@ -12,7 +12,7 @@ codes — no servers, no accounts, no internet permission.
 | Stack | Kotlin 2.1, Jetpack Compose, Play Billing 8, pure-JVM game core |
 | Multiplayer | Hot-seat + asynchronous PVP via ~230-char verified replay codes |
 | Monetization | Cosmetic-only IAP (Play Billing), everything earnable in-game |
-| Privacy | No data collection, no network access, no analytics |
+| Privacy | No data collection, no analytics, no accounts; our code makes no network calls and the game is fully playable offline |
 
 ## Modules
 
