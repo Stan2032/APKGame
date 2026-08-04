@@ -51,6 +51,27 @@ re-searching. Each entry cites its source; re-verify entries older than
 - Personal Play Console registration: **$25 one-time**; identity
   verification required and can take days. No D-U-N-S for personal accounts.
 
+## Play Games Services v2 (retrieved 2026-08-04; sources: developer.android.com/games/pgs/overview, /games/pgs/signin, /games/pgs/android/saved-games, /games/pgs/data-collection)
+
+- PGS v2 is Android's "Game Center": **automatic sign-in** built into the
+  device (no login screen); the developer receives only an **opaque Player ID
+  + gamertag** — never email or real name. Identity infrastructure is
+  entirely Google's.
+- **Saved Games (Snapshots API)**: cloud saves stored in the *player's own
+  Google Drive* app-data folder (`drive.appdata` scope). No developer server
+  involved; we never see or store the data.
+- Also provides **achievements and leaderboards** (a global daily-challenge
+  leaderboard with zero servers). Note: PGS leaderboard submissions are
+  client-trusted — spoofable by determined cheaters; our replay-code
+  verification remains the strong anti-cheat, PGS boards are casual-tier.
+- Requirements: Play Console → Play Games Services setup (OAuth
+  credentials), `play-services-games-v2` SDK, INTERNET permission.
+- **Data Safety impact** (per Google's own PGS data-disclosure doc): the SDK
+  collects gamer identity (user IDs) and analytics/diagnostics — the form can
+  no longer say "no data collected"; declarations become "User IDs —
+  collected, not shared, for app functionality". The developer remains
+  responsible for the form even though Google operates the infrastructure.
+
 ## Data safety / permissions posture (design fact, not policy quote)
 
 - This app requests no runtime permissions and has **no INTERNET

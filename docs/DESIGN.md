@@ -115,6 +115,11 @@ Console), CI producing APK + AAB.
 1. **Realtime P2P duels** — WebRTC data channels, lockstep on the same
    deterministic engine; tiny signaling service (free tier). The engine
    needs zero changes: it was built lockstep-ready.
+1b. **Play Games Services v2** — automatic sign-in (opaque Player ID only,
+   no personal data on our side), cloud saves in the player's own Google
+   Drive (Snapshots), plus achievements and a global daily leaderboard with
+   zero servers. Costs: INTERNET permission + Data Safety form declares
+   "User IDs collected" (see docs/reference/play-policy-snapshot.md).
 2. **Orbital motion** — planets on deterministic rails (`pos(t)`), timing
    becomes a weapon.
 3. **Leagues** — weekly seed sets with shared verification codes.
