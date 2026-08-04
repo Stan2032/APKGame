@@ -57,6 +57,22 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
 
         SectionCard {
             Column {
+                CardTitle("Send feedback")
+                Subtitle(
+                    "Tell us what's broken or brilliant. Your note travels through an app " +
+                        "you choose — the game itself sends nothing, ever."
+                )
+                Spacer(Modifier.height(8.dp))
+                var showFeedback by remember { mutableStateOf(false) }
+                OutlinedButton(onClick = { showFeedback = true }) { Text("Write feedback") }
+                if (showFeedback) {
+                    FeedbackDialog(contextLine = null, replayCode = null, onDismiss = { showFeedback = false })
+                }
+            }
+        }
+
+        SectionCard {
+            Column {
                 CardTitle("Privacy")
                 Subtitle(
                     "Gravity Gambit collects no data and has no internet permission. " +

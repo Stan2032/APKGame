@@ -27,6 +27,15 @@ seed, shot angles/powers and a checksum) — never names, identifiers,
 device information, or location. Your messaging app's own privacy policy
 governs the delivery of messages you send.
 
+## Feedback you choose to send
+
+The in-app "Send feedback" option prepares a text note that includes your
+message, the app version, your device model and Android version, and — only
+if you use "Report a problem with this match" — a replay code of that match
+(game moves only). The app cannot send this itself; it opens your device's
+share sheet and you choose the messaging app and recipient. You can edit or
+delete any part of the text before sending.
+
 ## Purchases
 
 Optional in-app purchases are processed entirely by Google Play. We do not

@@ -70,6 +70,8 @@ import io.github.stan2032.gravitygambit.ui.PanelColor
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
+import io.github.stan2032.gravitygambit.ui.screens.FeedbackDialog
+import io.github.stan2032.gravitygambit.ui.shareText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -657,6 +659,18 @@ private fun SummaryOverlay(
         }
         Spacer(Modifier.height(6.dp))
         TextButton(onClick = { onNavigate(exitTarget) }, modifier = Modifier.fillMaxWidth()) { Text("Exit") }
+
+        var showFeedback by remember { mutableStateOf(false) }
+        TextButton(onClick = { showFeedback = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Report a problem with this match", fontSize = 12.sp, color = TextDim)
+        }
+        if (showFeedback) {
+            FeedbackDialog(
+                contextLine = "match: ${c.launch.mode} · seed ${c.spec.seed} · d${c.spec.difficulty}",
+                replayCode = c.feedbackCode(),
+                onDismiss = { showFeedback = false },
+            )
+        }
     }
 }
 
@@ -674,10 +688,3 @@ private fun OverlayCard(content: @Composable () -> Unit) {
     }
 }
 
-private fun shareText(context: android.content.Context, text: String) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(Intent.createChooser(intent, "Share"))
-}

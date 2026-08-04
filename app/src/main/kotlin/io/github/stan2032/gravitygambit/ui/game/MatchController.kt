@@ -235,6 +235,9 @@ class MatchController private constructor(
 
     // ---- Codes & summaries ----
 
+    /** Replay code of the match so far — attached to in-app feedback reports. */
+    fun feedbackCode(): String = buildCode()
+
     private fun buildCode(): String = ShareCodec.encode(
         MatchRecord(
             mode = launch.mode.id,

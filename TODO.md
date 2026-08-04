@@ -14,6 +14,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] Recruit 12+ closed-test testers (14 consecutive days — longest pole in the tent).
 
 ## NEXT (pre-submission)
+- [ ] [H] Feedback relay habit: when testers send GGFB1 blobs, paste each verbatim into `feedback/inbox/YYYY-MM-DD-n.md` (GitHub mobile app works) — agents triage from there (feedback/README.md).
 - [ ] [H] 4–8 phone screenshots from real gameplay (shot list in docs/STORE_LISTING.md).
 - [ ] [H] Host docs/PRIVACY_POLICY.md publicly (GitHub Pages ok) → URL into Play Console.
 - [ ] [H] Play Console: app content forms (Data Safety = none collected; content rating; ads = no).
@@ -45,6 +46,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] In-app feedback → `feedback/inbox/` agent pipeline (GGFB1 blob + replay attach + triage protocol + session-start mandate). v0.3.0.
 - [x] [A] R8 + resource shrinking with serialization keep rules; release APK 12.4MB → 1.7MB. (was LATER; pulled forward under performance directive)
 - [x] [A] Sound design v1: 7 synthesized SFX + SoundManager + settings toggle (`tools/gen_sfx.py`).
 - [x] [A] First-launch aim coaching hint (Sector 1·L1, fresh profiles only).
