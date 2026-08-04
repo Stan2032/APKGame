@@ -36,6 +36,12 @@ jobs:
       - name: Run engine tests (determinism, PVP verification, generator)
         run: ./gradlew :core:test
 
+      - name: Run app tests (screen smoke tests, match state machine)
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
 

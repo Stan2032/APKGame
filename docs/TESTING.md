@@ -1,11 +1,17 @@
 # TESTING.md — strategy, current coverage, extension rules
 
 ## Philosophy
-Everything that can corrupt a wallet, a replay, or a save is in :core and unit-tested on JVM. UI is thin enough to verify by build + scripted manual pass (RELEASE.md QA). No emulator tests in v1 (cost/benefit; revisit if UI regressions recur).
+Everything that can corrupt a wallet, a replay, or a save is in :core and unit-tested on JVM. The :app module adds Robolectric smoke tests so no screen ships having never been rendered, plus direct tests of MatchController (the phase machine + duel-code flow). On-device QA (RELEASE.md) remains the final gate — these tests prove code *runs*, not that it *feels* right.
 
 ## Run
 - `GG_SKIP_ANDROID=1 ./gradlew :core:test` — full engine suite, no SDK needed, ~90s incl. generator/solver work.
-- CI runs the same suite before every APK/AAB build; failure uploads test-report artifacts.
+- `./gradlew :app:testDebugUnitTest` — Robolectric screen smoke tests + MatchController tests (~15s, needs SDK).
+- `./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:lintDebug` — the full local gate; run before every push.
+- CI runs all of the above before building artifacts; failures upload test reports.
+
+## :app suite (app/src/test)
+- `AppSmokeTest` (Robolectric, phone-sized viewport): Home renders every mode and routes correctly; Daily launch carries today's seed; Campaign gates locked content; Duel rejects garbage codes without navigating; Help and theme render. Note: use `assertExists()` for below-fold content — `assertIsDisplayed()` additionally requires viewport visibility and will fail on long screens.
+- `MatchControllerTest`: campaign match drives to summary within its shot cap; **full code-duel round trip** (A fires → code emitted → B imports → verification passes → A's shot replays → seats/HP/hash agree on both devices); forged hash refused; hot-seat handoff alternates and never emits codes; aim nudges wrap/clamp; a feedback report's attached replay code verifies (guards the triage pipeline).
 
 ## Current suite (core/src/test — CoreTests.kt)
 - `RngTest` — sequence determinism, mix stability, double range.
