@@ -15,6 +15,14 @@ and the Play policy surface minimal.
 | `stardust_small` | Consumable | +600 ✦ | $0.99 |
 | `stardust_large` | Consumable | +2200 ✦ | $2.99 |
 | `cosmic_pack` | Non-consumable | every cosmetic trail, current & future | $2.49 |
+| `ad_pass_weekly` | Subscription | 2× match rewards, ✦50/day, never any ads | $1.99/wk |
+| `ad_pass_monthly` | Subscription | same — the headline offer | $4.99/mo |
+
+Ads themselves are **rewarded-only and opt-in** (never interstitials, never
+forced after matches), currently shipped disabled behind a no-op provider.
+The Ad Pass is deliberately priced to net more per subscriber than that
+player's ad views ever could — full policy, math and the AdMob integration
+playbook live in [ADS.md](ADS.md).
 
 Notes:
 - Stardust buys *nothing* a player can't earn by playing; packs are a

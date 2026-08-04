@@ -23,6 +23,11 @@ data class Profile(
     val duelLosses: Int = 0,
     val hapticsEnabled: Boolean = true,
     val lastDuelCode: String = "",
+    /** Ad Pass subscription state (reconciled against Play Billing on connect). */
+    val adPassActive: Boolean = false,
+    val adWatchesToday: Int = 0,
+    val lastAdWatchDay: Long = 0,
+    val lastPassBonusDay: Long = 0,
 ) {
     val totalStars: Int get() = campaignStars.values.sum()
 
@@ -87,6 +92,26 @@ object Economy {
 }
 
 /**
+ * Rewarded-ads economy. Policy: ads are ONLY ever opt-in rewards — never
+ * interstitials, never forced after matches (see docs/ADS.md). These constants
+ * apply whether rewards come from actually watching (RewardedAdsProvider) or
+ * automatically via the Ad Pass.
+ */
+object AdRewards {
+    /** Stardust per opt-in rewarded view (shop "free stardust" button). */
+    const val WATCH_STARDUST = 40
+
+    /** Daily cap on rewarded views, resets at UTC midnight. */
+    const val DAILY_WATCH_CAP = 5
+
+    /** Ad Pass perk: match rewards multiplier (applied to campaign/daily/duel payouts). */
+    const val PASS_REWARD_MULTIPLIER = 2
+
+    /** Ad Pass perk: automatic daily stardust drop (no watching required). */
+    const val PASS_DAILY_BONUS = 50
+}
+
+/**
  * Play Billing product IDs. Prices are configured in Play Console (suggested:
  * $0.99 / $2.99 / $2.49 — deliberately cheap; see docs/MONETIZATION.md).
  */
@@ -97,4 +122,14 @@ object Iap {
 
     val CONSUMABLE_GRANTS = mapOf(STARDUST_SMALL to 600, STARDUST_LARGE to 2200)
     val ALL_PRODUCT_IDS = listOf(STARDUST_SMALL, STARDUST_LARGE, COSMIC_PACK)
+
+    /**
+     * Ad Pass subscriptions: no ads ever shown to you, all rewarded-ad boosts
+     * applied automatically, 2x match rewards + daily stardust drop. Priced so
+     * one subscriber is worth more than the same player's ad views would be
+     * (see docs/ADS.md for the math). Suggested: $1.99/week, $4.99/month.
+     */
+    const val AD_PASS_WEEKLY = "ad_pass_weekly"
+    const val AD_PASS_MONTHLY = "ad_pass_monthly"
+    val SUBSCRIPTION_IDS = listOf(AD_PASS_WEEKLY, AD_PASS_MONTHLY)
 }

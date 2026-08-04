@@ -23,7 +23,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.billing.BillingManager
+import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.ProjectileType
@@ -39,6 +41,7 @@ fun ShopScreen(
     profile: Profile,
     repo: ProfileRepository,
     billing: BillingManager,
+    ads: RewardedAdsProvider,
     onNavigate: (Nav) -> Unit,
 ) {
     ScreenFrame(title = "Outfitter", onBack = { onNavigate(Nav.Home) }) {
@@ -154,8 +157,73 @@ fun ShopScreen(
             }
         }
 
-        val products by billing.products.collectAsState()
         val activity = LocalContext.current as? Activity
+        val adsAvailable by ads.available.collectAsState()
+
+        // Opt-in rewarded ad: visible ONLY when an ad is actually loaded, and
+        // never for Ad Pass holders (they get boosts automatically).
+        if (adsAvailable && !profile.adPassActive && activity != null) {
+            SectionCard {
+                Column {
+                    CardTitle("Free stardust")
+                    val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+                    val used = if (profile.lastAdWatchDay == today) profile.adWatchesToday else 0
+                    Subtitle(
+                        "Watch a short ad, entirely optional, and pocket " +
+                            "✦ ${AdRewards.WATCH_STARDUST}. ($used/${AdRewards.DAILY_WATCH_CAP} today)"
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        enabled = used < AdRewards.DAILY_WATCH_CAP,
+                        onClick = { ads.show(activity) { repo.recordAdWatch(today) } },
+                    ) { Text("Watch → ✦ ${AdRewards.WATCH_STARDUST}") }
+                }
+            }
+        }
+
+        val subscriptions by billing.subscriptions.collectAsState()
+        if (profile.adPassActive) {
+            SectionCard {
+                Column {
+                    CardTitle("⭐ Ad Pass — active")
+                    Subtitle(
+                        "Thanks for the support! You earn " +
+                            "${AdRewards.PASS_REWARD_MULTIPLIER}× stardust from every match, " +
+                            "collect ✦ ${AdRewards.PASS_DAILY_BONUS} daily, and will never be shown an ad."
+                    )
+                }
+            }
+        } else if (subscriptions.isNotEmpty() && activity != null) {
+            SectionCard {
+                Column {
+                    CardTitle("⭐ Ad Pass")
+                    Subtitle(
+                        "${AdRewards.PASS_REWARD_MULTIPLIER}× stardust from every match, " +
+                            "✦ ${AdRewards.PASS_DAILY_BONUS} every day automatically, and no ads, ever. " +
+                            "Cancel anytime in Play."
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    for (pd in subscriptions) {
+                        val price = pd.subscriptionOfferDetails?.firstOrNull()
+                            ?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: continue
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(pd.name, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text(pd.description, color = TextDim, fontSize = 12.sp)
+                            }
+                            Button(onClick = { billing.launchPurchase(activity, pd) }) {
+                                Text(price, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val products by billing.products.collectAsState()
         if (products.isNotEmpty() && activity != null) {
             SectionCard {
                 Column {

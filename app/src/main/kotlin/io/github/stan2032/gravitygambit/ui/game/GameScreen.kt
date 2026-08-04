@@ -1,5 +1,6 @@
 package io.github.stan2032.gravitygambit.ui.game
 
+import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Preview
@@ -75,6 +78,7 @@ fun GameScreen(
     launch: GameLaunch,
     profile: Profile,
     repo: ProfileRepository,
+    ads: RewardedAdsProvider,
     onNavigate: (Nav) -> Unit,
 ) {
     var controller by remember(launch) { mutableStateOf<MatchController?>(null) }
@@ -100,7 +104,7 @@ fun GameScreen(
             BackHandler { onNavigate(exitTarget) }
             CenteredMessage("Charting the system…", "solving gravity, guaranteeing a route", null)
         }
-        else -> MatchUI(controller!!, profile, repo, exitTarget, onNavigate)
+        else -> MatchUI(controller!!, profile, repo, ads, exitTarget, onNavigate)
     }
 }
 
@@ -126,6 +130,7 @@ private fun MatchUI(
     c: MatchController,
     profile: Profile,
     repo: ProfileRepository,
+    ads: RewardedAdsProvider,
     exitTarget: Nav,
     onNavigate: (Nav) -> Unit,
 ) {
@@ -277,7 +282,7 @@ private fun MatchUI(
         c.summary?.let { s ->
             if (c.phase == Phase.OVER) {
                 SummaryOverlay(
-                    c, s,
+                    c, s, profile, repo, ads,
                     onShare = { text -> shareText(context, text) },
                     onNavigate = onNavigate,
                     exitTarget = exitTarget,
@@ -486,6 +491,9 @@ private fun HandoffOverlay(
 private fun SummaryOverlay(
     c: MatchController,
     s: Summary,
+    profile: Profile,
+    repo: ProfileRepository,
+    ads: RewardedAdsProvider,
     onShare: (String) -> Unit,
     onNavigate: (Nav) -> Unit,
     exitTarget: Nav,
@@ -503,7 +511,29 @@ private fun SummaryOverlay(
         }
         if (c.dustEarned > 0) {
             Spacer(Modifier.height(6.dp))
-            Text("+${c.dustEarned} ✦ stardust", color = StarYellow, fontSize = 14.sp)
+            Text(
+                "+${c.dustEarned} ✦ stardust" +
+                    if (profile.adPassActive) "  (Ad Pass ×2)" else "",
+                color = StarYellow, fontSize = 14.sp,
+            )
+        }
+        // Opt-in reward doubling: appears only when an ad is actually loaded,
+        // never for Ad Pass holders, and never blocks the flow (docs/ADS.md).
+        val adsAvailable by ads.available.collectAsState()
+        val activity = LocalContext.current as? Activity
+        var doubled by remember { mutableStateOf(false) }
+        if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled && activity != null) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    ads.show(activity) {
+                        val bonus = c.dustEarned
+                        repo.update { p -> p.copy(stardust = p.stardust + bonus) }
+                        doubled = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Double it — watch a short ad (optional)") }
         }
         Spacer(Modifier.height(16.dp))
 

@@ -47,6 +47,9 @@ class BillingManager(
     private val _products = MutableStateFlow<List<ProductDetails>>(emptyList())
     val products: StateFlow<List<ProductDetails>> = _products
 
+    private val _subscriptions = MutableStateFlow<List<ProductDetails>>(emptyList())
+    val subscriptions: StateFlow<List<ProductDetails>> = _subscriptions
+
     private val _available = MutableStateFlow(false)
     val available: StateFlow<Boolean> = _available
 
@@ -68,7 +71,7 @@ class BillingManager(
     }
 
     private fun queryProducts() {
-        val params = QueryProductDetailsParams.newBuilder()
+        val inappParams = QueryProductDetailsParams.newBuilder()
             .setProductList(
                 Iap.ALL_PRODUCT_IDS.map {
                     QueryProductDetailsParams.Product.newBuilder()
@@ -78,22 +81,37 @@ class BillingManager(
                 }
             )
             .build()
-        client.queryProductDetailsAsync(params) { result, detailsResult ->
+        client.queryProductDetailsAsync(inappParams) { result, detailsResult ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 _products.value = detailsResult.productDetailsList
+            }
+        }
+        val subsParams = QueryProductDetailsParams.newBuilder()
+            .setProductList(
+                Iap.SUBSCRIPTION_IDS.map {
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(it)
+                        .setProductType(BillingClient.ProductType.SUBS)
+                        .build()
+                }
+            )
+            .build()
+        client.queryProductDetailsAsync(subsParams) { result, detailsResult ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                _subscriptions.value = detailsResult.productDetailsList
             }
         }
     }
 
     fun launchPurchase(activity: Activity, details: ProductDetails) {
+        val detailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(details)
+        // Subscriptions require an offer token; use the first (base) offer.
+        details.subscriptionOfferDetails?.firstOrNull()?.let {
+            detailsParams.setOfferToken(it.offerToken)
+        }
         val params = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(
-                listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(details)
-                        .build()
-                )
-            )
+            .setProductDetailsParamsList(listOf(detailsParams.build()))
             .build()
         client.launchBillingFlow(activity, params)
     }
@@ -113,11 +131,37 @@ class BillingManager(
                 purchases.forEach(::handlePurchase)
             }
         }
+        // Subscriptions: reconcile Ad Pass state in BOTH directions, so an
+        // expired/refunded pass deactivates and a restored one reactivates.
+        client.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.SUBS)
+                .build()
+        ) { result, purchases ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                purchases.forEach(::handlePurchase)
+                val hasPass = purchases.any { p ->
+                    p.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                        p.products.any { it in Iap.SUBSCRIPTION_IDS }
+                }
+                repo.setAdPassActive(hasPass)
+            }
+        }
     }
 
     private fun handlePurchase(purchase: Purchase) {
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
         for (productId in purchase.products) {
+            if (productId in Iap.SUBSCRIPTION_IDS) {
+                if (!purchase.isAcknowledged) {
+                    val ack = AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+                    client.acknowledgePurchase(ack) { }
+                }
+                repo.setAdPassActive(true)
+                continue
+            }
             val grant = Iap.CONSUMABLE_GRANTS[productId]
             if (grant != null) {
                 // Consumable: consume first, then grant — a failed consume means
