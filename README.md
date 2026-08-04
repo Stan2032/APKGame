@@ -37,13 +37,8 @@ APK/AAB artifacts. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:
 
 ## Documentation
 
-| Doc | What's in it |
-|---|---|
-| [docs/DESIGN.md](docs/DESIGN.md) | The full game design, argued out |
-| [docs/DETERMINISM.md](docs/DETERMINISM.md) | Why two phones always compute the same universe |
-| [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) | Serverless PVP protocol + anti-cheat |
-| [docs/MONETIZATION.md](docs/MONETIZATION.md) | Product IDs, pricing, philosophy |
-| [docs/PLAY_STORE_CHECKLIST.md](docs/PLAY_STORE_CHECKLIST.md) | Everything needed for Play acceptance |
-| [docs/RELEASE.md](docs/RELEASE.md) | Signing, versioning, release QA |
-| [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) | Hostable privacy policy |
-| [docs/reference/](docs/reference/) | Dated snapshots of Google policy/toolchain facts |
+Start at the **[docs index](docs/README.md)**. Living state: [TODO.md](TODO.md) ·
+[CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md) (instructions for AI
+sessions working on this repo). Highlights: [design rationale](docs/DESIGN.md),
+[determinism contract](docs/DETERMINISM.md), [serverless PVP protocol](docs/MULTIPLAYER.md),
+[tuning guide](docs/TUNING.md), [Play submission checklist](docs/PLAY_STORE_CHECKLIST.md).

@@ -1,0 +1,25 @@
+# DECISIONS.md — architecture decision records (dense)
+
+Format: D-n · decision · why · revisit-when. Statuses implicit: all ACTIVE unless marked.
+
+- **D-1 · Game = deterministic N-body artillery duel ("Gravity Gambit")** · physics generates infinite depth from zero content; artillery = proven genre with no honest-physics mobile entry; determinism unlocks D-2 · revisit: never (identity).
+- **D-2 · Serverless multiplayer via verified replay codes; no accounts, no backend** · $0 infra (user constraint), works day-one with zero install base, physics-as-anti-cheat · revisit: when DAU justifies realtime (v2 WebRTC lockstep — additive, not replacing).
+- **D-3 · v1 ships with NO INTERNET permission** · trivial Data Safety ("no data collected" literally true), review-friendly, airplane-mode-complete · consciously temporary; any network feature (AdMob, PGS, WebRTC) = documented flip w/ compliance updates in same change.
+- **D-4 · Determinism via IEEE-754 double + StrictMath + quantized int inputs (NOT fixed-point)** · JVM/ART guarantee bit-exact basic ops since Java17 strictfp-default; fixed-point = 3× code for zero gameplay gain; belt-and-braces = FNV-1a trajectory hash verified on decode · revisit: only if a real device ever fails hash verification (none expected).
+- **D-5 · Own PRNG (SplitMix64), constants frozen** · platform RNGs may change across releases; seeds in the wild must replay forever · revisit: never.
+- **D-6 · Generator proves solvability by brute-force solver; difficulty = measured hit-rate band `[0.03·0.72^d, ×14]`** · no unwinnable levels by construction; difficulty empirical not vibes; duel maps solver-checked from both sides (fairness) · revisit: band slope after playtest data.
+- **D-7 · Two modules: :core pure-JVM, :app thin Android** · engine testable without SDK (critical in restricted envs); rules can't diverge between live play and replay verification (same class) · revisit: never.
+- **D-8 · minifyEnabled=false in v1** · eliminates whole class of R8+serialization runtime crashes for ~2MB cost · revisit: LATER item in TODO once stable.
+- **D-9 · No Navigation lib, no ViewModel; sealed Nav + remember, configChanges handled in manifest** · deps minimal, nav trivial (7 screens), process-death loss of in-flight match acceptable v1 · revisit: if nav complexity grows or process-death complaints.
+- **D-10 · Compose Canvas rendering (no game engine/libGDX/Godot)** · 2D vector world, ~200 draw ops/frame, zero asset pipeline, one language end-to-end · revisit: only if perf profiling fails on low-end.
+- **D-11 · Billing 8.3.0 (not 7)** · Play mandates 8+ for new apps since 2026-08-31 (caught via docs check; snapshot §Billing) · revisit: v9 by 2028-08-31.
+- **D-12 · Ads = rewarded-only, opt-in, NEVER interstitial/forced; shipped as NoOp provider (no SDK)** · retention > pennies; interface can't express interstitials by design; SDK unbundled because AdMob crashes w/o real App ID + flips privacy posture · revisit: AdMob integration gated on retention data (TODO LATER).
+- **D-13 · Monetization = cosmetics/convenience only, cheap ($0.99–$4.99); Ad Pass priced ≥ max ad yield; no loot boxes, no power** · PVP fairness is the product; regulatory + reputational safety; invariant + math in docs/ADS.md · revisit: pricing after real eCPM data; never the fairness principle.
+- **D-14 · Package/appId `io.github.stan2032.gravitygambit`** · defensible namespace w/o owning a domain · revisit: never post-upload (Play forbids change).
+- **D-15 · minSdk 26 / target+compile 36 / AGP 8.11.0 / Gradle 8.14.3 / Kotlin 2.1.21 / BOM 2025.06.01** · 26 = adaptive-icon-only + java.time, ~97% devices; 36 = Play mandate; versions verified-existing (snapshot §AGP) · revisit: annual target bump each Aug.
+- **D-16 · Root build.gradle.kts declares NO plugins; `GG_SKIP_ANDROID=1` excludes :app in settings** · lets :core build/test where Google Maven is blocked (Claude env); costs a benign "Kotlin plugin loaded multiple times" warning · revisit: if warning ever becomes error.
+- **D-17 · Portrait-first fixed world 1000×1600, letterboxed any orientation** · one-hand casual aiming; square-ish safe on tablets · revisit: landscape HUD polish LATER.
+- **D-18 · Campaign target = 1-hit core; duels = 100HP/type-damage** · campaign reads as puzzle (shot economy = stars); duels need attrition for drama · revisit: playtest.
+- **D-19 · Daily = 5 shots, relocating target, score-attack; global seed = f(UTC epochDay)** · Wordle loop + verifiable share; relocation defeats memorize-one-shot · revisit: shot count after data.
+- **D-20 · Branch `claude/google-play-apk-game-139njt` is repo default; no PR flow** · repo born empty, first push became default; creating a base branch = unauthorized push · revisit: user may restructure branches anytime.
+- **D-21 · Docs system: root living files (TODO/CHANGELOG/AGENTS) + docs/ topical + docs/reference/ dated snapshots** · agents need frozen context (snapshots) separated from living state · maintain per AGENTS.md conventions.

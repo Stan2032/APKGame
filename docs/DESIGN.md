@@ -112,6 +112,9 @@ Console), CI producing APK + AAB.
 
 ## Roadmap (post-v1)
 
+*(Design rationale snapshot — the living, sequenced plan with exit criteria is
+[ROADMAP.md](ROADMAP.md).)*
+
 1. **Realtime P2P duels** — WebRTC data channels, lockstep on the same
    deterministic engine; tiny signaling service (free tier). The engine
    needs zero changes: it was built lockstep-ready.
