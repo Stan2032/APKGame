@@ -35,6 +35,13 @@ codes — no servers, no accounts, fully playable offline.
 CI (GitHub Actions) runs all of the above on every push and uploads the
 APK/AAB artifacts. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
 
+## Publishing
+
+**[docs/LAUNCH_GUIDE.md](docs/LAUNCH_GUIDE.md)** is the step-by-step path from
+this repo to a live, revenue-generating listing — account signup, payments and
+bank verification, signing, the 12-tester requirement, in-app products, and
+release, with links and time estimates.
+
 ## Documentation
 
 Start at the **[docs index](docs/README.md)**. Living state: [TODO.md](TODO.md) ·

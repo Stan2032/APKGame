@@ -5,6 +5,11 @@ items move to ARCHIVE below with dates (this file only grows); newly discovered
 work is added the moment it's discovered. Owner key: [H]=human-only,
 [A]=agent-doable, [H/A]=either.
 
+> 📖 **Publishing: follow [docs/LAUNCH_GUIDE.md](docs/LAUNCH_GUIDE.md)** — it
+> sequences every [H] item below with links and waiting times. The three
+> multi-day waits (ID verification, bank micro-deposit, 12 testers × 14 days)
+> should all be started as early as possible; they, not the code, set the date.
+
 ## NOW (blocks first playtest / release track)
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
 - [ ] [H] Audition the synthesized SFX on-device (they've never been *heard*, only computed); report which need re-voicing → `tools/gen_sfx.py` params.

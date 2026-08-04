@@ -17,6 +17,7 @@ Living state lives at repo root: [TODO.md](../TODO.md) (work queue) · [CHANGELO
 | [ROADMAP.md](ROADMAP.md) | Version sequencing v0.1 → v2.x with exit criteria |
 | [STORE_LISTING.md](STORE_LISTING.md) | Play listing copy drafts, screenshot shot-list, graphics specs |
 | [AI_LOOK_AVOIDANCE.md](AI_LOOK_AVOIDANCE.md) | Binding rules keeping visuals/copy from reading AI-generated |
+| **[LAUNCH_GUIDE.md](LAUNCH_GUIDE.md)** | **Start here to publish:** every step from $25 signup to money in the bank, with links and time estimates |
 | [PLAY_STORE_CHECKLIST.md](PLAY_STORE_CHECKLIST.md) | Submission requirements + rejection traps, verified & dated |
 | [RELEASE.md](RELEASE.md) | Build, signing, versioning, release QA script |
 | [PRIVACY_POLICY.md](PRIVACY_POLICY.md) | Hostable policy (required by Play) |
