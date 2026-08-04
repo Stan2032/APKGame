@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Deliberately no INTERNET permission: the entire game, including PVP via
+         share codes, runs fully offline. Best possible privacy posture for the
+         Play Data Safety form. Play Billing talks to the Play Store app via IPC. -->
+
+    <application
+        android:name=".GravityGambitApp"
+        android:allowBackup="true"
+        android:appCategory="game"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GravityGambit">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
+            android:theme="@style/Theme.GravityGambit">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
