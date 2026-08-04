@@ -7,9 +7,10 @@
 - Content rating expectation: PEGI 3 / Everyone (abstract sci-fi, no realistic violence, no gambling; IAP present → declared)
 
 ## Short description (≤80 chars) — options, pick by A/B later
-1. `Real-gravity artillery. Duel friends with codes — no servers, no accounts.` (76)
-2. `Slingshot shots through real gravity. PVP by challenge code. Fully offline.` (75)
-3. `N-body artillery duels. Machine-proven levels. PVP that fits in a text.` (71)
+(All phrases must pass AI_LOOK_AVOIDANCE.md §pointing test: reader-world referents only.)
+1. `Real-gravity artillery. Duel friends by text message — no accounts, no logins.` (79)
+2. `Slingshot shots through real gravity. Send duels to friends in any chat app.` (77)
+3. `N-body artillery duels. Every level provably beatable. Duels fit in a text.` (75)
 
 ## Full description (draft)
 > Every shot obeys real N-body gravity. Curve around planets, skim a star for a graze bonus, or fire away from the target and let three gravity wells bring it home.

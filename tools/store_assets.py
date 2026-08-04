@@ -122,7 +122,7 @@ def feature():
         d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255, a))
 
     # Planet lower-right with a slingshot trail whipping around it.
-    pcx, pcy, pr = W * 0.78, H * 0.62, 120 * SS
+    pcx, pcy, pr = W * 0.82, H * 0.70, 118 * SS
     glow(img, pcx, pcy, pr * 1.6, PURPLE, 60)
     d = ImageDraw.Draw(img)
     draw_planet(d, pcx, pcy, pr, (180, 150, 255), (58, 30, 140))
@@ -139,13 +139,22 @@ def feature():
 
     # Title, app treatment: GRAVITY white / GAMBIT cyan, wide tracking.
     f_big = ImageFont.truetype(FONT, 78 * SS)
-    f_sub = ImageFont.truetype(FONT, 24 * SS)
     tracking = 16 * SS
     tx, ty = W * 0.065, H * 0.30
     spaced_text(d, (tx, ty), "GRAVITY", f_big, WHITE, tracking)
     spaced_text(d, (tx, ty + 92 * SS), "GAMBIT", f_big, CYAN, tracking)
-    spaced_text(d, (tx + 2 * SS, ty + 196 * SS),
-                "REAL GRAVITY · PVP BY CODE · NO SERVERS", f_sub, TEXT_DIM, 6 * SS)
+
+    # Tagline: every phrase must point at a reality the *player* experiences
+    # (docs/AI_LOOK_AVOIDANCE.md "pointing test"). Auto-shrink to fit.
+    tagline = "REAL GRAVITY · DUELS BY TEXT · NO ACCOUNTS"
+    sub_size, sub_track = 24 * SS, 6 * SS
+    while True:
+        f_sub = ImageFont.truetype(FONT, sub_size)
+        width = sum(d.textlength(ch, font=f_sub) + sub_track for ch in tagline)
+        if width <= W * 0.88 or sub_size <= 14 * SS:
+            break
+        sub_size -= SS
+    spaced_text(d, (tx + 2 * SS, ty + 196 * SS), tagline, f_sub, (205, 214, 240), sub_track)
 
     img = img.resize((1024, 500), Image.LANCZOS).convert("RGB")
     img.save(os.path.join(OUT, "feature-1024x500.png"))

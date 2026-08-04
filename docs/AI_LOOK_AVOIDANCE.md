@@ -28,5 +28,20 @@ Voice = a physics nerd who respects you: precise, dry, quietly confident, occasi
 4. Docs: no "In conclusion", no "It's important to note", no bullet-lists-of-three-adjectives.
 5. Naming: no "Pro/Ultra/Max/AI" suffixes; features get game-world names (targeting computer, Retro burn, stardust — already set; keep register consistent).
 
+## The pointing test (run BEFORE the litmus test, on every noun)
+Words are pointers, not things. For each load-bearing word ask "why this word?"
+repeatedly until you reach the reality it denotes — then check WHOSE reality
+that is. Insider referents (our architecture, our docs, our pride) are invalid
+on context-free surfaces; the referent must be something the *reader* has
+experienced or can see in the adjacent screenshot.
+- Case study: feature-graphic tagline "PVP BY CODE" → why "code"? → MatchRecord
+  → base64 string → an *implementation* referent; a store-page stranger has no
+  path from "code" to that. The player-experienced reality: you send your move
+  to a friend as a message. Fix: "DUELS BY TEXT". Likewise "NO SERVERS" (our
+  hosting reality) → "NO ACCOUNTS" (their signup reality).
+- Corollary: shorthand ("challenge code") is allowed only on context-rich
+  surfaces AFTER the surrounding sentence has established its referent (as
+  DuelScreen does); never cold on banners, titles, or short descriptions.
+
 ## Litmus test before shipping any surface
 Read it aloud. If it could be pasted into any other mobile game unchanged, rewrite it until it could only belong to THIS game (mentions gravity, seeds, codes, stardust, or a real mechanic by name).
