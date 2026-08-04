@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.stan2032.gravitygambit.ads.NoOpRewardedAds
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
+import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.billing.BillingManager
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.data.ProfileRepository
@@ -53,6 +54,7 @@ sealed interface Nav {
 fun App(
     repo: ProfileRepository,
     billing: BillingManager,
+    sound: SoundManager,
     ads: RewardedAdsProvider = NoOpRewardedAds,
 ) {
     var nav by remember { mutableStateOf<Nav>(Nav.Home) }
@@ -64,6 +66,7 @@ fun App(
             repo.claimPassDailyBonus(java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay())
         }
     }
+    LaunchedEffect(profile.soundEnabled) { sound.enabled = profile.soundEnabled }
 
     Box(Modifier.fillMaxSize().background(BgColor)) {
         when (val n = nav) {
@@ -81,6 +84,7 @@ fun App(
                 profile = profile,
                 repo = repo,
                 ads = ads,
+                sound = sound,
                 onNavigate = { nav = it },
             )
         }

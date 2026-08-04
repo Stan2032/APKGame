@@ -122,6 +122,23 @@ class ShareCodecTest {
         assertNull(ShareCodec.decode("GG1.!!!!"))
         assertNull(ShareCodec.decode("GG1.AAAA"))
     }
+
+    @Test
+    fun futureProtocolVersionIsRejected() {
+        // Build a payload identical to v1 but with version byte 2 and a valid
+        // CRC: decode must reject it cleanly. Guards the TUNING.md rule that
+        // sim-constant changes ship behind a version bump.
+        val rec = sampleRecord()
+        val v1 = ShareCodec.encode(rec)
+        val bytes = java.util.Base64.getUrlDecoder().decode(v1.removePrefix(ShareCodec.PREFIX))
+        val body = bytes.copyOfRange(0, bytes.size - 4)
+        body[2] = 2 // version byte
+        val crc = java.util.zip.CRC32().apply { update(body) }.value.toInt()
+        val forged = java.nio.ByteBuffer.allocate(body.size + 4).put(body).putInt(crc).array()
+        val text = ShareCodec.PREFIX +
+            java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(forged)
+        assertNull("future protocol version must be rejected", ShareCodec.decode(text))
+    }
 }
 
 class GeneratorTest {

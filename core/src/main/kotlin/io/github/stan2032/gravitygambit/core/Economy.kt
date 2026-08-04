@@ -22,6 +22,7 @@ data class Profile(
     val duelWins: Int = 0,
     val duelLosses: Int = 0,
     val hapticsEnabled: Boolean = true,
+    val soundEnabled: Boolean = true,
     val lastDuelCode: String = "",
     /** Ad Pass subscription state (reconciled against Play Billing on connect). */
     val adPassActive: Boolean = false,

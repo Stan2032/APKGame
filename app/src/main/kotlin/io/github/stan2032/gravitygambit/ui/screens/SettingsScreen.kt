@@ -43,6 +43,19 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         }
 
         SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    CardTitle("Sound effects")
+                    Subtitle("Launches, impacts, and the occasional victory chime.")
+                }
+                Switch(
+                    checked = profile.soundEnabled,
+                    onCheckedChange = { on -> repo.update { it.copy(soundEnabled = on) } },
+                )
+            }
+        }
+
+        SectionCard {
             Column {
                 CardTitle("Privacy")
                 Subtitle(

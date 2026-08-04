@@ -54,11 +54,19 @@ rejected by Play). For release:
    is lost, it can be reset via Console support, which is exactly why Play
    App Signing is the right default).
 
-## Version bumps
+## Version bumps — SemVer 2.0.0 (https://semver.org/spec/v2.0.0.html)
 
-`app/build.gradle.kts`: increment `versionCode` (integer, every upload) and
-set a human `versionName`. Suggested scheme: `0.1.0` → `0.1.1` for fixes,
-`0.x+1.0` for feature releases.
+`versionName` follows MAJOR.MINOR.PATCH strictly:
+- **PATCH** — bug fixes only, no behavior additions.
+- **MINOR** — new features, backwards compatible (new modes, cosmetics, SFX).
+- **MAJOR** — incompatible changes: replay-protocol bumps (`ShareCodec`
+  VERSION — see TUNING.md §Versioning) or save-format breaks. Pre-1.0.0 these
+  may ride a MINOR (SemVer §4: initial development), but must be called out
+  in CHANGELOG.md; from 1.0.0 they are MAJOR, no exceptions.
+
+`versionCode` is Play's monotonic integer, decoupled from SemVer: +1 on every
+uploaded build, never reused, never decreased. Bump both in
+`app/build.gradle.kts`; record the version in CHANGELOG.md with its date.
 
 ## Release-build QA checklist
 

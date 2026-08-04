@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
+import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Preview
@@ -79,6 +80,7 @@ fun GameScreen(
     profile: Profile,
     repo: ProfileRepository,
     ads: RewardedAdsProvider,
+    sound: SoundManager,
     onNavigate: (Nav) -> Unit,
 ) {
     var controller by remember(launch) { mutableStateOf<MatchController?>(null) }
@@ -104,7 +106,7 @@ fun GameScreen(
             BackHandler { onNavigate(exitTarget) }
             CenteredMessage("Charting the system…", "solving gravity, guaranteeing a route", null)
         }
-        else -> MatchUI(controller!!, profile, repo, ads, exitTarget, onNavigate)
+        else -> MatchUI(controller!!, profile, repo, ads, sound, exitTarget, onNavigate)
     }
 }
 
@@ -131,6 +133,7 @@ private fun MatchUI(
     profile: Profile,
     repo: ProfileRepository,
     ads: RewardedAdsProvider,
+    sound: SoundManager,
     exitTarget: Nav,
     onNavigate: (Nav) -> Unit,
 ) {
@@ -154,6 +157,7 @@ private fun MatchUI(
     LaunchedEffect(c, c.phase) {
         when (c.phase) {
             Phase.FLYING -> {
+                sound.play(SoundManager.Sfx.FIRE, volume = if (c.isReplaying) 0.7f else 1f)
                 // Time-based pacing: ticks derive from wall clock, not frame
                 // count, so playback speed is identical on 60/90/120Hz panels.
                 var startNanos = -1L
@@ -170,10 +174,16 @@ private fun MatchUI(
                 }
             }
             Phase.RESOLVING -> {
-                val hit = c.lastResult?.stationHits?.isNotEmpty() == true
+                val res = c.lastResult
+                val hit = res?.stationHits?.isNotEmpty() == true
                 if (hit && profile.hapticsEnabled) {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
+                when {
+                    hit -> sound.play(SoundManager.Sfx.HIT_STATION)
+                    (res?.bodyHitCount ?: 0) > 0 -> sound.play(SoundManager.Sfx.HIT_PLANET, 0.8f)
+                }
+                if (res != null && res.styleBonus > 0) sound.play(SoundManager.Sfx.STYLE, 0.6f)
                 if (c.explosion != null) {
                     val start = withFrameNanos { it }
                     var p = 0f
@@ -190,6 +200,9 @@ private fun MatchUI(
 
     // Apply rewards exactly once when the match ends.
     LaunchedEffect(c.phase) {
+        if (c.phase == Phase.OVER) {
+            c.summary?.let { sound.play(if (it.win) SoundManager.Sfx.WIN else SoundManager.Sfx.LOSE, 0.8f) }
+        }
         if (c.phase == Phase.OVER && !c.rewardsApplied) {
             c.rewardsApplied = true
             val s = c.summary ?: return@LaunchedEffect
@@ -292,7 +305,23 @@ private fun MatchUI(
         }
 
         TopHud(c)
-        BottomControls(c, profile)
+        BottomControls(c, profile, sound)
+
+        // One-time coaching line for the very first level of a fresh profile.
+        if (c.launch.mode == GameMode.CAMPAIGN && c.launch.sector == 0 && c.launch.level == 0 &&
+            profile.totalStars == 0 && c.engine.shotsUsed == 0 && c.phase == Phase.AIMING
+        ) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
+                Text(
+                    "Drag anywhere to aim — pull further for more power.\nGravity bends every shot. Then press FIRE.",
+                    color = TextPrimary, fontSize = 14.sp, textAlign = TextAlign.Center,
+                    lineHeight = 20.sp,
+                    modifier = Modifier
+                        .background(PanelColor.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                )
+            }
+        }
 
         if (c.phase == Phase.HANDOFF) {
             HandoffOverlay(c, onShare = { text -> shareText(context, text) },
@@ -392,7 +421,7 @@ private fun HpText(label: String, hp: Int, color: Color, active: Boolean) {
 }
 
 @Composable
-private fun BottomControls(c: MatchController, profile: Profile) {
+private fun BottomControls(c: MatchController, profile: Profile, sound: SoundManager) {
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -445,7 +474,10 @@ private fun BottomControls(c: MatchController, profile: Profile) {
                 c.phase == Phase.FLYING && !c.isReplaying &&
                     ProjectileType.byId(c.selectedType).canBrake && !c.brakeUsed -> {
                     Button(
-                        onClick = { c.brakeNow() },
+                        onClick = {
+                            sound.play(SoundManager.Sfx.BRAKE)
+                            c.brakeNow()
+                        },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed),
                     ) {

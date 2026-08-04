@@ -29,6 +29,8 @@ Audience: future Claude/agent sessions. Terse by design. Humans: see README.md.
 - **Words point at reader-world referents**: docs/AI_LOOK_AVOIDANCE.md pointing test on all player-facing copy.
 
 ## Conventions
+- Versioning: SemVer 2.0.0 for versionName (PATCH fixes / MINOR features / MAJOR = protocol+save breaks; policy in docs/RELEASE.md §Version bumps); versionCode = Play-monotonic integer, +1 per uploaded build.
+- TODO.md discipline (owner directive): consult at the START and END of every work unit; completed items move to its ARCHIVE section (grow the file forever); newly discovered work gets added immediately.
 - Docs: SCREAMING_SNAKE.md in docs/; update docs/README.md index + CHANGELOG.md + TODO.md with every meaningful change.
 - Commits: imperative summary + body explaining why; end with the session's Co-Authored-By/Claude-Session footer; never put model IDs in committed artifacts.
 - Branch: work stays on `claude/google-play-apk-game-139njt` (repo default; born from empty repo — no PR base exists).
