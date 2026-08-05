@@ -82,6 +82,21 @@ object Economy {
 
     fun dailyReward(score: Int): Int = minOf(60, score / 10)
 
+    /**
+     * Daily streak after completing the daily for [playedDay].
+     *
+     * A rule, so it lives here rather than in the app's repository (D-7) and
+     * is testable without DataStore. Note [playedDay] is the day the *match
+     * belongs to* (captured when it was launched), not the wall clock at the
+     * moment it ended — a run started at 23:58 UTC and finished after midnight
+     * still counts for the day it was played, and cannot double-count.
+     */
+    fun dailyStreakAfter(previousDay: Long, previousStreak: Int, playedDay: Long): Int = when {
+        previousDay == playedDay -> previousStreak          // replay of today: unchanged
+        previousDay == playedDay - 1 -> previousStreak + 1  // consecutive day
+        else -> 1                                           // gap (or first ever): restart
+    }
+
     fun duelReward(win: Boolean, codeDuel: Boolean): Int = when {
         !win -> 10
         codeDuel -> 60

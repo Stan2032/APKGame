@@ -75,11 +75,7 @@ class ProfileRepository(private val context: Context) {
         update { p ->
             val dayKey = epochDay.toString()
             val best = maxOf(p.dailyBest[dayKey] ?: 0, score)
-            val streak = when {
-                p.lastDailyDay == epochDay -> p.dailyStreak
-                p.lastDailyDay == epochDay - 1 -> p.dailyStreak + 1
-                else -> 1
-            }
+            val streak = Economy.dailyStreakAfter(p.lastDailyDay, p.dailyStreak, epochDay)
             p.copy(
                 stardust = p.stardust + earned,
                 dailyBest = p.dailyBest + (dayKey to best),

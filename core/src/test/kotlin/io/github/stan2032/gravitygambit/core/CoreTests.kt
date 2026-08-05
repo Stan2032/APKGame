@@ -249,6 +249,30 @@ class EconomyTest {
     }
 
     @Test
+    fun dailyStreakHandlesConsecutiveDaysGapsAndReplays() {
+        // First ever daily.
+        assertEquals(1, Economy.dailyStreakAfter(previousDay = 0, previousStreak = 0, playedDay = 20666))
+        // Consecutive days build the streak.
+        assertEquals(4, Economy.dailyStreakAfter(20666, 3, 20667))
+        // Replaying the same day never inflates it.
+        assertEquals(3, Economy.dailyStreakAfter(20666, 3, 20666))
+        // A missed day resets to 1, not 0 — today still counts.
+        assertEquals(1, Economy.dailyStreakAfter(20666, 9, 20669))
+    }
+
+    @Test
+    fun dailyStreakSurvivesAMatchThatCrossesUtcMidnight() {
+        // A run launched at 23:58 on day N belongs to day N even though it
+        // finishes after midnight: the launch's day is what gets recorded, so
+        // finishing late must not skip a day or restart the streak.
+        val dayN = 20700L
+        val afterLateFinish = Economy.dailyStreakAfter(previousDay = dayN - 1, previousStreak = 5, playedDay = dayN)
+        assertEquals(6, afterLateFinish)
+        // Then playing the next day continues rather than resets.
+        assertEquals(7, Economy.dailyStreakAfter(dayN, afterLateFinish, dayN + 1))
+    }
+
+    @Test
     fun rewardsArePositiveAndBounded() {
         assertTrue(Economy.campaignReward(0, 1, true) > 0)
         assertTrue(Economy.dailyReward(9999) <= 60)

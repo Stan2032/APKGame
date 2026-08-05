@@ -49,7 +49,12 @@ gameplay change gets audited against this doc before merge.
   frame. **Do not "optimize" this** — it was measured, not assumed.
 
 ## Current implementation notes (2026-08-04)
-- `RenderCache` rebuilds only on system change or canvas resize.
+- `RenderCache` rebuilds only on system change or canvas resize. Note it
+  precomputes body *centres*, which is why v2 orbital motion needs it
+  rethought (D-22) — cache orbit geometry, compute positions per frame.
+- Menus run a separate, much cheaper backdrop (`AmbientBackdrop`: 70 stars,
+  one nebula, one comet) deliberately clocked at ~30fps rather than display
+  rate, since idle screens do not need frame-rate animation.
 - Verified-green loop: `./gradlew :core:test :app:assembleDebug :app:lintDebug`.
 - Not yet done (levers in reserve, in order of payoff): render bodies+nebulae
   once into a layer/Picture and blit (if body-pass cost ever shows up),

@@ -53,6 +53,10 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] DuelFlowUiTest (hand-off overlay: code duel vs hot-seat vs handback) — last untested UI now covered.
+- [x] [A] Daily streak rule moved to `:core` (D-7 compliance) + UTC-midnight rollover locked by tests.
+- [x] [A] Docs de-drift pass: ARCHITECTURE (renderer/pacing/layout/new trees), TESTING, PERFORMANCE.
+- [x] [A] D-22 assessment: orbital motion needs no engine restructuring; do not pre-refactor.
 - [x] [A] Landscape/tablet layout: HUD moves into the letterbox bars on wide screens (65% of a landscape screen was empty); WideScreenTest at 3 size classes; D-17 updated.
 - [x] [A] GameScreenTest + ShopScreenTest (30 app tests; every screen now rendered by a test). Documented the manual-clock/pump pattern needed for the continuously-animating match screen.
 - [x] [A] Release APK audit (`tools/verify_release_apk.py`, wired into CI): permission allowlist, R8 serializer survival, size budget. Caught and corrected the false "no INTERNET permission" claim across all user-facing copy + docs (D-3).
