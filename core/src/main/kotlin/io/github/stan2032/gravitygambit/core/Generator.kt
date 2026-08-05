@@ -13,6 +13,32 @@ package io.github.stan2032.gravitygambit.core
 object SystemGenerator {
 
     const val SOLVER_ANGLE_STEP = 20      // deci-degrees -> 180 samples
+
+    /**
+     * Anchor-leverage probe. Anchors (docs/VISION.md §3.1) let the player bend
+     * the field, so a hit-rate measured on the bare field understates how
+     * solvable a system really is. Rather than re-sweeping the whole aim space
+     * per anchor placement (prohibitively expensive), we ask a sharper
+     * question: **of the shots that currently miss, what fraction can a single
+     * anchor rescue?**
+     *
+     * Only the upper bound is enforced. An initial design required a *minimum*
+     * leverage too ("anchors must matter here"), but that rejected perfectly
+     * good pure-aim layouts — variety in how much anchors help is a feature,
+     * not a defect — and each rejection costs another full solve sweep, which
+     * tripled generation time. So: measure always, reject only when anchors
+     * trivialize aiming ([MAX_LEVERAGE]).
+     */
+    const val LEVERAGE_PROBE_SHOTS = 5
+    const val LEVERAGE_GRID_X = 4
+    const val LEVERAGE_GRID_Y = 5
+    /**
+     * Shorter horizon than the main solver: a shot an anchor rescues connects
+     * early, so the long tail is wasted work. Keeps the probe affordable —
+     * generation is what a player waits on before their first shot.
+     */
+    const val LEVERAGE_MAX_TICKS = 420
+    const val MAX_LEVERAGE = 0.80
     val SOLVER_POWERS = intArrayOf(300, 500, 700, 900, 1000)
     private const val MAX_ATTEMPTS = 24
 
@@ -42,8 +68,13 @@ object SystemGenerator {
                         return candidate.copy(solverHitRate = rate)
                     }
                 }
-            } else {
-                if (rate in lo..hi) return candidate.copy(solverHitRate = rate)
+            } else if (rate in lo..hi) {
+                // The bare hit-rate says how hard the level looks. Anchor
+                // leverage says whether the player's own tools trivialize it.
+                val leverage = anchorLeverage(candidate, shooter = 0)
+                if (leverage <= MAX_LEVERAGE) {
+                    return candidate.copy(solverHitRate = rate, anchorLeverage = leverage)
+                }
             }
             // Track nearest miss as fallback (distance to band, log-ish).
             if (rate > 0) {
@@ -93,6 +124,80 @@ object SystemGenerator {
             angle += SOLVER_ANGLE_STEP
         }
         return hits.toDouble() / total
+    }
+
+    /**
+     * Fraction of missing sample shots that one anchor can convert into a hit.
+     * Cheap by construction: a handful of representative misses against a
+     * coarse anchor grid, with an early exit once the verdict is decided.
+     */
+    fun anchorLeverage(spec: SystemSpec, shooter: Int): Double {
+        val target = 1 - shooter
+        // Collect a spread of shots that currently miss.
+        val misses = ArrayList<Pair<Int, Int>>(LEVERAGE_PROBE_SHOTS)
+        var angle = 0
+        while (angle < 3600 && misses.size < LEVERAGE_PROBE_SHOTS) {
+            for (power in intArrayOf(450, 750, 1000)) {
+                if (misses.size >= LEVERAGE_PROBE_SHOTS) break
+                val res = LiveShot(
+                    spec.bodies, spec.stations, shooter, angle, power,
+                    ProjectileType.STANDARD.id, maxTicks = LEVERAGE_MAX_TICKS,
+                ).runToCompletion()
+                if (res.stationHits.none { it == target }) misses.add(angle to power)
+            }
+            angle += 260
+        }
+        if (misses.isEmpty()) return 1.0   // nothing missed: already trivial
+
+        var rescued = 0
+        for ((i, m) in misses.withIndex()) {
+            if (canOneAnchorRescue(spec, shooter, target, m.first, m.second)) rescued++
+            // Early exit once the outcome cannot change the verdict.
+            val remaining = misses.size - i - 1
+            if (rescued.toDouble() / misses.size > MAX_LEVERAGE) break
+            if ((rescued + remaining).toDouble() / misses.size <= MAX_LEVERAGE) break
+        }
+        return rescued.toDouble() / misses.size
+    }
+
+    private fun canOneAnchorRescue(
+        spec: SystemSpec,
+        shooter: Int,
+        target: Int,
+        angle: Int,
+        power: Int,
+    ): Boolean {
+        for (gx in 0 until LEVERAGE_GRID_X) {
+            for (gy in 0 until LEVERAGE_GRID_Y) {
+                val x = Tuning.WORLD_W * (gx + 0.5) / LEVERAGE_GRID_X
+                val y = Tuning.WORLD_H * (gy + 0.5) / LEVERAGE_GRID_Y
+                if (!anchorSpotClear(spec, x, y)) continue
+                for (attract in booleanArrayOf(true, false)) {
+                    val res = LiveShot(
+                        spec.bodies, spec.stations, shooter, angle, power,
+                        ProjectileType.STANDARD.id, maxTicks = LEVERAGE_MAX_TICKS,
+                        anchors = listOf(Anchor(x.toInt(), y.toInt(), attract)),
+                    ).runToCompletion()
+                    if (res.stationHits.any { it == target }) return true
+                }
+            }
+        }
+        return false
+    }
+
+    /** Mirrors the placement rule the UI enforces, so the probe is honest. */
+    private fun anchorSpotClear(spec: SystemSpec, x: Double, y: Double): Boolean {
+        for (b in spec.bodies) {
+            val dx = b.xAt(0) - x; val dy = b.yAt(0) - y
+            val min = b.radius + Tuning.ANCHOR_MIN_CLEARANCE
+            if (dx * dx + dy * dy < min * min) return false
+        }
+        for (st in spec.stations) {
+            val dx = st.x - x; val dy = st.y - y
+            val min = Tuning.STATION_RADIUS + Tuning.ANCHOR_MIN_CLEARANCE
+            if (dx * dx + dy * dy < min * min) return false
+        }
+        return true
     }
 
     private fun candidate(seed: Long, attempt: Int, difficulty: Int): SystemSpec? {

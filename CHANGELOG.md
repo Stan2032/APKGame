@@ -6,6 +6,11 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-05
+- **The difficulty solver stopped lying.** Anchors let players bend the field, so a hit-rate measured on a *fixed* field no longer describes how hard a level is — the game's "measured difficulty" guarantee had quietly become false the moment anchors shipped. `anchorLeverage` now measures the thing that actually matters: **of the shots that currently miss, what fraction can a single anchor rescue?** Systems where anchors trivialize aiming are rejected.
+- Corrected a design error of my own along the way: the first version also demanded a *minimum* leverage ("anchors must matter here"), which rejected perfectly good pure-aim layouts — variety in how much anchors help is a feature — and each rejection costs another full solve sweep, tripling generation time. Measure always, reject only trivialization.
+- Recorded an honest open question: duel generation measures ~330ms. Stashing the probe showed ~324ms without it, so this is not the probe — duels solve the aim space from both stations and 0.4.0's comets/pulsars added bodies to every sim. Logged as an optimisation target rather than left as folklore.
+
 ## [0.5.0] — 2026-08-05
 - **Anchors are playable.** Tap "Anchors", then tap the field to place up to three point masses that bend your own shot; tap one to flip it attract↔repel, again to remove. The aim preview updates live, so you *see* the curve you are authoring. This is the inversion VISION.md argues for: the player stops solving a fixed field and starts designing one. Anchors are spent by the shot they shaped, and in duels they travel inside the challenge code — so your opponent replays the arena exactly as you bent it.
 - Fixed a bug found while wiring it: replayed opponent shots were not being given their anchors, which would have desynced any anchored duel. Now covered by a test that fires an anchored shot and verifies the emitted code round-trips with its anchors intact.

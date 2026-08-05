@@ -86,6 +86,12 @@ data class SystemSpec(
     val stations: List<Station>,
     /** Fraction of solver sample shots that hit the target; a difficulty fingerprint. */
     val solverHitRate: Double,
+    /**
+     * Fraction of missing shots a single anchor can rescue. Measures whether
+     * the player's field-bending tools matter here without trivializing aim
+     * (SystemGenerator.anchorLeverage).
+     */
+    val anchorLeverage: Double = 0.0,
 )
 
 /**
@@ -174,12 +180,6 @@ object Tuning {
     const val COMET_HIT_BONUS = 40
 
     /**
-     * Slingshot scoring: a shot that leaves at speed S and reaches peak P has
-     * stolen (P - S) of velocity from the field itself. That is the whole
-     * fantasy of the game, so it pays — 1 point per unit of gain above the
-     * threshold, capped so a single lucky whip can't dwarf accuracy.
-     */
-    /**
      * Anchors: strong enough to visibly bend a shot within a few hundred
      * units, weak enough that they cannot trivially drag a shot to the
      * target from anywhere. Tuning this is the heart of Stage A balance.
@@ -189,6 +189,12 @@ object Tuning {
     const val MAX_ANCHORS = 3
     const val ANCHOR_MIN_CLEARANCE = 46.0
 
+    /**
+     * Slingshot scoring: a shot that leaves at speed S and reaches peak P has
+     * stolen (P - S) of velocity from the field itself. That is the whole
+     * fantasy of the game, so it pays — scaled per unit of gain above the
+     * threshold, capped so one lucky whip cannot dwarf accuracy.
+     */
     const val SLINGSHOT_MIN_GAIN = 60.0
     const val SLINGSHOT_PER_UNIT = 0.10
     const val SLINGSHOT_MAX_BONUS = 45

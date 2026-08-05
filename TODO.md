@@ -13,7 +13,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 ## VISION WORK (docs/VISION.md — the long game; production is not close)
 - [x] Stage A engine: anchors in TurnInput + simulation + codec v3 + tests.
 - [x] Stage A UI: anchor placement mode — tap to place, tap to flip, tap to remove; live preview; pips show budget. v0.5.0.
-- [ ] [A] **NEXT** Stage A: solver awareness — difficulty must account for anchor freedom, or every level reads as easier than measured.
+- [x] Stage A solver awareness: `anchorLeverage` measures what fraction of missing shots one anchor can rescue; levels that let anchors trivialize aiming are rejected. v0.6.0.
+- [ ] [A] Optimise duel generation (~330ms; both-sides solve × more bodies since 0.4.0). Not urgent — behind a loading screen — but it is the slowest path in the game.
 - [ ] [A] Stage B: Gambits (declare a constraint before firing for a multiplier; verify from the simulation).
 - [ ] [A] Stage C: objectives beyond destruction (Capture / Thread / Courier).
 - [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.

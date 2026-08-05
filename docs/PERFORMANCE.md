@@ -44,6 +44,11 @@ gameplay change gets audited against this doc before merge.
   screen. Halved by solver early-exit (bounds the achievable rate mid-scan and
   abandons provably out-of-band candidates); duel mode additionally skips the
   mirror-side solve unless side one is already in band.
+- **Duel generation ~330ms** (campaign worst case ~300ms). Duels solve the
+  aim space from *both* stations, and 0.4.0's comets/pulsars added bodies to
+  every sim. Measured by stashing the anchor-leverage probe: still ~324ms
+  without it, so the probe is not the cause. Open optimisation if duel start
+  ever feels slow — the mirror-side solve is the obvious target.
 - **Aim preview: ~0.065ms/call** at the highest tier with a splitting shot.
   Runs per drag event during composition; three orders of magnitude under a
   frame. **Do not "optimize" this** — it was measured, not assumed.
