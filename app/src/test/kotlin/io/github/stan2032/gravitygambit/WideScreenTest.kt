@@ -94,6 +94,23 @@ class WideScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "sw600dp-w674dp-h841dp-xhdpi")   // unfolded foldable, book posture
+    fun matchScreenComposesOnAnUnfoldedFoldable() {
+        showMatch()
+        awaitText("FIRE")
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h420dp-xhdpi")   // split-screen: short and narrow
+    fun matchScreenSurvivesSplitScreen() {
+        // Multi-window hands apps awkward, near-square viewports. The board
+        // shrinks but controls must remain present rather than being clipped
+        // away — a crash or missing FIRE button here is a 1-star review.
+        showMatch()
+        awaitText("FIRE")
+    }
+
+    @Test
     @Config(qualifiers = "sw600dp-w1280dp-h800dp-xhdpi")
     fun menusComposeOnALargeScreen() {
         compose.setContent {

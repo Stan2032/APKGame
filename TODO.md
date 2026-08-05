@@ -42,7 +42,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## V2 HORIZON
 - [ ] Realtime P2P duels: WebRTC lockstep over existing deterministic engine (docs/MULTIPLAYER.md §Phase 2; needs INTERNET + tiny signaling svc).
-- [ ] Orbital motion for bodies (deterministic rails pos(t); ShareCodec VERSION bump — docs/TUNING.md §Versioning; MAJOR under SemVer post-1.0).
+- [ ] Orbital motion for bodies (deterministic rails pos(tick); ShareCodec VERSION bump — docs/TUNING.md §Versioning; MAJOR under SemVer post-1.0). **Assessed 2026-08-04 (D-22): no engine restructuring needed** — body positions are read in only two hot-loop sites, `Body` is already immutable, and motion is a pure function of the integer tick. Changes are additive; the real cost is the protocol break and a `RenderCache` rethink. Do not pre-refactor for it.
 - [ ] Daily ghost replays (codes already carry everything needed).
 - [ ] Weekly leagues on seed sets.
 
