@@ -4,6 +4,7 @@ Living state lives at repo root: [TODO.md](../TODO.md) (work queue) · [CHANGELO
 
 | Doc | One-liner |
 |---|---|
+| **[VISION.md](VISION.md)** | **Read first for direction:** honest diagnosis of what the game lacks, and the mechanics that fix it (anchors, gambits, expeditions) |
 | [DESIGN.md](DESIGN.md) | Game design + the argued-out rationale for every pillar |
 | [DECISIONS.md](DECISIONS.md) | ADRs: every architectural choice, why, and when to revisit |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Dense code map, data flow, threading, persistence |

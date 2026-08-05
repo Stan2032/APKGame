@@ -292,9 +292,17 @@ private fun MatchUI(
             else -> "Star system ${c.spec.name}"
         }
 
+        // Portrait reserves rows for the HUD and controls instead of floating
+        // them over the board: on tall phones the world letterboxes to less
+        // than the screen height, and overlaying meant the controls covered
+        // play area. The canvas takes the space that is actually left.
+        val topReserve = if (wide) 0.dp else 62.dp
+        val bottomReserve = if (wide) 0.dp else 188.dp
+
         Canvas(
             Modifier
                 .fillMaxSize()
+                .padding(top = topReserve, bottom = bottomReserve)
                 .semantics { contentDescription = worldDescription }
                 .onSizeChanged { canvasSize = it }
                 .pointerInput(c) {
@@ -367,8 +375,16 @@ private fun MatchUI(
                 verticalArrangement = Arrangement.Center,
             ) { ControlsContent(c, profile, sound) }
         } else {
-            TopHud(c)
-            BottomControls(c, profile, sound)
+            Column(Modifier.align(Alignment.TopCenter)) { TopHud(c) }
+            Column(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .heightIn(min = bottomReserve)
+                    .safeDrawingPadding()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.Bottom,
+            ) { ControlsContent(c, profile, sound) }
         }
 
         // One-time coaching line for the very first level of a fresh profile.

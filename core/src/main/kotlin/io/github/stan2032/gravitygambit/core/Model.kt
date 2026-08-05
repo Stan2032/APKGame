@@ -101,7 +101,22 @@ data class TurnInput(
     val power: Int,
     val typeId: Int,
     val brakeTick: Int,
+    /**
+     * Player-placed masses that bend this shot (docs/VISION.md §3.1).
+     * Quantized to integer world coordinates so they stay replay-safe.
+     */
+    val anchors: List<Anchor> = emptyList(),
 )
+
+/**
+ * A point mass the player places before firing: the mechanic that turns the
+ * player from a solver of the field into its author. [attract] false makes it
+ * repel. Coordinates are integers — determinism depends on it.
+ */
+@Serializable
+data class Anchor(val x: Int, val y: Int, val attract: Boolean) {
+    val mass: Double get() = if (attract) Tuning.ANCHOR_MASS else -Tuning.ANCHOR_MASS
+}
 
 enum class ProjectileType(
     val id: Int,
@@ -164,6 +179,16 @@ object Tuning {
      * fantasy of the game, so it pays — 1 point per unit of gain above the
      * threshold, capped so a single lucky whip can't dwarf accuracy.
      */
+    /**
+     * Anchors: strong enough to visibly bend a shot within a few hundred
+     * units, weak enough that they cannot trivially drag a shot to the
+     * target from anywhere. Tuning this is the heart of Stage A balance.
+     */
+    const val ANCHOR_MASS = 9.0e5
+    const val ANCHOR_RADIUS = 9.0
+    const val MAX_ANCHORS = 3
+    const val ANCHOR_MIN_CLEARANCE = 46.0
+
     const val SLINGSHOT_MIN_GAIN = 60.0
     const val SLINGSHOT_PER_UNIT = 0.10
     const val SLINGSHOT_MAX_BONUS = 45

@@ -134,11 +134,20 @@ class ShareCodecTest {
         return ShareCodec.PREFIX + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(out)
     }
 
+    /** The version byte of a freshly encoded code — i.e. whatever is current. */
+    private fun currentVersion(): Int {
+        val v = ShareCodec.encode(sampleRecord())
+        return java.util.Base64.getUrlDecoder()
+            .decode(v.removePrefix(ShareCodec.PREFIX))[2].toInt()
+    }
+
     @Test
-    fun supersededProtocolVersionIsRejected() {
-        // v1 predates moving bodies and slingshot scoring, so replaying one
-        // would produce a different universe. Refuse rather than mis-verify.
-        assertNull("v1 codes must not verify against v2 physics", ShareCodec.decode(reversioned(1)))
+    fun everySupersededProtocolVersionIsRejected() {
+        // Each bump changed what a code means, so no older version may verify.
+        // Derived from the current version so this test cannot go stale.
+        for (old in 1 until currentVersion()) {
+            assertNull("v$old codes must not verify against current physics", ShareCodec.decode(reversioned(old)))
+        }
     }
 
     @Test
@@ -146,7 +155,10 @@ class ShareCodecTest {
         // Build a payload identical to v1 but with version byte 2 and a valid
         // CRC: decode must reject it cleanly. Guards the TUNING.md rule that
         // sim-constant changes ship behind a version bump.
-        assertNull("future protocol version must be rejected", ShareCodec.decode(reversioned(3)))
+        assertNull(
+            "future protocol version must be rejected",
+            ShareCodec.decode(reversioned(currentVersion() + 1)),
+        )
     }
 }
 

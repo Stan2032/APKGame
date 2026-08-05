@@ -99,6 +99,48 @@ class MovingBodyTest {
     }
 
     @Test
+    fun anchorsBendTheShotAndStayDeterministic() {
+        val spec = field()
+        val plain = LiveShot(spec.bodies, spec.stations, 0, 2700, 700, 0).runToCompletion()
+        val anchors = listOf(Anchor(640, 1100, attract = true))
+        val bent = LiveShot(spec.bodies, spec.stations, 0, 2700, 700, 0, anchors = anchors).runToCompletion()
+        assertNotEquals("an anchor must change the trajectory", plain.hash, bent.hash)
+        val again = LiveShot(spec.bodies, spec.stations, 0, 2700, 700, 0, anchors = anchors).runToCompletion()
+        assertEquals("anchored shots must stay deterministic", bent.hash, again.hash)
+    }
+
+    @Test
+    fun repellingAnchorPushesTheOppositeWayFromAnAttractingOne() {
+        val spec = field()
+        val pull = LiveShot(
+            spec.bodies, spec.stations, 0, 2700, 700, 0,
+            anchors = listOf(Anchor(600, 1100, attract = true)),
+        ).runToCompletion()
+        val push = LiveShot(
+            spec.bodies, spec.stations, 0, 2700, 700, 0,
+            anchors = listOf(Anchor(600, 1100, attract = false)),
+        ).runToCompletion()
+        assertNotEquals("attract and repel must differ", pull.hash, push.hash)
+    }
+
+    @Test
+    fun anchorsSurviveTheShareCodeRoundTrip() {
+        // Anchors are part of the shot, so a replay must reproduce them
+        // exactly — otherwise a verified code would show a different shot.
+        val seed = Seeds.duelRandom(555L)
+        val spec = SystemGenerator.generate(seed, Seeds.DUEL_DIFFICULTY, GameMode.DUEL)
+        val engine = MatchEngine(spec, GameMode.DUEL)
+        val anchors = listOf(Anchor(420, 900, true), Anchor(700, 640, false))
+        engine.commit(engine.beginShot(2700, 800, 0, -1, anchors).runToCompletion())
+        val code = ShareCodec.encode(
+            MatchRecord(GameMode.DUEL.id, Seeds.DUEL_DIFFICULTY, seed, engine.turns, engine.combinedHash)
+        )
+        val verified = ShareCodec.decodeAndVerify(code)
+        assertNotNull("anchored matches must verify", verified)
+        assertEquals(anchors, verified!!.record.turns[0].anchors)
+    }
+
+    @Test
     fun generatedSystemsWithMotionStillVerifyEndToEnd() {
         // The full PVP pipeline must survive moving bodies.
         val seed = Seeds.campaign(4, 2)

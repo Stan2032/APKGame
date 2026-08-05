@@ -23,15 +23,16 @@ object ShareCodec {
     const val PREFIX = "GG1."
 
     /**
-     * Bumped to 2 when moving bodies (comets), pulsars and slingshot scoring
-     * landed: those change simulated outcomes, so a v1 code would replay into
-     * a different universe. Old codes are refused rather than silently
-     * mis-verified (docs/TUNING.md §Versioning).
+     * v2 added moving bodies, pulsars and slingshot scoring; v3 added player
+     * anchors to TurnInput. Both change what a code means, so superseded
+     * versions are refused rather than silently mis-verified
+     * (docs/TUNING.md §Versioning).
      */
-    private const val VERSION = 2
+    private const val VERSION = 3
 
     fun encode(record: MatchRecord): String {
-        val buf = ByteBuffer.allocate(16 + 1 + record.turns.size * 8 + 8 + 4)
+        val anchorBytes = record.turns.sumOf { it.anchors.size * 5 }
+        val buf = ByteBuffer.allocate(16 + 1 + record.turns.size * 9 + anchorBytes + 8 + 4)
         buf.put('G'.code.toByte()).put('G'.code.toByte())
         buf.put(VERSION.toByte())
         buf.put(record.mode.toByte())
@@ -44,6 +45,12 @@ object ShareCodec {
             buf.putShort(t.power.toShort())
             buf.put(t.typeId.toByte())
             buf.putShort(t.brakeTick.toShort())
+            buf.put(t.anchors.size.toByte())
+            for (a in t.anchors) {
+                buf.putShort(a.x.toShort())
+                buf.putShort(a.y.toShort())
+                buf.put(if (a.attract) 1 else 0)
+            }
         }
         buf.putLong(record.hash)
         val body = ByteArray(buf.position())
@@ -76,17 +83,29 @@ object ShareCodec {
         val difficulty = buf.get().toInt()
         val seed = buf.long
         val turnCount = buf.get().toInt() and 0xFF
-        if (turnCount > 64 || buf.remaining() != turnCount * 8 + 8) return null
+        if (turnCount > 64) return null
         val turns = ArrayList<TurnInput>(turnCount)
         repeat(turnCount) {
+            if (buf.remaining() < 9) return null
             val shooter = buf.get().toInt()
             val angle = buf.short.toInt()
             val power = buf.short.toInt()
             val typeId = buf.get().toInt()
             val brake = buf.short.toInt()
+            val anchorCount = buf.get().toInt() and 0xFF
             if (shooter !in 0..1 || angle !in 0..3599 || power !in 0..1000) return null
-            turns.add(TurnInput(shooter, angle, power, typeId, brake))
+            if (anchorCount > Tuning.MAX_ANCHORS) return null
+            if (buf.remaining() < anchorCount * 5 + 8) return null
+            val anchors = ArrayList<Anchor>(anchorCount)
+            repeat(anchorCount) {
+                val ax = buf.short.toInt()
+                val ay = buf.short.toInt()
+                val attract = buf.get().toInt() != 0
+                anchors.add(Anchor(ax, ay, attract))
+            }
+            turns.add(TurnInput(shooter, angle, power, typeId, brake, anchors))
         }
+        if (buf.remaining() != 8) return null
         val hash = buf.long
         return MatchRecord(mode, difficulty, seed, turns, hash)
     }

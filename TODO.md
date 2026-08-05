@@ -10,6 +10,16 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 > multi-day waits (ID verification, bank micro-deposit, 12 testers × 14 days)
 > should all be started as early as possible; they, not the code, set the date.
 
+## VISION WORK (docs/VISION.md — the long game; production is not close)
+- [x] Stage A engine: anchors in TurnInput + simulation + codec v3 + tests.
+- [ ] [A] Stage A UI: anchor placement mode (tap to place/toggle attract-repel, budget of 3, preview updates live).
+- [ ] [A] Stage A: solver awareness — difficulty must account for anchor freedom, or every level reads as easier than measured.
+- [ ] [A] Stage B: Gambits (declare a constraint before firing for a multiplier; verify from the simulation).
+- [ ] [A] Stage C: objectives beyond destruction (Capture / Thread / Courier).
+- [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
+- [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
+- [ ] [A] Stage F: debris from misses.
+
 ## NOW (blocks first playtest / release track)
 - [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.

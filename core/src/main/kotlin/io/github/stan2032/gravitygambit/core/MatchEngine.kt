@@ -56,8 +56,16 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         else -> 1
     }
 
-    fun beginShot(angleDeci: Int, power: Int, typeId: Int, presetBrakeTick: Int = -1): LiveShot =
-        LiveShot(spec.bodies, stations, currentShooter, angleDeci, power, typeId, presetBrakeTick)
+    fun beginShot(
+        angleDeci: Int,
+        power: Int,
+        typeId: Int,
+        presetBrakeTick: Int = -1,
+        anchors: List<Anchor> = emptyList(),
+    ): LiveShot = LiveShot(
+        spec.bodies, stations, currentShooter, angleDeci, power, typeId,
+        presetBrakeTick, Tuning.MAX_TICKS, anchors,
+    )
 
     /** Apply a finished shot to match state. Must be called exactly once per shot. */
     fun commit(result: ShotResult) {
@@ -144,7 +152,7 @@ object MatchReplayer {
         val engine = MatchEngine(spec, mode)
         for (t in turns) {
             if (engine.over) break
-            val shot = engine.beginShot(t.angleDeci, t.power, t.typeId, t.brakeTick)
+            val shot = engine.beginShot(t.angleDeci, t.power, t.typeId, t.brakeTick, t.anchors)
             engine.commit(shot.runToCompletion())
         }
         return Rebuilt(engine, engine.combinedHash)

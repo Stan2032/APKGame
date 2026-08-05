@@ -41,6 +41,8 @@ class LiveShot(
     private val typeId: Int,
     presetBrakeTick: Int = -1,
     private val maxTicks: Int = Tuning.MAX_TICKS,
+    /** Player-placed masses bending this shot (docs/VISION.md §3.1). */
+    private val anchors: List<Anchor> = emptyList(),
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -92,6 +94,9 @@ class LiveShot(
         peakSpeed2 = speed * speed
         projs.add(Proj(nextId++, launchX, launchY, dirX * speed, dirY * speed, type.radius))
         foldHash(angleDeci.toLong()); foldHash(power.toLong()); foldHash(typeId.toLong())
+        for (a in anchors) {
+            foldHash(a.x.toLong()); foldHash(a.y.toLong()); foldHash(if (a.attract) 1L else 0L)
+        }
     }
 
     /** Arm the RETRO brake right now (records the exact tick into the replay input). */
@@ -110,7 +115,8 @@ class LiveShot(
     }
 
     /** The finalized input, including the actual brake tick — this is what gets shared. */
-    fun finalInput(): TurnInput = TurnInput(shooter, angleDeci, power, typeId, if (brakeUsed) brakeTick else -1)
+    fun finalInput(): TurnInput =
+        TurnInput(shooter, angleDeci, power, typeId, if (brakeUsed) brakeTick else -1, anchors)
 
     var result: ShotResult? = null; private set
 
@@ -160,6 +166,18 @@ class LiveShot(
                 if (surface < minSurfaceDist) minSurfaceDist = surface
             }
         }
+        // Anchors: the player's own contribution to the field. Same softened
+        // inverse-square law, so a hand-placed mass behaves like any other.
+        for (a in anchors) {
+            val dx = a.x - p.px
+            val dy = a.y - p.py
+            val r2 = dx * dx + dy * dy + Tuning.SOFTENING2
+            val r = Math.sqrt(r2)
+            val acc = a.mass / r2
+            ax += acc * dx / r
+            ay += acc * dy / r
+        }
+
         // Semi-implicit (symplectic) Euler: stable orbits, no energy explosion.
         p.vx += ax * Tuning.DT
         p.vy += ay * Tuning.DT
