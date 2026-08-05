@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.BodyKind
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Rng
@@ -511,4 +512,40 @@ fun DrawScope.drawExplosion(e: Explosion, progress: Float, tr: WorldTransform, c
 
 fun DrawScope.drawVignette(cache: RenderCache) {
     drawRect(brush = cache.vignette, size = cache.canvasSize)
+}
+
+/**
+ * Player-placed anchors (docs/VISION.md §3.1). Attractors pull inward,
+ * repulsors push outward, and the animated field rings make which-is-which
+ * readable at a glance without a legend. While placing, they pulse brighter
+ * so the player can see what they are editing.
+ */
+fun DrawScope.drawAnchors(
+    anchors: List<Anchor>,
+    placing: Boolean,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    for (a in anchors) {
+        val c = tr.o(a.x.toDouble(), a.y.toDouble())
+        val base = tr.r(Tuning.ANCHOR_RADIUS)
+        val color = if (a.attract) AccentCyan else DangerRed
+        val emphasis = if (placing) 1f else 0.72f
+
+        // Field rings: inward for attract, outward for repel.
+        for (k in 0..2) {
+            val phase = (t * 0.9f + k * 0.33f) % 1f
+            val ring = if (a.attract) 1f - phase else phase
+            drawCircle(
+                color.copy(alpha = (1f - kotlin.math.abs(ring - 0.5f) * 2f) * 0.35f * emphasis),
+                base * (1.6f + ring * 3.2f),
+                c,
+                style = Stroke(cache.thin),
+            )
+        }
+        drawCircle(color.copy(alpha = 0.22f * emphasis), base * 2.2f, c)
+        drawCircle(color, base, c)
+        drawCircle(Color.White.copy(alpha = 0.9f * emphasis), base * 0.42f, c)
+    }
 }

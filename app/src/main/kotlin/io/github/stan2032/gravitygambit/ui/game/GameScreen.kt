@@ -6,6 +6,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -247,11 +249,12 @@ private fun MatchUI(
     }
 
     val previewTicks = Economy.previewTicks(profile.previewLevel)
-    val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase) {
+    val anchorSig = c.anchors.joinToString { "${'$'}{it.x},${'$'}{it.y},${'$'}{it.attract}" }
+    val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig) {
         if (c.phase == Phase.AIMING && c.isMyTurn) {
             Preview.trajectories(
                 c.spec.bodies, c.engine.stations, c.engine.currentShooter,
-                c.aimAngleDeci, c.aimPower, c.selectedType, previewTicks,
+                c.aimAngleDeci, c.aimPower, c.selectedType, previewTicks, c.anchors.toList(),
             )
         } else emptyList()
     }
@@ -305,10 +308,17 @@ private fun MatchUI(
                 .padding(top = topReserve, bottom = bottomReserve)
                 .semantics { contentDescription = worldDescription }
                 .onSizeChanged { canvasSize = it }
-                .pointerInput(c) {
+                .pointerInput(c, c.placingAnchors) {
+                    detectTapGestures { pos ->
+                        if (c.phase == Phase.AIMING && c.isMyTurn && c.placingAnchors) {
+                            tr?.let { c.tapAnchor(it.toWorld(pos)) }
+                        }
+                    }
+                }
+                .pointerInput(c, c.placingAnchors) {
                     detectDragGestures(
                         onDragStart = { pos ->
-                            if (c.phase == Phase.AIMING && c.isMyTurn) {
+                            if (c.phase == Phase.AIMING && c.isMyTurn && !c.placingAnchors) {
                                 c.aiming = true
                                 tr?.let { c.setAimFromDrag(it.toWorld(pos)) }
                             }
@@ -316,7 +326,7 @@ private fun MatchUI(
                         onDragEnd = { c.aiming = false },
                         onDragCancel = { c.aiming = false },
                         onDrag = { change, _ ->
-                            if (c.phase == Phase.AIMING && c.isMyTurn) {
+                            if (c.phase == Phase.AIMING && c.isMyTurn && !c.placingAnchors) {
                                 tr?.let { c.setAimFromDrag(it.toWorld(change.position)) }
                             }
                         },
@@ -336,6 +346,7 @@ private fun MatchUI(
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawPreview(previewPaths, t)
             }
+            drawAnchors(c.anchors, c.placingAnchors, time, t, cch)
             if (c.trailVersion >= 0) { // draw-phase dependency on trail mutations
                 drawTrail(c.trail, trailLut, t)
             }
@@ -529,6 +540,8 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
     Column {
         when {
             c.phase == Phase.AIMING && c.isMyTurn -> {
+                AnchorBar(c)
+                Spacer(Modifier.height(6.dp))
                 PowerMeter(c.aimPower)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -587,6 +600,57 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                 }
             }
         }
+    }
+}
+
+/**
+ * The anchor control. Anchors are the game's signature idea, so the bar is
+ * always visible while aiming — it teaches by presence — and shows the budget
+ * as filled pips rather than a number.
+ */
+@Composable
+private fun AnchorBar(c: MatchController) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val active = c.placingAnchors
+        TextButton(
+            onClick = { c.placingAnchors = !c.placingAnchors },
+            modifier = Modifier.semantics {
+                contentDescription = if (active) "Finish placing anchors" else "Place anchors"
+            },
+        ) {
+            Text(
+                if (active) "Done placing" else "Anchors",
+                color = if (active) StarYellow else AccentCyan,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        for (i in 0 until Tuning.MAX_ANCHORS) {
+            val used = i < c.anchors.size
+            Box(
+                Modifier
+                    .padding(horizontal = 3.dp)
+                    .size(if (used) 11.dp else 9.dp)
+                    .background(
+                        if (used) {
+                            if (c.anchors[i].attract) AccentCyan else DangerRed
+                        } else PanelColor,
+                        androidx.compose.foundation.shape.CircleShape,
+                    )
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        if (c.anchors.isNotEmpty()) {
+            TextButton(onClick = { c.clearAnchors() }) {
+                Text("Clear", fontSize = 13.sp, color = TextDim)
+            }
+        }
+    }
+    if (c.placingAnchors) {
+        Text(
+            "Tap the field to place. Tap an anchor to flip it, again to remove.",
+            color = TextDim, fontSize = 11.sp,
+        )
     }
 }
 

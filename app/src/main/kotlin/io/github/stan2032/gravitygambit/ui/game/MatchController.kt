@@ -1,8 +1,10 @@
 package io.github.stan2032.gravitygambit.ui.game
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.LiveShot
 import io.github.stan2032.gravitygambit.core.MatchEngine
@@ -15,6 +17,7 @@ import io.github.stan2032.gravitygambit.core.ShareCodec
 import io.github.stan2032.gravitygambit.core.ShotResult
 import io.github.stan2032.gravitygambit.core.SystemGenerator
 import io.github.stan2032.gravitygambit.core.SystemSpec
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.core.TurnInput
 import io.github.stan2032.gravitygambit.core.Vec2
 import io.github.stan2032.gravitygambit.ui.GameLaunch
@@ -69,6 +72,55 @@ class MatchController private constructor(
     var aimPower by mutableStateOf(550)
     var selectedType by mutableStateOf(ProjectileType.STANDARD.id)
     var aiming by mutableStateOf(false)
+
+    /**
+     * Player-placed masses for the shot being aimed (docs/VISION.md §3.1).
+     * This is the mechanic that turns the player from a solver of the field
+     * into its author, so it lives in aim state and resets per shot.
+     */
+    val anchors = mutableStateListOf<Anchor>()
+    var placingAnchors by mutableStateOf(false)
+
+    /**
+     * Tap handling for anchor mode: an empty spot places a new attracting
+     * anchor; tapping an existing one cycles attract -> repel -> gone. One
+     * gesture, no modal buttons, and every state reachable in three taps.
+     */
+    fun tapAnchor(at: Vec2) {
+        val hitIndex = anchors.indexOfFirst { a ->
+            val dx = a.x - at.x
+            val dy = a.y - at.y
+            dx * dx + dy * dy < ANCHOR_TAP_RADIUS * ANCHOR_TAP_RADIUS
+        }
+        if (hitIndex >= 0) {
+            val a = anchors[hitIndex]
+            if (a.attract) anchors[hitIndex] = a.copy(attract = false) else anchors.removeAt(hitIndex)
+            return
+        }
+        if (anchors.size >= Tuning.MAX_ANCHORS) return
+        if (!isAnchorSpotLegal(at)) return
+        anchors.add(Anchor(at.x.roundToInt(), at.y.roundToInt(), attract = true))
+    }
+
+    /** Anchors may not be dropped on top of a body or a station. */
+    fun isAnchorSpotLegal(at: Vec2): Boolean {
+        if (at.x < 0 || at.y < 0 || at.x > Tuning.WORLD_W || at.y > Tuning.WORLD_H) return false
+        for (b in spec.bodies) {
+            val dx = b.xAt(0) - at.x
+            val dy = b.yAt(0) - at.y
+            val min = b.radius + Tuning.ANCHOR_MIN_CLEARANCE
+            if (dx * dx + dy * dy < min * min) return false
+        }
+        for (s in engine.stations) {
+            val dx = s.x - at.x
+            val dy = s.y - at.y
+            val min = Tuning.STATION_RADIUS + Tuning.ANCHOR_MIN_CLEARANCE
+            if (dx * dx + dy * dy < min * min) return false
+        }
+        return true
+    }
+
+    fun clearAnchors() = anchors.clear()
 
     var liveShot: LiveShot? = null; private set
     var isReplaying by mutableStateOf(false); private set
@@ -133,15 +185,18 @@ class MatchController private constructor(
         if (phase != Phase.AIMING) return
         isReplaying = false
         brakeUsed = false
-        liveShot = engine.beginShot(aimAngleDeci, aimPower, selectedType)
+        liveShot = engine.beginShot(aimAngleDeci, aimPower, selectedType, -1, anchors.toList())
         trail.clear(); trailVersion++
+        placingAnchors = false
         phase = Phase.FLYING
     }
 
     private fun startReplay(turn: TurnInput) {
         isReplaying = true
         brakeUsed = true // replayed shots brake themselves via presetBrakeTick
-        liveShot = engine.beginShot(turn.angleDeci, turn.power, turn.typeId, turn.brakeTick)
+        liveShot = engine.beginShot(
+            turn.angleDeci, turn.power, turn.typeId, turn.brakeTick, turn.anchors,
+        )
         trail.clear(); trailVersion++
         phase = Phase.FLYING
     }
@@ -216,12 +271,17 @@ class MatchController private constructor(
                     phase = Phase.HANDOFF
                 }
             }
-            else -> phase = Phase.AIMING // keep last aim: campaign/daily players iterate on it
+            else -> {
+                // Anchors are consumed by the shot they shaped.
+                anchors.clear()
+                phase = Phase.AIMING // keep last aim: campaign/daily iterate on it
+            }
         }
     }
 
     /** Duel turns flip sides; point the new shooter roughly at the enemy. */
     private fun resetAimFor(shooter: Int) {
+        anchors.clear()
         aimAngleDeci = if (shooter == 0) 2700 else 900
         aimPower = 550
     }
@@ -306,6 +366,8 @@ class MatchController private constructor(
         const val PLAYBACK_TICKS_PER_SEC = 120
         const val MAX_TICKS_PER_FRAME = 8   // catch-up clamp after jank/pauses
         const val TRAIL_CAP = 600
+        /** World-space tap tolerance for grabbing an existing anchor. */
+        const val ANCHOR_TAP_RADIUS = 46.0
 
         /**
          * Heavy: generates (or verifies + rebuilds) the star system. Run on a

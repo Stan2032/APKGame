@@ -336,8 +336,12 @@ object Preview {
         power: Int,
         typeId: Int,
         maxTicks: Int,
+        anchors: List<Anchor> = emptyList(),
     ): List<List<Vec2>> {
-        val shot = LiveShot(bodies, stations, shooter, angleDeci, power, typeId, maxTicks = maxTicks)
+        val shot = LiveShot(
+            bodies, stations, shooter, angleDeci, power, typeId,
+            maxTicks = maxTicks, anchors = anchors,
+        )
         val paths = LinkedHashMap<Int, MutableList<Vec2>>()
         while (!shot.done) {
             shot.step()

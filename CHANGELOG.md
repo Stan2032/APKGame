@@ -6,6 +6,12 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-05
+- **Anchors are playable.** Tap "Anchors", then tap the field to place up to three point masses that bend your own shot; tap one to flip it attract↔repel, again to remove. The aim preview updates live, so you *see* the curve you are authoring. This is the inversion VISION.md argues for: the player stops solving a fixed field and starts designing one. Anchors are spent by the shot they shaped, and in duels they travel inside the challenge code — so your opponent replays the arena exactly as you bent it.
+- Fixed a bug found while wiring it: replayed opponent shots were not being given their anchors, which would have desynced any anchored duel. Now covered by a test that fires an anchored shot and verifies the emitted code round-trips with its anchors intact.
+- Fixed the reported **HUD overlap**: the HUD floated over the canvas, and since the portrait board letterboxes to less than screen height the controls ate into play area. Portrait now reserves rows; the canvas takes what is left.
+- Tests: 96.
+
 ## [0.4.0] — 2026-08-05
 - **Moving bodies.** Comets drift across the field on deterministic rails and pay a bonus if you can lead one; pulsars breathe, their gravity swelling and fading on a fixed period so timing becomes part of the shot. Both are pure functions of the simulation tick, so determinism survives untouched — exactly as the D-22 assessment predicted, and no engine restructuring was needed.
 - **Slingshot scoring.** Peak speed is tracked per shot, and velocity stolen from the field (peak minus launch) now pays out. This rewards the game's actual fantasy: whipping around a planet instead of lobbing straight.
