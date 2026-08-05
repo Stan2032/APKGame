@@ -30,6 +30,8 @@ val BodyPalettes = listOf(
     Pair(Color(0xFFCE93D8), Color(0xFF4A148C)),  // 5 violet
     Pair(Color(0xFFBCAAA4), Color(0xFF3E2723)),  // 6 rock
     Pair(Color(0xFFFF5370), Color(0xFF880E4F)),  // 7 repulsor
+    Pair(Color(0xFFB388FF), Color(0xFF311B92)),  // 8 pulsar
+    Pair(Color(0xFF80DEEA), Color(0xFF006064)),  // 9 comet
 )
 
 @Composable

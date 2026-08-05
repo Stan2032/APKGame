@@ -5,6 +5,17 @@ Format: version · date, then commit-anchored entries, newest first.
 No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
+
+## [0.4.0] — 2026-08-05
+- **Moving bodies.** Comets drift across the field on deterministic rails and pay a bonus if you can lead one; pulsars breathe, their gravity swelling and fading on a fixed period so timing becomes part of the shot. Both are pure functions of the simulation tick, so determinism survives untouched — exactly as the D-22 assessment predicted, and no engine restructuring was needed.
+- **Slingshot scoring.** Peak speed is tracked per shot, and velocity stolen from the field (peak minus launch) now pays out. This rewards the game's actual fantasy: whipping around a planet instead of lobbing straight.
+- ⚠️ **Replay protocol bumped to v2.** Simulated outcomes changed, so v1 codes are refused rather than silently mis-verified. Nothing has shipped publicly, so no player codes exist in the wild — this is why the break was taken now rather than after launch.
+- **Aiming redesigned.** The "∠ 270.0° ⚡ 55.0%" readout read as instrumentation and said nothing about whether a shot would reach; replaced with a filled power meter labelled by feel (Light → Full) and larger, labelled fine-tune controls.
+- **Home rebuilt** away from stock Material cards: hairline-bordered slates with drawn orbit/comet/duel/spark glyphs over the live starfield, so the first screen belongs to this game specifically.
+- **Copy trimmed throughout** — the UI over-explained itself. Roughly 700 characters removed from Duel, Shop, Settings and Help; mechanisms still named, lectures removed. The stale hardcoded "0.1.0" in About now reads the real build version.
+- Tests: 87 (new `MovingBodyTest` covers comet motion, wrapping, pulsar periodicity, slingshot payout and end-to-end verification with drifting bodies).
+
+## [0.3.x development] — 2026-08-04
 - `pending` — `DuelFlowUiTest`: the duel hand-off overlay — where the headline feature actually happens — was the last untested UI. Now drives a real shot through the composed screen: code duels surface "Shot locked in" with Share/Copy, hot-seat asks for the phone and never offers a code, and tapping through hands control to player two.
 - `pending` — Moved the daily-streak calculation from `ProfileRepository` into `:core` as a pure function (`Economy.dailyStreakAfter`). It is a game rule, so per D-7 it belongs in core — and there it is testable without DataStore. Tests lock consecutive days, gaps, same-day replays (no inflation), and the UTC-midnight case: a run launched at 23:58 belongs to the day it started, so finishing after midnight neither skips a day nor restarts the streak. Tests: 79 total.
 - `pending` — Docs de-drift: `ARCHITECTURE.md` still described the pre-rework renderer and claimed "live sim @2 ticks/frame" (the 120Hz bug I fixed), and predated RenderCache, the ambient backdrop, sound, ads, share messages, feedback, the wide-screen layout and `tools/`. Corrected — agents are instructed to trust these docs, so drift actively misleads.

@@ -1,41 +1,56 @@
 package io.github.stan2032.gravitygambit.ui.screens
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.AccentPurple
 import io.github.stan2032.gravitygambit.ui.GameLaunch
 import io.github.stan2032.gravitygambit.ui.Nav
-import io.github.stan2032.gravitygambit.ui.PanelTranslucent
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
-import io.github.stan2032.gravitygambit.core.GameMode
 import java.time.LocalDate
 import java.time.ZoneOffset
 
+/**
+ * Home is the first thing anyone sees, so it does not use stock Material
+ * cards: each entry is a hairline-bordered slate with its own drawn orbit
+ * glyph, sitting over the live starfield. The look should belong to this
+ * game and no other (docs/AI_LOOK_AVOIDANCE.md).
+ */
 @Composable
 fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
     Column(
@@ -43,24 +58,26 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
             .fillMaxSize()
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(40.dp))
-        Text("GRAVITY", fontSize = 40.sp, fontWeight = FontWeight.Black, color = TextPrimary, letterSpacing = 8.sp)
-        Text("GAMBIT", fontSize = 40.sp, fontWeight = FontWeight.Black, color = AccentCyan, letterSpacing = 8.sp)
-        Spacer(Modifier.height(6.dp))
-        Text("slingshot artillery in living star systems", color = TextDim, fontSize = 13.sp)
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(44.dp))
+        Text("GRAVITY", fontSize = 42.sp, fontWeight = FontWeight.Black, color = TextPrimary, letterSpacing = 9.sp)
+        Text("GAMBIT", fontSize = 42.sp, fontWeight = FontWeight.Black, color = AccentCyan, letterSpacing = 9.sp)
+        Spacer(Modifier.height(30.dp))
 
-        MenuEntry(
-            icon = "🚀", title = "Campaign",
-            note = "★ ${profile.totalStars} collected",
+        Entry(
+            glyph = Glyph.ORBIT,
+            title = "Campaign",
+            detail = if (profile.totalStars > 0) "${profile.totalStars} stars" else "Start the first sector",
+            accent = AccentCyan,
         ) { onNavigate(Nav.Campaign) }
 
-        MenuEntry(
-            icon = "🌌", title = "Daily Challenge",
-            note = if (profile.dailyStreak > 0) "🔥 streak: ${profile.dailyStreak}" else "same seed for everyone, every day",
+        Entry(
+            glyph = Glyph.COMET,
+            title = "Daily Challenge",
+            detail = if (profile.dailyStreak > 0) "${profile.dailyStreak}-day streak" else "One system, everyone, today",
+            accent = StarYellow,
         ) {
             val day = LocalDate.now(ZoneOffset.UTC).toEpochDay()
             onNavigate(
@@ -75,58 +92,124 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
             )
         }
 
-        MenuEntry(
-            icon = "⚔️", title = "Duel",
-            note = "PVP — hot-seat or challenge codes (${profile.duelWins}W/${profile.duelLosses}L)",
+        Entry(
+            glyph = Glyph.DUEL,
+            title = "Duel",
+            detail = if (profile.duelWins + profile.duelLosses > 0)
+                "${profile.duelWins}W · ${profile.duelLosses}L"
+            else "Play a friend",
+            accent = Color(0xFFFF8A65),
         ) { onNavigate(Nav.Duel) }
 
-        MenuEntry(
-            icon = "✨", title = "Outfitter",
-            note = "✦ ${profile.stardust} stardust",
+        Entry(
+            glyph = Glyph.SPARK,
+            title = "Outfitter",
+            detail = "${profile.stardust} stardust",
+            accent = AccentPurple,
         ) { onNavigate(Nav.Shop) }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SmallEntry("How to play", Modifier.weight(1f)) { onNavigate(Nav.Help) }
-            SmallEntry("Settings", Modifier.weight(1f)) { onNavigate(Nav.Settings) }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            QuietLink("How to play") { onNavigate(Nav.Help) }
+            Spacer(Modifier.width(26.dp))
+            QuietLink("Settings") { onNavigate(Nav.Settings) }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(28.dp))
     }
 }
 
+private enum class Glyph { ORBIT, COMET, DUEL, SPARK }
+
 @Composable
-private fun MenuEntry(icon: String, title: String, note: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
+private fun Entry(
+    glyph: Glyph,
+    title: String,
+    detail: String,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = PanelTranslucent),
+            .padding(vertical = 5.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(accent.copy(alpha = 0.13f), Color(0xCC121A30), Color(0xCC121A30))
+                )
+            )
+            .border(1.dp, accent.copy(alpha = 0.32f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .heightIn(min = 74.dp)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(icon, fontSize = 26.sp)
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(title, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text(note, fontSize = 13.sp, color = TextDim)
+        GlyphMark(glyph, accent)
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(detail, fontSize = 12.sp, color = TextDim)
+        }
+        Text("›", fontSize = 22.sp, color = accent.copy(alpha = 0.75f))
+    }
+}
+
+/** Small drawn marks — the game's own iconography rather than emoji. */
+@Composable
+private fun GlyphMark(glyph: Glyph, accent: Color) {
+    Canvas(Modifier.size(30.dp)) {
+        val c = Offset(size.width / 2f, size.height / 2f)
+        val r = size.minDimension / 2f
+        when (glyph) {
+            Glyph.ORBIT -> {
+                drawCircle(accent.copy(alpha = 0.55f), r * 0.92f, c, style = Stroke(1.6f))
+                drawCircle(StarYellow, r * 0.26f, c)
+                drawCircle(accent, r * 0.15f, c + Offset(r * 0.92f, 0f))
+            }
+            Glyph.COMET -> {
+                for (k in 1..6) {
+                    val f = k / 6f
+                    drawCircle(
+                        accent.copy(alpha = (1f - f) * 0.6f),
+                        r * 0.24f * (1f - f * 0.6f),
+                        c + Offset(-r * 0.85f * f, r * 0.7f * f),
+                    )
+                }
+                drawCircle(Color.White, r * 0.26f, c + Offset(r * 0.18f, -r * 0.16f))
+            }
+            Glyph.DUEL -> {
+                drawCircle(accent, r * 0.24f, c + Offset(-r * 0.62f, r * 0.42f))
+                drawCircle(accent.copy(alpha = 0.75f), r * 0.24f, c + Offset(r * 0.62f, -r * 0.5f))
+                drawArc(
+                    color = accent.copy(alpha = 0.5f),
+                    startAngle = 150f, sweepAngle = 220f, useCenter = false,
+                    topLeft = Offset(c.x - r * 0.7f, c.y - r * 0.7f),
+                    size = androidx.compose.ui.geometry.Size(r * 1.4f, r * 1.4f),
+                    style = Stroke(1.5f),
+                )
+            }
+            Glyph.SPARK -> {
+                for (i in 0 until 4) {
+                    val a = Math.PI.toFloat() / 2f * i + 0.4f
+                    val dx = kotlin.math.cos(a) * r * 0.95f
+                    val dy = kotlin.math.sin(a) * r * 0.95f
+                    drawLine(accent.copy(alpha = 0.7f), c - Offset(dx, dy), c + Offset(dx, dy), 1.5f)
+                }
+                drawCircle(Color.White, r * 0.22f, c)
             }
         }
     }
 }
 
 @Composable
-private fun SmallEntry(title: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
-        modifier = modifier
-            .padding(vertical = 6.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = PanelTranslucent),
-    ) {
-        Text(
-            title,
-            Modifier.padding(14.dp).fillMaxWidth(),
-            fontSize = 15.sp,
-            color = AccentPurple,
-            fontWeight = FontWeight.Medium,
-        )
-    }
+private fun QuietLink(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        color = TextDim,
+        fontSize = 14.sp,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    )
 }

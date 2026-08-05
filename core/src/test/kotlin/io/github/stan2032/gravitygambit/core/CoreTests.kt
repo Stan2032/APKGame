@@ -123,21 +123,30 @@ class ShareCodecTest {
         assertNull(ShareCodec.decode("GG1.AAAA"))
     }
 
+    /** Rewrites the version byte of a valid code, fixing up the CRC. */
+    private fun reversioned(version: Int): String {
+        val v = ShareCodec.encode(sampleRecord())
+        val bytes = java.util.Base64.getUrlDecoder().decode(v.removePrefix(ShareCodec.PREFIX))
+        val body = bytes.copyOfRange(0, bytes.size - 4)
+        body[2] = version.toByte()
+        val crc = java.util.zip.CRC32().apply { update(body) }.value.toInt()
+        val out = java.nio.ByteBuffer.allocate(body.size + 4).put(body).putInt(crc).array()
+        return ShareCodec.PREFIX + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(out)
+    }
+
+    @Test
+    fun supersededProtocolVersionIsRejected() {
+        // v1 predates moving bodies and slingshot scoring, so replaying one
+        // would produce a different universe. Refuse rather than mis-verify.
+        assertNull("v1 codes must not verify against v2 physics", ShareCodec.decode(reversioned(1)))
+    }
+
     @Test
     fun futureProtocolVersionIsRejected() {
         // Build a payload identical to v1 but with version byte 2 and a valid
         // CRC: decode must reject it cleanly. Guards the TUNING.md rule that
         // sim-constant changes ship behind a version bump.
-        val rec = sampleRecord()
-        val v1 = ShareCodec.encode(rec)
-        val bytes = java.util.Base64.getUrlDecoder().decode(v1.removePrefix(ShareCodec.PREFIX))
-        val body = bytes.copyOfRange(0, bytes.size - 4)
-        body[2] = 2 // version byte
-        val crc = java.util.zip.CRC32().apply { update(body) }.value.toInt()
-        val forged = java.nio.ByteBuffer.allocate(body.size + 4).put(body).putInt(crc).array()
-        val text = ShareCodec.PREFIX +
-            java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(forged)
-        assertNull("future protocol version must be rejected", ShareCodec.decode(text))
+        assertNull("future protocol version must be rejected", ShareCodec.decode(reversioned(3)))
     }
 }
 

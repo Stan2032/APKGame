@@ -16,42 +16,36 @@ fun HelpScreen(onNavigate: (Nav) -> Unit) {
     ScreenFrame(title = "How to play", onBack = { onNavigate(Nav.Home) }) {
         HelpCard(
             "🎯 The basics",
-            "Drag anywhere and release the slingshot: pull back to aim, further pull = more power. " +
-                "Your shot obeys real N-body gravity — every star and planet bends its path. " +
-                "Use the nudge buttons for one-tenth-degree precision, then FIRE.",
+            "Drag to aim, pull further for more power, release. Gravity does the rest. " +
+                "Use the arrows to fine-tune, then FIRE.",
         )
         HelpCard(
             "🪐 Gravity is your weapon",
-            "Straight shots are for amateurs. Curve around planets for a slingshot boost. " +
-                "Skim a surface for a Graze bonus, fire away from the target and still hit for a " +
-                "Trick Shot, or ride a long orbit for a Long Shot. Style pays stardust.",
+            "Whip around a planet and you steal its speed — the faster you arrive, the bigger " +
+                "the Slingshot bonus. Skim a surface to Graze. Hit a drifting comet for a windfall.",
         )
         HelpCard(
             "🚀 Campaign",
-            "Endless generated sectors, guaranteed solvable, difficulty measured by simulation. " +
-                "Destroy the target core within 4 shots. 1 shot = ★★★.",
+            "Endless sectors, every one solvable. Break the core in 4 shots. One shot = ★★★.",
         )
         HelpCard(
             "🌌 Daily Challenge",
-            "One seed for the whole world each UTC day. Five shots, the target relocates after " +
-                "every hit. Share your score — the code includes a mathematical proof of your run.",
+            "One system for everyone, every day. Five shots, moving target. Share the code — " +
+                "it proves your score.",
         )
         HelpCard(
             "⚔️ Duels",
-            "Hot-seat on one phone, or challenge codes over any messenger — no servers, no accounts. " +
-                "Each code replays and verifies the whole match on your device; forged scores are " +
-                "physically impossible. Stations have 100 HP. Friendly fire is on. Be careful.",
+            "One phone, or text a code to a friend. Stations take 100 damage. " +
+                "Friendly fire is on — be careful.",
         )
         HelpCard(
             "🧮 The math (for the curious)",
-            "The simulation is bit-for-bit deterministic: quantized inputs, IEEE-754 arithmetic, " +
-                "and a 64-bit trajectory hash. Two phones given the same shot always compute " +
-                "exactly the same universe. That's why PVP needs no server: the physics is the referee.",
+            "Two phones given the same shot compute exactly the same universe, down to the bit. " +
+                "That is why nobody can fake a score: the physics is the referee.",
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Tip: the RETRO projectile's brake burn is recorded at the exact tick you press it — " +
-                "your reflexes become part of the replay.",
+            "Retro brakes at the exact moment you tap. Your timing is part of the replay.",
             color = TextDim, fontSize = 13.sp,
         )
     }

@@ -21,7 +21,14 @@ data class MatchRecord(
 
 object ShareCodec {
     const val PREFIX = "GG1."
-    private const val VERSION = 1
+
+    /**
+     * Bumped to 2 when moving bodies (comets), pulsars and slingshot scoring
+     * landed: those change simulated outcomes, so a v1 code would replay into
+     * a different universe. Old codes are refused rather than silently
+     * mis-verified (docs/TUNING.md §Versioning).
+     */
+    private const val VERSION = 2
 
     fun encode(record: MatchRecord): String {
         val buf = ByteBuffer.allocate(16 + 1 + record.turns.size * 8 + 8 + 4)

@@ -11,6 +11,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 > should all be started as early as possible; they, not the code, set the date.
 
 ## NOW (blocks first playtest / release track)
+- [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
 - [ ] [H] Audition the synthesized SFX on-device (they've never been *heard*, only computed); report which need re-voicing → `tools/gen_sfx.py` params.
 - [ ] [A] Physics feel tuning pass after playtest feedback (docs/TUNING.md; likely: speeds, star mass, difficulty band slope).
@@ -53,6 +54,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] v0.4.0 playfeel pass from owner feedback: comets (moving bodies) + pulsars, slingshot/speed scoring, aiming redesign (power meter by feel, labelled fine-tune), bespoke Home, copy trimmed ~700 chars, protocol v2.
 - [x] [A] DuelFlowUiTest (hand-off overlay: code duel vs hot-seat vs handback) — last untested UI now covered.
 - [x] [A] Daily streak rule moved to `:core` (D-7 compliance) + UTC-midnight rollover locked by tests.
 - [x] [A] Docs de-drift pass: ARCHITECTURE (renderer/pacing/layout/new trees), TESTING, PERFORMANCE.

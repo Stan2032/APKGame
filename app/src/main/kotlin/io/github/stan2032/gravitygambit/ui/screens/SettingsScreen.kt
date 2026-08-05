@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stan2032.gravitygambit.BuildConfig
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.data.ProfileRepository
 import io.github.stan2032.gravitygambit.ui.Nav
@@ -46,7 +47,7 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     CardTitle("Sound effects")
-                    Subtitle("Launches, impacts, and the occasional victory chime.")
+                    Subtitle("Launches, impacts, victory.")
                 }
                 Switch(
                     checked = profile.soundEnabled,
@@ -58,10 +59,7 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         SectionCard {
             Column {
                 CardTitle("Send feedback")
-                Subtitle(
-                    "Tell us what's broken or brilliant. Your note travels through an app " +
-                        "you choose — the game itself sends nothing, ever."
-                )
+                Subtitle("Sent through an app you choose. The game sends nothing itself.")
                 Spacer(Modifier.height(8.dp))
                 var showFeedback by remember { mutableStateOf(false) }
                 OutlinedButton(onClick = { showFeedback = true }) { Text("Write feedback") }
@@ -75,12 +73,9 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
             Column {
                 CardTitle("Privacy")
                 Subtitle(
-                    "Gravity Gambit collects nothing and sends nothing. Your progress lives " +
-                        "only on this device, and the whole game works in airplane mode. " +
-                        "Challenge codes contain game moves and nothing else — never " +
-                        "personal information. (Android lists an internet permission for " +
-                        "this app: it comes from Google's billing library for purchases, " +
-                        "and none of our own code uses it.)"
+                    "No accounts, no tracking, no data leaves this device. Codes carry " +
+                        "game moves only. Android lists an internet permission because " +
+                        "Google's billing library declares one; nothing here uses it."
                 )
             }
         }
@@ -88,7 +83,7 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         SectionCard {
             Column {
                 CardTitle("Reset progress")
-                Subtitle("Wipes stars, stardust, unlocks and records on this device. No undo.")
+                Subtitle("Wipes everything on this device. No undo.")
                 Spacer(Modifier.height(8.dp))
                 var confirm by remember { mutableStateOf(false) }
                 OutlinedButton(onClick = { confirm = true }) { Text("Reset everything") }
@@ -114,9 +109,12 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         SectionCard {
             Column {
                 CardTitle("About")
-                Text("Gravity Gambit 0.1.0", color = TextPrimary, fontSize = 14.sp)
                 Text(
-                    "Deterministic N-body artillery. Same physics on every device, down to the last bit.",
+                    "Gravity Gambit ${BuildConfig.VERSION_NAME}",
+                    color = TextPrimary, fontSize = 14.sp,
+                )
+                Text(
+                    "Same physics on every device, down to the last bit.",
                     color = TextDim, fontSize = 12.sp,
                 )
             }

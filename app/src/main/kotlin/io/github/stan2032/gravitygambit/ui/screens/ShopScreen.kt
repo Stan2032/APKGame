@@ -55,7 +55,7 @@ fun ShopScreen(
         SectionCard {
             Column {
                 CardTitle("Projectiles")
-                Subtitle("Unlocked with campaign stars + stardust. Usable in every mode, duels included.")
+                Subtitle("Earn with stars and stardust. Usable everywhere.")
                 Spacer(Modifier.height(8.dp))
                 for (unlock in Economy.PROJECTILE_UNLOCKS) {
                     val type = ProjectileType.byId(unlock.typeId)
@@ -95,7 +95,7 @@ fun ShopScreen(
         SectionCard {
             Column {
                 CardTitle("Targeting computer")
-                Subtitle("Extends the aim-preview trace. Pure quality of life — replays stay fair.")
+                Subtitle("See further along your shot before firing.")
                 Spacer(Modifier.height(8.dp))
                 val level = profile.previewLevel
                 Text(
@@ -116,7 +116,7 @@ fun ShopScreen(
         SectionCard {
             Column {
                 CardTitle("Projectile trails")
-                Subtitle("Pure cosmetics. Zero gameplay effect — your rival sees your style, not your stats.")
+                Subtitle("Your rival sees these in the replay.")
                 Spacer(Modifier.height(8.dp))
                 for (trail in Economy.TRAILS) {
                     val owned = profile.ownedTrails.contains(trail.id)
@@ -227,10 +227,7 @@ fun ShopScreen(
             SectionCard {
                 Column {
                     CardTitle("Support the game")
-                    Subtitle(
-                        "Optional and deliberately cheap. Everything above is earnable by playing; " +
-                            "these just speed things up and keep updates coming."
-                    )
+                    Subtitle("Everything above is earnable by playing. These just skip the grind.")
                     Spacer(Modifier.height(8.dp))
                     for (pd in products) {
                         val price = pd.oneTimePurchaseOfferDetails?.formattedPrice ?: continue

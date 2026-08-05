@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -320,6 +321,9 @@ private fun MatchUI(
             val time = timeSec
             drawSpaceBackdrop(cch, time)
             drawBodies(cch, time)
+            // Comets drift, so they draw at their live simulation position —
+            // exactly where the physics says they are.
+            drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
             drawStations(c.engine.stations, c.engine.hp, c.launch.mode, time, t, cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawPreview(previewPaths, t)
@@ -509,19 +513,14 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
     Column {
         when {
             c.phase == Phase.AIMING && c.isMyTurn -> {
+                PowerMeter(c.aimPower)
+                Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "∠ ${"%.1f".format(c.aimAngleDeci / 10.0)}°   ⚡ ${"%.1f".format(c.aimPower / 10.0)}%",
-                        color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .background(PanelColor.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    )
+                    FineTune("◀", "Rotate left") { c.nudgeAngle(-1) }
+                    FineTune("▶", "Rotate right") { c.nudgeAngle(1) }
                     Spacer(Modifier.weight(1f))
-                    NudgeButton("−.1°") { c.nudgeAngle(-1) }
-                    NudgeButton("+.1°") { c.nudgeAngle(1) }
-                    NudgeButton("−1%") { c.nudgePower(-10) }
-                    NudgeButton("+1%") { c.nudgePower(10) }
+                    FineTune("−", "Less power") { c.nudgePower(-10) }
+                    FineTune("+", "More power") { c.nudgePower(10) }
                 }
                 Spacer(Modifier.height(8.dp))
                 // Flow, not Row: at large system font sizes four chips no
@@ -575,10 +574,56 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
     }
 }
 
+/**
+ * Power as a filled bar rather than a percentage. Players aim by feel; a
+ * number like "55.0%" reads as instrumentation and tells you nothing about
+ * whether the shot will reach. The bar shows fill, and the label names the
+ * region ("Light", "Firm", "Full") so it can be judged at a glance.
+ */
 @Composable
-private fun NudgeButton(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp)) {
-        Text(label, fontSize = 13.sp, color = AccentCyan)
+private fun PowerMeter(power: Int) {
+    val frac = power / 1000f
+    val label = when {
+        power < 250 -> "Light"
+        power < 550 -> "Steady"
+        power < 800 -> "Firm"
+        power < 970 -> "Hard"
+        else -> "Full"
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.width(58.dp),
+        )
+        Box(
+            Modifier
+                .weight(1f)
+                .height(10.dp)
+                .background(PanelColor.copy(alpha = 0.9f), RoundedCornerShape(5.dp))
+                .semantics { contentDescription = "Power $label, ${power / 10} percent" }
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(frac)
+                    .fillMaxHeight()
+                    .background(
+                        Brush.horizontalGradient(listOf(AccentCyan, StarYellow, DangerRed)),
+                        RoundedCornerShape(5.dp),
+                    )
+            )
+        }
+    }
+}
+
+/** Fine-tune control: a labelled tap target, not a cryptic "−.1°" chip. */
+@Composable
+private fun FineTune(glyph: String, description: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.semantics { contentDescription = description },
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+    ) {
+        Text(glyph, fontSize = 17.sp, color = AccentCyan, fontWeight = FontWeight.Bold)
     }
 }
 

@@ -145,6 +145,31 @@ object SystemGenerator {
             }
         }
 
+        // --- Pulsar: gravity that breathes, so timing matters ---
+        if (difficulty >= 4 && rng.chance(0.28)) {
+            tryPlace(rng, bodies) { x, y ->
+                Body(x, y, rng.range(26.0, 34.0), rng.range(1.6e6, 2.8e6), BodyKind.PULSAR, 8)
+            }
+        }
+
+        // --- Comet: drifts across the field, pays out if you can lead it ---
+        if (difficulty >= 2 && rng.chance(0.42)) {
+            val horizontal = rng.chance(0.5)
+            val speed = rng.range(38.0, 78.0) * (if (rng.chance(0.5)) 1.0 else -1.0)
+            bodies.add(
+                Body(
+                    x = if (horizontal) rng.range(0.0, Tuning.WORLD_W) else rng.range(120.0, Tuning.WORLD_W - 120.0),
+                    y = if (horizontal) rng.range(260.0, Tuning.WORLD_H - 260.0) else rng.range(0.0, Tuning.WORLD_H),
+                    radius = rng.range(14.0, 20.0),
+                    mass = rng.range(1.4e5, 3.2e5),
+                    kind = BodyKind.COMET,
+                    palette = 9,
+                    vx = if (horizontal) speed else 0.0,
+                    vy = if (horizontal) 0.0 else speed,
+                )
+            )
+        }
+
         // --- Stations ---
         val ps = placeStation(rng, bodies, yMin = Tuning.WORLD_H - 190.0, yMax = Tuning.WORLD_H - 110.0, owner = 0)
             ?: return null

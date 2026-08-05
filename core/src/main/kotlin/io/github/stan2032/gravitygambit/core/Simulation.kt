@@ -22,7 +22,13 @@ class ShotResult(
     val hash: Long,
     val styleBonus: Int,
     val styleNotes: List<String>,
-)
+    /** Fastest the shot ever travelled — gravity assists show up here. */
+    val peakSpeed: Double = 0.0,
+    val launchSpeed: Double = 0.0,
+) {
+    /** Velocity taken from the field rather than the launcher. */
+    val slingshotGain: Double get() = peakSpeed - launchSpeed
+}
 
 class ProjView(val id: Int, val x: Double, val y: Double, val radius: Double)
 
@@ -63,7 +69,10 @@ class LiveShot(
 
     private val stationHits = ArrayList<Int>(3)
     private var bodyHits = 0
+    private var cometHits = 0
     private var minSurfaceDist = Double.MAX_VALUE
+    private var peakSpeed2 = 0.0
+    private var launchSpeed = 0.0
     private var hash = FNV_OFFSET
 
     /** Set when a projectile dies, for the renderer to draw an explosion. */
@@ -79,6 +88,8 @@ class LiveShot(
         launchY = st.y + dirY * Tuning.LAUNCH_OFFSET
         val topSpeed = Tuning.MAX_SPEED * type.maxPowerFrac
         val speed = Tuning.MIN_SPEED + (power / 1000.0) * (topSpeed - Tuning.MIN_SPEED)
+        launchSpeed = speed
+        peakSpeed2 = speed * speed
         projs.add(Proj(nextId++, launchX, launchY, dirX * speed, dirY * speed, type.radius))
         foldHash(angleDeci.toLong()); foldHash(power.toLong()); foldHash(typeId.toLong())
     }
@@ -135,11 +146,13 @@ class LiveShot(
         var ax = 0.0
         var ay = 0.0
         for (b in bodies) {
-            val dx = b.x - p.px
-            val dy = b.y - p.py
+            // Positions and pulsar mass are functions of the tick, so moving
+            // bodies stay bit-deterministic (docs/DETERMINISM.md).
+            val dx = b.xAt(tick) - p.px
+            val dy = b.yAt(tick) - p.py
             val r2 = dx * dx + dy * dy + Tuning.SOFTENING2
             val r = Math.sqrt(r2)
-            val a = b.mass / r2
+            val a = b.massAt(tick) / r2
             ax += a * dx / r
             ay += a * dy / r
             if (b.kind != BodyKind.REPULSOR) {
@@ -152,18 +165,24 @@ class LiveShot(
         p.vy += ay * Tuning.DT
         p.px += p.vx * Tuning.DT
         p.py += p.vy * Tuning.DT
+
+        // Peak speed drives the slingshot bonus: how much velocity this shot
+        // stole from the field rather than from the launcher.
+        val speed2 = p.vx * p.vx + p.vy * p.vy
+        if (speed2 > peakSpeed2) peakSpeed2 = speed2
     }
 
     private fun collide(p: Proj) {
         // Bodies (repulsors are intangible anomalies — field only).
         for ((bi, b) in bodies.withIndex()) {
             if (b.kind == BodyKind.REPULSOR) continue
-            val dx = b.x - p.px
-            val dy = b.y - p.py
+            val dx = b.xAt(tick) - p.px
+            val dy = b.yAt(tick) - p.py
             val rr = b.radius + p.radius
             if (dx * dx + dy * dy < rr * rr) {
                 p.alive = false
                 bodyHits++
+                if (b.kind == BodyKind.COMET) cometHits++
                 lastImpact = Vec2(p.px, p.py); lastImpactWasStation = false
                 foldHash(1L); foldHash(bi.toLong()); foldHash(tick.toLong())
                 return
@@ -210,9 +229,29 @@ class LiveShot(
         if (timedOut) { foldHash(5L); foldHash(tick.toLong()) }
 
         var style = 0
-        val notes = ArrayList<String>(3)
+        val notes = ArrayList<String>(4)
+
+        // Comets pay whether or not the shot went on to connect — they are a
+        // deliberate target of opportunity, not a consolation prize.
+        if (cometHits > 0) {
+            style += Tuning.COMET_HIT_BONUS * cometHits
+            notes.add("Comet strike +${Tuning.COMET_HIT_BONUS * cometHits}")
+        }
+
         val hitEnemy = stationHits.any { it != shooter }
         if (hitEnemy) {
+            // Velocity stolen from the field, not the launcher.
+            val gain = Math.sqrt(peakSpeed2) - launchSpeed
+            if (gain > Tuning.SLINGSHOT_MIN_GAIN) {
+                val bonus = minOf(
+                    Tuning.SLINGSHOT_MAX_BONUS,
+                    ((gain - Tuning.SLINGSHOT_MIN_GAIN) * Tuning.SLINGSHOT_PER_UNIT).toInt(),
+                )
+                if (bonus > 0) {
+                    style += bonus
+                    notes.add("Slingshot +$bonus")
+                }
+            }
             if (minSurfaceDist in 0.0..Tuning.GRAZE_DIST) {
                 style += Tuning.GRAZE_BONUS; notes.add("Graze +${Tuning.GRAZE_BONUS}")
             }
@@ -242,6 +281,8 @@ class LiveShot(
             hash = hash,
             styleBonus = style,
             styleNotes = notes,
+            peakSpeed = Math.sqrt(peakSpeed2),
+            launchSpeed = launchSpeed,
         )
     }
 

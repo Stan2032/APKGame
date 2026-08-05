@@ -141,6 +141,34 @@ class RenderCache(spec: SystemSpec, tr: WorldTransform) {
                         ringRy = radius * 0.52f,
                     )
                 }
+                // Comets move, so their centre is recomputed per frame; only
+                // brushes/geometry are cached here (docs/PERFORMANCE.md, D-22).
+                BodyKind.COMET -> BodyVisual(
+                    kind = b.kind, center = center, radius = radius,
+                    glowBrush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF80DEEA).copy(alpha = 0.40f), Color.Transparent),
+                        center = Offset.Zero, radius = radius * 3.4f,
+                    ),
+                    surfaceBrush = Brush.radialGradient(
+                        colors = listOf(Color.White, Color(0xFF4DD0E1)),
+                        center = Offset.Zero, radius = radius,
+                    ),
+                    rimColor = Color(0xFF80DEEA),
+                    hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
+                )
+                BodyKind.PULSAR -> BodyVisual(
+                    kind = b.kind, center = center, radius = radius,
+                    glowBrush = Brush.radialGradient(
+                        colors = listOf(Color(0xFFB388FF).copy(alpha = 0.45f), Color.Transparent),
+                        center = center, radius = radius * 3.0f,
+                    ),
+                    surfaceBrush = Brush.radialGradient(
+                        colors = listOf(Color.White, Color(0xFF7C4DFF), Color(0xFF311B92)),
+                        center = center, radius = radius,
+                    ),
+                    rimColor = Color(0xFFB388FF),
+                    hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
+                )
                 BodyKind.REPULSOR -> BodyVisual(
                     kind = b.kind, center = center, radius = radius,
                     glowBrush = Brush.radialGradient(
@@ -197,8 +225,59 @@ fun DrawScope.drawSpaceBackdrop(cache: RenderCache, t: Float) {
     }
 }
 
+/**
+ * Moving bodies (comets) are drawn from their live tick position; everything
+ * else uses the cached centre. [tick] is the simulation tick so the drawn
+ * position always matches the physics exactly.
+ */
+fun DrawScope.drawMovingBodies(
+    spec: SystemSpec,
+    cache: RenderCache,
+    tick: Int,
+    t: Float,
+    tr: WorldTransform,
+) {
+    for ((i, b) in spec.bodies.withIndex()) {
+        if (!b.moves) continue
+        val v = cache.bodyVisuals[i]
+        val c = tr.o(b.xAt(tick), b.yAt(tick))
+        // Tail trailing the direction of travel.
+        val len = tr.r(46.0)
+        val sp = Math.hypot(b.vx, b.vy)
+        if (sp > 1e-9) {
+            val ux = (b.vx / sp).toFloat()
+            val uy = (b.vy / sp).toFloat()
+            for (k in 1..10) {
+                val f = k / 10f
+                drawCircle(
+                    v.rimColor.copy(alpha = (1f - f) * 0.30f),
+                    v.radius * (1f - f * 0.7f),
+                    c - Offset(ux * len * f, uy * len * f),
+                )
+            }
+        }
+        drawCircle(v.glowBrush!!, v.radius * 3.4f, c)
+        drawCircle(Color.White, v.radius, c)
+        val halo = 1f + 0.14f * sin(t * 4f)
+        drawCircle(v.rimColor.copy(alpha = 0.7f), v.radius * 1.5f * halo, c, style = Stroke(cache.thin))
+    }
+}
+
 fun DrawScope.drawBodies(cache: RenderCache, t: Float) {
     for (b in cache.bodyVisuals) when (b.kind) {
+        // Drawn per-frame at their live positions by drawMovingBodies.
+        BodyKind.COMET -> Unit
+        BodyKind.PULSAR -> {
+            // Gravity you can see breathing: the halo swells on the same
+            // period as the mass, so timing a shot is a visual read.
+            val phase = (1f + kotlin.math.cos(t * 6.2831853f * 60f / Tuning.PULSAR_PERIOD.toFloat())) / 2f
+            drawCircle(b.glowBrush!!, b.radius * (2.2f + 1.1f * phase), b.center)
+            drawCircle(b.surfaceBrush, b.radius, b.center)
+            drawCircle(
+                b.rimColor.copy(alpha = 0.25f + 0.5f * phase),
+                b.radius * (1.35f + 0.5f * phase), b.center, style = Stroke(cache.med),
+            )
+        }
         BodyKind.STAR -> {
             drawCircle(b.glowBrush!!, b.radius * 3.1f, b.center)
             drawCircle(b.surfaceBrush, b.radius, b.center)

@@ -13,12 +13,25 @@ enum class GameMode(val id: Int) {
     }
 }
 
-enum class BodyKind { STAR, PLANET, REPULSOR }
+enum class BodyKind {
+    STAR,
+    PLANET,
+    /** Negative mass, intangible: pushes shots away, cannot be hit. */
+    REPULSOR,
+    /** Drifts across the field on a deterministic rail; hitting one pays out. */
+    COMET,
+    /** Gravity pulses between weak and strong on a fixed period. */
+    PULSAR,
+}
 
 /**
- * A gravitational body. Positions are static within a match (deterministic and
- * easy to reason about; orbital motion is a planned v2 feature).
- * REPULSOR bodies have negative mass and no solid surface (no collision).
+ * A gravitational body.
+ *
+ * Motion is a *pure function of the integer tick* ([vx]/[vy] are world units
+ * per second, wrapped at the field edges), never mutable state — that is what
+ * keeps moving bodies compatible with the determinism contract
+ * (docs/DETERMINISM.md). Static bodies simply have zero velocity.
+ * PULSAR mass oscillates by tick for the same reason.
  */
 @Serializable
 data class Body(
@@ -28,7 +41,33 @@ data class Body(
     val mass: Double,
     val kind: BodyKind,
     val palette: Int,
-)
+    val vx: Double = 0.0,
+    val vy: Double = 0.0,
+) {
+    val moves: Boolean get() = vx != 0.0 || vy != 0.0
+
+    /** Position at [tick]; wraps through the field margins so comets recur. */
+    fun xAt(tick: Int): Double =
+        if (vx == 0.0) x else wrap(x + vx * tick * Tuning.DT, Tuning.WORLD_W)
+
+    fun yAt(tick: Int): Double =
+        if (vy == 0.0) y else wrap(y + vy * tick * Tuning.DT, Tuning.WORLD_H)
+
+    /** Effective mass at [tick]; only PULSAR varies. */
+    fun massAt(tick: Int): Double =
+        if (kind != BodyKind.PULSAR) mass
+        else mass * (Tuning.PULSAR_MIN + Tuning.PULSAR_SWING *
+            (1.0 + StrictMath.cos(2.0 * Math.PI * tick / Tuning.PULSAR_PERIOD)) / 2.0)
+
+    private fun wrap(v: Double, span: Double): Double {
+        val m = Tuning.WRAP_MARGIN
+        val lo = -m
+        val range = span + 2 * m
+        var r = (v - lo) % range
+        if (r < 0) r += range
+        return r + lo
+    }
+}
 
 /** A player station. HP and ownership rules live in [MatchEngine]. */
 @Serializable
@@ -111,6 +150,23 @@ object Tuning {
     const val LONGSHOT_TICKS = 360
     const val LONGSHOT_BONUS = 10
     const val TRICKSHOT_BONUS = 25
+
+    /** Comets drift; pulsars breathe. Both are pure functions of the tick. */
+    const val WRAP_MARGIN = 260.0
+    const val PULSAR_PERIOD = 210.0
+    const val PULSAR_MIN = 0.35
+    const val PULSAR_SWING = 1.3
+    const val COMET_HIT_BONUS = 40
+
+    /**
+     * Slingshot scoring: a shot that leaves at speed S and reaches peak P has
+     * stolen (P - S) of velocity from the field itself. That is the whole
+     * fantasy of the game, so it pays — 1 point per unit of gain above the
+     * threshold, capped so a single lucky whip can't dwarf accuracy.
+     */
+    const val SLINGSHOT_MIN_GAIN = 60.0
+    const val SLINGSHOT_PER_UNIT = 0.10
+    const val SLINGSHOT_MAX_BONUS = 45
 
     const val CAMPAIGN_SHOTS = 4
     const val DAILY_SHOTS = 5

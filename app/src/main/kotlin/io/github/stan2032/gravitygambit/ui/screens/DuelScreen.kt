@@ -33,7 +33,7 @@ fun DuelScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
         SectionCard {
             Column {
                 CardTitle("Hot-seat duel")
-                Subtitle("Two players, one phone, alternating shots. First station down loses.")
+                Subtitle("Two players, one phone. First station down loses.")
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {
                     onNavigate(
@@ -52,12 +52,8 @@ fun DuelScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
 
         SectionCard {
             Column {
-                CardTitle("Challenge a friend — no servers, no accounts")
-                Subtitle(
-                    "Take your shot, then send the challenge code over any messenger. " +
-                        "Your friend's phone re-simulates your shot and verifies it " +
-                        "mathematically — scores can't be faked. Play continues code by code."
-                )
+                CardTitle("Challenge a friend")
+                Subtitle("Take your shot, then text the code to a friend. Their phone replays it.")
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {
                     onNavigate(
@@ -76,7 +72,7 @@ fun DuelScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
 
         SectionCard {
             Column {
-                CardTitle("Got a code? Continue a duel")
+                CardTitle("Got a code?")
                 var code by remember { mutableStateOf("") }
                 var error by remember { mutableStateOf<String?>(null) }
                 Spacer(Modifier.height(8.dp))
