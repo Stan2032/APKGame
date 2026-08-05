@@ -8,10 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -260,7 +263,15 @@ private fun MatchUI(
     // Everything derivable from (system, canvas size) is precomputed once.
     val cache = remember(c.spec, tr) { tr?.let { RenderCache(c.spec, it) } }
 
-    Box(Modifier.fillMaxSize().background(BgColor)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(BgColor)) {
+        // The world board is portrait (1000x1600). On a wide screen it
+        // letterboxes to a narrow column, leaving ~65% of the display as empty
+        // bars with the HUD floating over the play area. On wide layouts we
+        // move the HUD into those bars instead: info on the left, controls on
+        // the right, world untouched in the middle.
+        val wide = maxWidth > maxHeight * 1.15f
+        val sideWidth = if (wide) (maxWidth - maxHeight * 0.625f) / 2f else 0.dp
+
         // The world is a Canvas, so screen readers get nothing by default.
         // This description keeps the match legible to TalkBack users even
         // though aiming itself is a visual/gestural act.
@@ -331,8 +342,30 @@ private fun MatchUI(
             }
         }
 
-        TopHud(c)
-        BottomControls(c, profile, sound)
+        if (wide) {
+            // Left bar: match state. Right bar: controls. Neither overlaps play.
+            Column(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .width(sideWidth)
+                    .fillMaxHeight()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 10.dp),
+                verticalArrangement = Arrangement.Center,
+            ) { HudContent(c) }
+            Column(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(sideWidth)
+                    .fillMaxHeight()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 10.dp),
+                verticalArrangement = Arrangement.Center,
+            ) { ControlsContent(c, profile, sound) }
+        } else {
+            TopHud(c)
+            BottomControls(c, profile, sound)
+        }
 
         // One-time coaching line for the very first level of a fresh profile.
         if (c.launch.mode == GameMode.CAMPAIGN && c.launch.sector == 0 && c.launch.level == 0 &&
@@ -381,11 +414,21 @@ private fun MatchUI(
 
 @Composable
 private fun TopHud(c: MatchController) {
-    // Read hpTick so HP text refreshes after every commit.
-    val hpTick = c.hpTick
     Column(
         Modifier.fillMaxWidth().safeDrawingPadding().padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
+    ) { HudContent(c) }
+}
+
+/**
+ * HUD body, shared by the portrait overlay and the wide-screen side bar.
+ * In the side bar the parent Column is narrow, so the Row below wraps
+ * naturally into stacked lines.
+ */
+@Composable
+private fun ColumnScope.HudContent(c: MatchController) {
+    // Read hpTick so HP text refreshes after every commit.
+    val hpTick = c.hpTick
+    Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -456,70 +499,76 @@ private fun BottomControls(c: MatchController, profile: Profile, sound: SoundMan
                 .fillMaxWidth()
                 .safeDrawingPadding()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-        ) {
-            when {
-                c.phase == Phase.AIMING && c.isMyTurn -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "∠ ${"%.1f".format(c.aimAngleDeci / 10.0)}°   ⚡ ${"%.1f".format(c.aimPower / 10.0)}%",
-                            color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .background(PanelColor.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        )
-                        Spacer(Modifier.weight(1f))
-                        NudgeButton("−.1°") { c.nudgeAngle(-1) }
-                        NudgeButton("+.1°") { c.nudgeAngle(1) }
-                        NudgeButton("−1%") { c.nudgePower(-10) }
-                        NudgeButton("+1%") { c.nudgePower(10) }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    // Flow, not Row: at large system font sizes four chips no
-                    // longer fit one line and must wrap rather than clip.
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        for (type in ProjectileType.entries) {
-                            val unlocked = profile.unlockedProjectiles.contains(type.id)
-                            val selected = c.selectedType == type.id
-                            if (selected) {
-                                Button(onClick = {}, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
-                                    Text(type.displayName, fontSize = 12.sp)
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = { if (unlocked) c.selectedType = type.id },
-                                    enabled = unlocked,
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                ) {
-                                    Text(if (unlocked) type.displayName else "🔒 ${type.displayName}", fontSize = 12.sp)
-                                }
+        ) { ControlsContent(c, profile, sound) }
+    }
+}
+
+/** Controls body, shared by the portrait bottom bar and the wide side bar. */
+@Composable
+private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, sound: SoundManager) {
+    Column {
+        when {
+            c.phase == Phase.AIMING && c.isMyTurn -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "∠ ${"%.1f".format(c.aimAngleDeci / 10.0)}°   ⚡ ${"%.1f".format(c.aimPower / 10.0)}%",
+                        color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .background(PanelColor.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    NudgeButton("−.1°") { c.nudgeAngle(-1) }
+                    NudgeButton("+.1°") { c.nudgeAngle(1) }
+                    NudgeButton("−1%") { c.nudgePower(-10) }
+                    NudgeButton("+1%") { c.nudgePower(10) }
+                }
+                Spacer(Modifier.height(8.dp))
+                // Flow, not Row: at large system font sizes four chips no
+                // longer fit one line and must wrap rather than clip.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    for (type in ProjectileType.entries) {
+                        val unlocked = profile.unlockedProjectiles.contains(type.id)
+                        val selected = c.selectedType == type.id
+                        if (selected) {
+                            Button(onClick = {}, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                                Text(type.displayName, fontSize = 12.sp)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { if (unlocked) c.selectedType = type.id },
+                                enabled = unlocked,
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            ) {
+                                Text(if (unlocked) type.displayName else "🔒 ${type.displayName}", fontSize = 12.sp)
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    // heightIn, not height: fixed heights clip the label once
-                    // the user's font scale goes up.
-                    Button(
-                        onClick = { c.fire() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    ) {
-                        Text("FIRE", fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
-                    }
                 }
-                c.phase == Phase.FLYING && !c.isReplaying &&
-                    ProjectileType.byId(c.selectedType).canBrake && !c.brakeUsed -> {
-                    Button(
-                        onClick = {
-                            sound.play(SoundManager.Sfx.BRAKE)
-                            c.brakeNow()
-                        },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed),
-                    ) {
-                        Text("RETRO BURN", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                    }
+                Spacer(Modifier.height(8.dp))
+                // heightIn, not height: fixed heights clip the label once
+                // the user's font scale goes up.
+                Button(
+                    onClick = { c.fire() },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) {
+                    Text("FIRE", fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
+                }
+            }
+            c.phase == Phase.FLYING && !c.isReplaying &&
+                ProjectileType.byId(c.selectedType).canBrake && !c.brakeUsed -> {
+                Button(
+                    onClick = {
+                        sound.play(SoundManager.Sfx.BRAKE)
+                        c.brakeNow()
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed),
+                ) {
+                    Text("RETRO BURN", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
                 }
             }
         }

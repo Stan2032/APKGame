@@ -35,7 +35,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] AdMob rewarded integration IF retention data justifies (docs/ADS.md playbook; needs [H] AdMob account; UMP consent; Data Safety + privacy policy update; app-ads.txt).
 - [ ] [A] Ambient audio: seed-derived per-system drone pad (SFX shipped 0.2.0; music/ambience still open).
 - [ ] [A] Localization pass (externalize inline strings → res; es/pt/de/fr/ja first). **Deliberately deferred until after first playtest**: copy is still volatile (feel/tuning feedback will rewrite wording), and externalizing early means every copy tweak edits XML instead of the composable. Do it once the wording settles — ideally right before the v1.0 store push. Note `:core` display names (projectile/trail names) are game terms; decide then whether they map to string resources or stay untranslated proper nouns.
-- [ ] [A] Tablet/landscape HUD polish (world letterboxes already; HUD could two-column).
+- [ ] [H] Tablet/landscape check during playtest: does the side-bar HUD feel reachable one-handed in landscape, and is the board big enough on a tablet? (Implemented + tested at three size classes; only real hands can judge it.)
 - [ ] [A] Baseline Profile + Macrobenchmark once a device lab exists (docs/PERFORMANCE.md).
 - [ ] [A] In-app "what's new" + rate prompt (post-retention only, never nagging).
 - [ ] [A] Consider first-use coaching for the duel-code flow (mirror of the aim hint added 0.2.0).
@@ -53,6 +53,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-04
+- [x] [A] Landscape/tablet layout: HUD moves into the letterbox bars on wide screens (65% of a landscape screen was empty); WideScreenTest at 3 size classes; D-17 updated.
 - [x] [A] GameScreenTest + ShopScreenTest (30 app tests; every screen now rendered by a test). Documented the manual-clock/pump pattern needed for the continuously-animating match screen.
 - [x] [A] Release APK audit (`tools/verify_release_apk.py`, wired into CI): permission allowlist, R8 serializer survival, size budget. Caught and corrected the false "no INTERNET permission" claim across all user-facing copy + docs (D-3).
 - [x] [A] Share messages rewritten to be legible to a stranger (a duel code is often first contact with the game); `ShareMessages` + tests; STORE_URL hook for launch.
