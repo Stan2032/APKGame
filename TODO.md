@@ -22,6 +22,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] Stage F: debris from misses.
 
 ## NOW (blocks first playtest / release track)
+- [ ] [H] **Re-test 0.7.0 levels**: is the straight shot really gone? Do levels now feel like they have a purpose — is there a visible route to find? Are they now too *hard* (bands were recalibrated from measurement, not feel)?
 - [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
 - [ ] [H] Audition the synthesized SFX on-device (they've never been *heard*, only computed); report which need re-voicing → `tools/gen_sfx.py` params.

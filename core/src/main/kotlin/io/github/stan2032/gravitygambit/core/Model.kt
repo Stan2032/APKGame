@@ -151,7 +151,12 @@ object Tuning {
     const val DT = 1.0 / 60.0
     const val OUT_MARGIN = 320.0
     const val MAX_TICKS = 1500          // 25s of flight — generous for orbit shots
-    const val SOLVER_MAX_TICKS = 600
+    /**
+     * Solver horizon. Curated levels force curved routes, which take longer
+     * than a straight lob — at 600 ticks the solver was scoring genuine
+     * solutions as misses and reporting levels unsolvable.
+     */
+    const val SOLVER_MAX_TICKS = 950
     const val SOFTENING2 = 16.0         // avoids singular accelerations at close range
 
     const val MIN_SPEED = 140.0
@@ -198,6 +203,9 @@ object Tuning {
     const val SLINGSHOT_MIN_GAIN = 60.0
     const val SLINGSHOT_PER_UNIT = 0.10
     const val SLINGSHOT_MAX_BONUS = 45
+
+    /** Speed gained from the field that a three-star shot must demonstrate. */
+    const val THREE_STAR_MIN_GAIN = 45.0
 
     const val CAMPAIGN_SHOTS = 4
     const val DAILY_SHOTS = 5

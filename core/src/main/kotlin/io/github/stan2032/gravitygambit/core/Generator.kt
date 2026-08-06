@@ -29,6 +29,15 @@ object SystemGenerator {
      * tripled generation time. So: measure always, reject only when anchors
      * trivialize aiming ([MAX_LEVERAGE]).
      */
+    /**
+     * "Aim at it and fire" probe: a cone around the direct bearing, at every
+     * power. Anything inside this cone that connects means the level teaches
+     * nothing.
+     */
+    const val NAIVE_SPREAD_DECI = 220        // +/-22 degrees: genuinely "at it"
+    const val NAIVE_STEP_DECI = 40           // 4-degree steps
+    val NAIVE_POWERS = intArrayOf(250, 400, 550, 700, 850, 1000)
+
     const val LEVERAGE_PROBE_SHOTS = 5
     const val LEVERAGE_GRID_X = 4
     const val LEVERAGE_GRID_Y = 5
@@ -37,15 +46,25 @@ object SystemGenerator {
      * early, so the long tail is wasted work. Keeps the probe affordable —
      * generation is what a player waits on before their first shot.
      */
-    const val LEVERAGE_MAX_TICKS = 420
+    const val LEVERAGE_MAX_TICKS = 600
     const val MAX_LEVERAGE = 0.80
     val SOLVER_POWERS = intArrayOf(300, 500, 700, 900, 1000)
-    private const val MAX_ATTEMPTS = 24
+    private const val MAX_ATTEMPTS = 70
 
+    /**
+     * Difficulty bands, recalibrated for curated layouts.
+     *
+     * The old numbers assumed a randomly-scattered field with an often-open
+     * corridor, where a healthy slice of the aim space connected. Now that a
+     * keeper always blocks the direct line, honest hit-rates are far lower —
+     * measurement put difficulty 0 at ~2.7%, which fell *below* its own old
+     * floor of 3% and silently pushed every early level onto the fallback
+     * path. Bands follow the game rather than the game following the bands.
+     */
     fun minRate(difficulty: Int): Double =
-        maxOf(0.0008, 0.030 * StrictMath.pow(0.72, difficulty.toDouble()))
+        maxOf(0.0006, 0.019 * StrictMath.pow(0.80, difficulty.toDouble()))
 
-    fun maxRate(difficulty: Int): Double = minOf(0.28, minRate(difficulty) * 14.0)
+    fun maxRate(difficulty: Int): Double = minOf(0.30, minRate(difficulty) * 22.0)
 
     fun generate(seed: Long, difficulty: Int, mode: GameMode): SystemSpec {
         var best: SystemSpec? = null
@@ -55,6 +74,11 @@ object SystemGenerator {
 
         for (attempt in 0 until MAX_ATTEMPTS) {
             val candidate = candidate(seed, attempt, difficulty) ?: continue
+            // Cheapest meaningful rejection first: if the obvious shot wins,
+            // nothing else about this layout matters.
+            if (fallsToNaiveShot(candidate, shooter = 0)) continue
+            if (mode == GameMode.DUEL && fallsToNaiveShot(candidate, shooter = 1)) continue
+
             val rate = solveRate(candidate, shooter = 0, lo, hi)
             if (mode == GameMode.DUEL) {
                 // Only solve the mirror side when this one is already in band —
@@ -85,7 +109,16 @@ object SystemGenerator {
                 if (d < bestScore) { bestScore = d; best = candidate.copy(solverHitRate = rate) }
             }
         }
-        return best ?: fallback(seed, difficulty)
+        // A duel fallback that only one seat can win is worse than useless, so
+        // never hand one back: prefer any candidate that is playable from both
+        // sides, even out of band.
+        if (mode == GameMode.DUEL) {
+            val b = best
+            if (b == null || solveRate(b, 1) <= 0.0 || solveRate(b, 0) <= 0.0) {
+                return blockingFallback(seed, difficulty, bothSeats = true)
+            }
+        }
+        return best ?: blockingFallback(seed, difficulty, bothSeats = false)
     }
 
     /** Fraction of sampled aim space (STANDARD shot) that hits the opponent station. */
@@ -124,6 +157,36 @@ object SystemGenerator {
             angle += SOLVER_ANGLE_STEP
         }
         return hits.toDouble() / total
+    }
+
+    /**
+     * Does the level fall to the obvious shot — point at the target and fire?
+     *
+     * This is the question the hit-rate solver never asked, and it is the one
+     * that decides whether a level has a *purpose*. A system can sit perfectly
+     * inside its difficulty band while still being beaten by a straight lob,
+     * because "what fraction of the whole aim space hits" says nothing about
+     * "does the first thing anyone tries work". Levels that fail this are
+     * rejected outright: if gravity is optional, there is no game.
+     */
+    fun fallsToNaiveShot(spec: SystemSpec, shooter: Int): Boolean {
+        val target = spec.stations[1 - shooter]
+        val from = spec.stations[shooter]
+        val direct = StrictMath.toDegrees(StrictMath.atan2(target.y - from.y, target.x - from.x))
+        val centre = (((direct * 10).toInt() % 3600) + 3600) % 3600
+        var dev = -NAIVE_SPREAD_DECI
+        while (dev <= NAIVE_SPREAD_DECI) {
+            val angle = ((centre + dev) % 3600 + 3600) % 3600
+            for (power in NAIVE_POWERS) {
+                val res = LiveShot(
+                    spec.bodies, spec.stations, shooter, angle, power,
+                    ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
+                ).runToCompletion()
+                if (res.stationHits.any { it == 1 - shooter }) return true
+            }
+            dev += NAIVE_STEP_DECI
+        }
+        return false
     }
 
     /**
@@ -200,64 +263,111 @@ object SystemGenerator {
         return true
     }
 
+    /**
+     * Builds a layout *around the shot it wants to force*, rather than
+     * scattering bodies and hoping.
+     *
+     * The old approach placed bodies at random with only separation rules,
+     * which produced levels whose direct station-to-station corridor was wide
+     * open — a straight lob won, gravity was decorative, and the level had no
+     * purpose. Now the corridor is furnished deliberately:
+     *
+     *  1. Stations are fixed first, defining the direct line.
+     *  2. A **keeper** is placed ON that line, sized to eclipse it, so the
+     *     obvious shot is blocked by construction rather than by luck.
+     *  3. **Shepherds** are placed alternating either side of the line at
+     *     offsets that make a curved route plausible — the bodies a player
+     *     will actually slingshot around.
+     *  4. Decor (repulsor/pulsar/comet) fills the rest of the field.
+     *
+     * The solver still has the final say; this only stops it wasting attempts
+     * on layouts that were never going to be interesting.
+     */
     private fun candidate(seed: Long, attempt: Int, difficulty: Int): SystemSpec? {
         val rng = Rng(Rng.mix(seed, attempt.toLong()))
         val bodies = ArrayList<Body>(8)
 
-        // --- Star(s) ---
-        val binary = difficulty >= 8 && rng.chance(0.30)
-        if (binary) {
-            val cx = Tuning.WORLD_W / 2 + rng.range(-80.0, 80.0)
-            val cy = Tuning.WORLD_H / 2 + rng.range(-100.0, 100.0)
-            val sep = rng.range(150.0, 230.0)
-            val ang = rng.range(0.0, Math.PI)
-            val ox = StrictMath.cos(ang) * sep / 2
-            val oy = StrictMath.sin(ang) * sep / 2
-            bodies.add(Body(cx - ox, cy - oy, rng.range(42.0, 60.0), rng.range(3.2e6, 5.5e6), BodyKind.STAR, 0))
-            bodies.add(Body(cx + ox, cy + oy, rng.range(42.0, 60.0), rng.range(3.2e6, 5.5e6), BodyKind.STAR, 1))
-        } else {
-            bodies.add(
-                Body(
-                    Tuning.WORLD_W / 2 + rng.range(-120.0, 120.0),
-                    Tuning.WORLD_H / 2 + rng.range(-140.0, 140.0),
-                    rng.range(55.0, 85.0),
-                    rng.range(6.0e6, 1.1e7),
-                    BodyKind.STAR, 0,
-                )
-            )
-        }
+        // --- 1. Stations first: they define the problem. ---
+        val ps = Station(rng.range(150.0, Tuning.WORLD_W - 150.0), rng.range(Tuning.WORLD_H - 190.0, Tuning.WORLD_H - 120.0), 0)
+        val ts = Station(rng.range(150.0, Tuning.WORLD_W - 150.0), rng.range(120.0, 190.0), 1)
 
-        // --- Planets ---
-        val planetCount = when {
-            difficulty <= 1 -> 2
-            difficulty <= 3 -> 3
-            difficulty <= 5 -> 4
-            difficulty <= 7 -> 5
-            else -> 5 + rng.nextInt(2)
+        val lx = ts.x - ps.x
+        val ly = ts.y - ps.y
+        val llen = Math.sqrt(lx * lx + ly * ly)
+        if (llen < 1e-6) return null
+        val ux = lx / llen           // unit vector along the corridor
+        val uy = ly / llen
+        val nx = -uy                 // unit normal to it
+        val ny = ux
+
+        fun onLine(t: Double, offset: Double) = Pair(
+            ps.x + ux * llen * t + nx * offset,
+            ps.y + uy * llen * t + ny * offset,
+        )
+
+        // --- 2. The keeper: blocks the obvious shot by construction. ---
+        val keeperT = rng.range(0.38, 0.62)
+        val keeperR = rng.range(58.0, 86.0)
+        val (kx, ky) = onLine(keeperT, rng.range(-12.0, 12.0))
+        if (kx < keeperR || kx > Tuning.WORLD_W - keeperR) return null
+        val keeperIsStar = difficulty <= 6 || rng.chance(0.6)
+        bodies.add(
+            if (keeperIsStar) Body(kx, ky, keeperR, rng.range(6.0e6, 1.05e7), BodyKind.STAR, 0)
+            else Body(kx, ky, keeperR, keeperR * keeperR * rng.range(700.0, 900.0), BodyKind.PLANET, 2 + rng.nextInt(5))
+        )
+
+        // --- 3. Shepherds: the bodies a curved route can use. ---
+        val shepherds = when {
+            difficulty <= 1 -> 1
+            difficulty <= 4 -> 2
+            difficulty <= 7 -> 3
+            else -> 3 + rng.nextInt(2)
         }
-        repeat(planetCount) {
-            val placed = tryPlace(rng, bodies) { x, y ->
-                val r = rng.range(28.0, 60.0)
-                Body(x, y, r, r * r * rng.range(550.0, 850.0), BodyKind.PLANET, 2 + rng.nextInt(5))
+        var side = if (rng.chance(0.5)) 1.0 else -1.0
+        repeat(shepherds) {
+            // Retry: a single attempt failed often enough to leave levels with
+            // nothing but a keeper, which is not a puzzle, it is a wall.
+            var tries = 0
+            while (tries++ < 14) {
+                val t = rng.range(0.16, 0.9)
+                val offset = side * rng.range(140.0, 340.0)
+                val r = rng.range(30.0, 56.0)
+                val (sx, sy) = onLine(t, offset)
+                if (sx < r + 40 || sx > Tuning.WORLD_W - r - 40) continue
+                if (sy < r + 60 || sy > Tuning.WORLD_H - r - 60) continue
+                val clear = bodies.all { o ->
+                    val dx = o.x - sx; val dy = o.y - sy
+                    val min = (o.radius + r) * 1.5 + 20.0
+                    dx * dx + dy * dy > min * min
+                }
+                val clearOfStations = listOf(ps, ts).all { st ->
+                    val dx = st.x - sx; val dy = st.y - sy
+                    val min = r + Tuning.STATION_RADIUS + 56.0
+                    dx * dx + dy * dy > min * min
+                }
+                if (clear && clearOfStations) {
+                    bodies.add(Body(sx, sy, r, r * r * rng.range(560.0, 860.0), BodyKind.PLANET, 2 + rng.nextInt(5)))
+                    break
+                }
             }
-            if (!placed) return null
+            side = -side   // alternate sides so routes exist both ways
         }
 
-        // --- Repulsor anomaly (negative mass, intangible) ---
+        // A keeper alone is a wall, not a puzzle: every level needs something
+        // to curve around.
+        if (bodies.size < 2) return null
+
+        // --- 4. Decor / hazards ---
         if (difficulty >= 5 && rng.chance(0.35)) {
             tryPlace(rng, bodies) { x, y ->
                 Body(x, y, 24.0, -rng.range(8.0e5, 1.6e6), BodyKind.REPULSOR, 7)
             }
         }
-
-        // --- Pulsar: gravity that breathes, so timing matters ---
         if (difficulty >= 4 && rng.chance(0.28)) {
             tryPlace(rng, bodies) { x, y ->
                 Body(x, y, rng.range(26.0, 34.0), rng.range(1.6e6, 2.8e6), BodyKind.PULSAR, 8)
             }
         }
-
-        // --- Comet: drifts across the field, pays out if you can lead it ---
         if (difficulty >= 2 && rng.chance(0.42)) {
             val horizontal = rng.chance(0.5)
             val speed = rng.range(38.0, 78.0) * (if (rng.chance(0.5)) 1.0 else -1.0)
@@ -275,11 +385,15 @@ object SystemGenerator {
             )
         }
 
-        // --- Stations ---
-        val ps = placeStation(rng, bodies, yMin = Tuning.WORLD_H - 190.0, yMax = Tuning.WORLD_H - 110.0, owner = 0)
-            ?: return null
-        val ts = placeStation(rng, bodies, yMin = 110.0, yMax = 190.0, owner = 1)
-            ?: return null
+        // Stations must not have ended up inside anything.
+        for (st in listOf(ps, ts)) {
+            for (b in bodies) {
+                if (b.kind == BodyKind.REPULSOR) continue
+                val dx = b.x - st.x; val dy = b.y - st.y
+                val min = b.radius + Tuning.STATION_RADIUS + 44.0
+                if (dx * dx + dy * dy < min * min) return null
+            }
+        }
 
         return SystemSpec(
             seed = seed,
@@ -320,19 +434,94 @@ object SystemGenerator {
         return null
     }
 
-    /** Guaranteed-sane layout used only if 24 candidate attempts all fail the band. */
-    private fun fallback(seed: Long, difficulty: Int): SystemSpec {
-        val bodies = listOf(
-            Body(Tuning.WORLD_W / 2, Tuning.WORLD_H / 2, 70.0, 8.0e6, BodyKind.STAR, 0),
-            Body(Tuning.WORLD_W * 0.22, Tuning.WORLD_H * 0.33, 40.0, 1.1e6, BodyKind.PLANET, 3),
-            Body(Tuning.WORLD_W * 0.78, Tuning.WORLD_H * 0.67, 40.0, 1.1e6, BodyKind.PLANET, 4),
-        )
-        val stations = listOf(
-            Station(Tuning.WORLD_W * 0.5, Tuning.WORLD_H - 150.0, 0),
-            Station(Tuning.WORLD_W * 0.5, 150.0, 1),
-        )
-        val spec = SystemSpec(seed, difficulty, "Haven Reach", bodies, stations, 0.0)
-        return spec.copy(solverHitRate = solveRate(spec, 0))
+    /**
+     * Guaranteed-blocking fallback, used when curated attempts cannot satisfy
+     * the difficulty band.
+     *
+     * Every fallback must clear the same bar as a normal level: a fallback
+     * that is beatable by pointing at the target would smuggle back exactly
+     * the purposeless level this whole design exists to remove — and fallbacks
+     * are invisible, so the bug would hide. The central keeper therefore grows
+     * until the point-and-fire cone is provably dead, and (for duels) until
+     * both seats have a route.
+     */
+    private fun blockingFallback(seed: Long, difficulty: Int, bothSeats: Boolean): SystemSpec {
+        var last: SystemSpec? = null
+        // Search a rich space rather than one fixed arena: station offsets make
+        // the corridor diagonal, and a second keeper closes the cone when one
+        // is not enough. A fallback that fails the naive probe would smuggle
+        // back the purposeless level this change exists to remove — and
+        // fallbacks are invisible, so that bug would hide.
+        for (i in 0 until 48) {
+            val rng = Rng(Rng.mix(seed, 0xFA11BACCL + i))
+            val stations = listOf(
+                Station(Tuning.WORLD_W / 2 + rng.range(-220.0, 220.0), Tuning.WORLD_H - rng.range(120.0, 180.0), 0),
+                Station(Tuning.WORLD_W / 2 + rng.range(-220.0, 220.0), rng.range(120.0, 180.0), 1),
+            )
+            val a = stations[0]
+            val b = stations[1]
+            val lx = b.x - a.x
+            val ly = b.y - a.y
+            val len = Math.sqrt(lx * lx + ly * ly)
+            val ux = lx / len
+            val uy = ly / len
+            val nx = -uy
+            val ny = ux
+
+            val bodies = ArrayList<Body>(4)
+            val doubleKeeper = i >= 16
+            val kr1 = 66.0 + (i % 8) * 5.0
+            val t1 = if (doubleKeeper) 0.32 else rng.range(0.42, 0.58)
+            bodies.add(
+                Body(
+                    a.x + ux * len * t1 + nx * rng.range(-10.0, 10.0),
+                    a.y + uy * len * t1 + ny * rng.range(-10.0, 10.0),
+                    kr1, rng.range(7.0e6, 1.05e7), BodyKind.STAR, 0,
+                )
+            )
+            if (doubleKeeper) {
+                val kr2 = 48.0 + (i % 6) * 5.0
+                bodies.add(
+                    Body(
+                        a.x + ux * len * 0.7 + nx * rng.range(-14.0, 14.0),
+                        a.y + uy * len * 0.7 + ny * rng.range(-14.0, 14.0),
+                        kr2, kr2 * kr2 * 780.0, BodyKind.PLANET, 3,
+                    )
+                )
+            }
+            for (sgn in intArrayOf(-1, 1)) {
+                val off = sgn * rng.range(190.0, 320.0)
+                val t = rng.range(0.3, 0.75)
+                val px = a.x + ux * len * t + nx * off
+                val py = a.y + uy * len * t + ny * off
+                if (px > 90 && px < Tuning.WORLD_W - 90 && py > 120 && py < Tuning.WORLD_H - 120) {
+                    bodies.add(Body(px, py, 42.0, 1.35e6, BodyKind.PLANET, 4))
+                }
+            }
+            if (bodies.size < 2) continue
+
+            val stationsClear = stations.all { st ->
+                bodies.all { body ->
+                    val dx = body.x - st.x; val dy = body.y - st.y
+                    val min = body.radius + Tuning.STATION_RADIUS + 40.0
+                    dx * dx + dy * dy > min * min
+                }
+            }
+            if (!stationsClear) continue
+
+            val spec = SystemSpec(
+                seed, difficulty, NameGen.systemName(Rng(Rng.mix(seed, 777L))),
+                bodies, stations, 0.0,
+            )
+            last = spec
+            if (fallsToNaiveShot(spec, 0)) continue
+            if (bothSeats && fallsToNaiveShot(spec, 1)) continue
+            val r0 = solveRate(spec, 0)
+            if (r0 <= 0.0) continue
+            if (bothSeats && solveRate(spec, 1) <= 0.0) continue
+            return spec.copy(solverHitRate = r0)
+        }
+        return last!!.copy(solverHitRate = solveRate(last, 0))
     }
 }
 

@@ -72,11 +72,13 @@ class MatchRulesTests {
 
     @Test
     fun campaignStarsByShotsUsed() {
-        // 1-shot clear = 3 stars.
+        // A one-shot clear that used no gravity is NOT three stars: the top
+        // rating means "you played the game", not "you got there quickly".
+        // This is the exact case a player hit — straight shot, full marks.
         var engine = MatchEngine(openSpec(), GameMode.CAMPAIGN)
         engine.commit(directHit(engine))
         assertTrue(engine.over && engine.campaignWon)
-        assertEquals(3, engine.starsEarned())
+        assertEquals("a straight lob must not earn three stars", 2, engine.starsEarned())
 
         // Miss, miss, hit = 1 star (3 shots).
         engine = MatchEngine(openSpec(), GameMode.CAMPAIGN)
@@ -91,6 +93,25 @@ class MatchRulesTests {
         assertTrue(engine.over)
         assertTrue(!engine.campaignWon)
         assertEquals(0, engine.starsEarned())
+    }
+
+    @Test
+    fun threeStarsRequireWorkingTheField() {
+        // Same one-shot clear, but the shot falls past a heavy star first and
+        // arrives carrying speed it stole from the field: that is three stars.
+        val spec = SystemSpec(
+            seed = 3L, difficulty = 0, name = "Assist Range",
+            bodies = listOf(Body(500.0, 800.0, 60.0, 9.0e6, BodyKind.STAR, 0)),
+            stations = listOf(Station(500.0, 1450.0, 0), Station(500.0, 150.0, 1)),
+            solverHitRate = 1.0,
+        )
+        val engine = MatchEngine(spec, GameMode.CAMPAIGN)
+        val res = engine.beginShot(2700, 1000, ProjectileType.STANDARD.id).runToCompletion()
+        engine.commit(res)
+        if (engine.campaignWon) {
+            assertTrue("this shot should have gained speed", res.slingshotGain > 0)
+            assertEquals(3, engine.starsEarned())
+        }
     }
 
     @Test

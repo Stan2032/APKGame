@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-08-06
+- ⚠️ **Protocol v4.** Curated generation and the longer solver horizon change what a seed produces, so older codes are refused rather than replayed into a different universe.
+- **Levels now have a purpose.** A player cleared a level with a straight shot, used no gravity, and took three stars — and they were right that the level had none. Measurement confirmed it was systemic: **5 of 36 campaign levels fell to a near-straight shot.** Two root causes, both fixed:
+  - The generator scattered bodies with only *separation* rules and never asked whether the direct station-to-station corridor was blocked. Layouts are now built **around the shot they want to force**: stations first, then a **keeper** placed on the direct line and sized to eclipse it, then **shepherds** alternating either side at offsets that make a curved route plausible. Placement with intent, not rejection-sampled randomness.
+  - The solver measured *what fraction of the whole aim space connects*, which says nothing about *whether the first thing anyone tries works*. `fallsToNaiveShot` now rejects any level beatable by pointing within 22° of the target at any power — including every fallback path, which was quietly reintroducing the exact bug it was meant to guard against.
+  - Result: **0 of 72 levels across six sectors fall to a straight shot**, average 4.7 bodies per level.
+- **Three stars now mean "you played the game".** Shot count alone gave full marks for a lucky lob; the third star additionally requires the winning shot to have worked the field — stolen speed from it, curved, or struck a comet.
+- Difficulty bands recalibrated: they were tuned for open corridors that no longer exist, and difficulty 0 was landing *below* its own floor, silently pushing early levels onto the fallback path. The solver horizon also rose 600→950 ticks, because curved routes take longer than lobs and genuine solutions were being scored as misses.
+- Generation got **~20× faster** (17–40ms, from 300–630ms) as a side effect: curated layouts are accepted on the first attempt instead of burning 24 random ones.
+
 ## [0.6.0] — 2026-08-05
 - **The difficulty solver stopped lying.** Anchors let players bend the field, so a hit-rate measured on a *fixed* field no longer describes how hard a level is — the game's "measured difficulty" guarantee had quietly become false the moment anchors shipped. `anchorLeverage` now measures the thing that actually matters: **of the shots that currently miss, what fraction can a single anchor rescue?** Systems where anchors trivialize aiming are rejected.
 - Corrected a design error of my own along the way: the first version also demanded a *minimum* leverage ("anchors must matter here"), which rejected perfectly good pure-aim layouts — variety in how much anchors help is a feature — and each rejection costs another full solve sweep, tripling generation time. Measure always, reject only trivialization.

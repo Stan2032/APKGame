@@ -50,10 +50,26 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         }
     }
 
-    fun starsEarned(): Int = if (!campaignWon) 0 else when (shotsUsed) {
-        1 -> 3
-        2 -> 2
-        else -> 1
+    /**
+     * Stars reward *how* the level fell, not just how fast.
+     *
+     * Shot count alone gave three stars for a lucky first shot, which is how a
+     * player ended up with a perfect score for a straight lob that used no
+     * gravity at all. The third star now additionally requires the winning
+     * shot to have actually worked the field — stolen speed from it, curved
+     * around it, or threaded a comet — so the top rating means "you played the
+     * game", not "you got there quickly".
+     */
+    fun starsEarned(): Int {
+        if (!campaignWon) return 0
+        val winning = results.lastOrNull { r -> r.stationHits.any { it == 1 } }
+        val workedTheField = winning != null &&
+            (winning.slingshotGain >= Tuning.THREE_STAR_MIN_GAIN || winning.styleBonus > 0)
+        return when {
+            shotsUsed == 1 && workedTheField -> 3
+            shotsUsed <= 2 -> 2
+            else -> 1
+        }
     }
 
     fun beginShot(

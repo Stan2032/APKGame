@@ -72,7 +72,15 @@ class DeterminismTest {
 
     @Test
     fun brakeTickChangesOutcomeDeterministically() {
-        val s = spec()
+        // Controlled open field, not a generated level: curated levels block
+        // the corridor deliberately, so a shot can die before the brake tick
+        // and the test would be measuring the level rather than the brake.
+        val s = SystemSpec(
+            seed = 1L, difficulty = 0, name = "Brake Range",
+            bodies = listOf(Body(180.0, 800.0, 40.0, 1.0e6, BodyKind.PLANET, 3)),
+            stations = listOf(Station(500.0, 1450.0, 0), Station(500.0, 150.0, 1)),
+            solverHitRate = 1.0,
+        )
         val plain = LiveShot(s.bodies, s.stations, 0, 2700, 900, ProjectileType.RETRO.id, presetBrakeTick = -1).runToCompletion()
         val braked = LiveShot(s.bodies, s.stations, 0, 2700, 900, ProjectileType.RETRO.id, presetBrakeTick = 40).runToCompletion()
         assertTrue(plain.hash != braked.hash)
