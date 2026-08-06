@@ -112,10 +112,12 @@ data class SystemSpec(
     /** What this system asks of the player (docs/VISION.md §3.5). */
     val objectiveId: Int = Objective.BREACH.id,
     /**
-     * Which body the [Objective.CAPTURE] ring belongs to. -1 when the
-     * objective does not use one.
+     * The body this system's objective points at — the world a Capture ring
+     * belongs to, or the comet a Courier must strike. -1 when the objective
+     * does not use one. Generic rather than per-objective, so the next
+     * objective that needs a target does not add a third field.
      */
-    val captureBody: Int = -1,
+    val markedBody: Int = -1,
 ) {
     val objective: Objective get() = Objective.byId(objectiveId)
 

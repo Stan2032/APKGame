@@ -286,7 +286,7 @@ class MatchControllerTest {
                     val r = io.github.stan2032.gravitygambit.core.LiveShot(
                         spec!!.bodies, spec.stations, 0, angle, power,
                         ProjectileType.RETRO.id, presetBrakeTick = burn,
-                        maxTicks = Tuning.SOLVER_MAX_TICKS, captureBody = spec.captureBody,
+                        maxTicks = Tuning.SOLVER_MAX_TICKS, markedBody = spec.markedBody,
                     ).runToCompletion()
                     if (r.captureDwell >= Tuning.CAPTURE_TICKS) {
                         solution = Triple(angle, power, burn); break@outer2

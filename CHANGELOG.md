@@ -6,6 +6,14 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-06
+- ⚠️ **Protocol v7.** A second objective changes what a seed generates again, so v6 codes are refused.
+- **Courier: strike the marked comet** (VISION Stage C, second objective). The target drifts, so the shot has to be led rather than aimed.
+- Measured before building, as with Capture — and it mattered again: of 36 sampled levels only **11 carried a comet at all**, and **two of those comets could not be hit**. Presence is not proof. Both are caught by `proveCourier`, so a system that cannot pay a delivery never asks for one. (D-27)
+- **Generalised rather than special-cased**: `captureBody` became `markedBody`, and objective assignment now collects every objective a system has been *proved* to pay and picks among them from the seed. Adding the next objective costs an enum entry, a proof and a rule — not a new spec field, a new `LiveShot` parameter and a new branch in three places. (D-28)
+- The marked comet wears a counter-rotating reticle no other body has, because comets already look like comets and the mark has to say *this one*.
+- Tests: 132 (81 `:core` + 51 `:app`), 3 new — including that dying on the *wrong* body is not a delivery, and that every generated Courier system is provably winnable.
+
 ## [0.10.1] — 2026-08-06
 - **Fourth audit pass: DETERMINISM.md contained a trap.** It is the document backing the project's single load-bearing claim, and it had drifted in three ways that mattered:
   - Its list of hashed content stopped at the 0.2.0 protocol — no anchors, no gambit id, no gambit-kept verdict, no objective state, all of which fold in now. That omission is the dangerous kind: this is the doc a contributor reads before adding an input, and **an input that is not hashed is one a sender can edit after the fact without the receiver noticing.** That is precisely how a re-declared gambit would have become free points.

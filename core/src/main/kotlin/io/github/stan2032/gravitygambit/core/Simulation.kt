@@ -37,9 +37,11 @@ class ShotResult(
     val maxDetour: Double = 0.0,
     /**
      * Longest unbroken run of ticks the shot spent inside the capture ring of
-     * the designated body ([Objective.CAPTURE]). 0 when no body was designated.
+     * the marked body ([Objective.CAPTURE]). 0 when no body was marked.
      */
     val captureDwell: Int = 0,
+    /** Did a projectile die on the marked body ([Objective.COURIER])? */
+    val markedBodyHit: Boolean = false,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -61,11 +63,12 @@ class LiveShot(
     /** Declared constraint, judged from the flight afterwards (see [Gambit]). */
     private val gambitId: Int = 0,
     /**
-     * Body whose capture ring this shot is being measured against, or -1.
-     * Measurement only — it never influences the trajectory, so a Breach
-     * system and a Capture system with identical inputs fly identically.
+     * The body this shot is being measured against, or -1: ring dwell for a
+     * Capture, a direct strike for a Courier. Measurement only — it never
+     * influences the trajectory, so two systems with identical inputs and
+     * different objectives fly identically.
      */
-    private val captureBody: Int = -1,
+    private val markedBody: Int = -1,
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -109,6 +112,8 @@ class LiveShot(
     private var detourMin = 0.0
     private var detourMax = 0.0
     private var detourSampled = false
+    /** Set when a projectile dies on the marked body ([Objective.COURIER]). */
+    private var markedHit = false
     /** Live, for the HUD: how long the current unbroken ring run has lasted. */
     var captureRun = 0; private set
     private var captureBest = 0
@@ -195,7 +200,7 @@ class LiveShot(
             if (p.alive) anyAlive = true
         }
 
-        if (captureBody >= 0) sampleCapture()
+        if (markedBody >= 0) sampleCapture()
 
         if (tick % HASH_STRIDE == 0) {
             for (p in projs) if (p.alive) {
@@ -285,7 +290,7 @@ class LiveShot(
      * per projectile so a splitter cannot bank two runs at once.
      */
     private fun sampleCapture() {
-        val b = bodies[captureBody]
+        val b = bodies[markedBody]
         val bx = b.xAt(tick)
         val by = b.yAt(tick)
         val inner = b.radius + Tuning.CAPTURE_RING_INNER
@@ -316,6 +321,7 @@ class LiveShot(
             if (dx * dx + dy * dy < rr * rr) {
                 p.alive = false
                 bodyHits++
+                if (bi == markedBody) markedHit = true
                 if (b.kind == BodyKind.COMET) cometHits++
                 lastImpact = Vec2(p.px, p.py); lastImpactWasStation = false
                 foldHash(1L); foldHash(bi.toLong()); foldHash(tick.toLong())
@@ -426,6 +432,7 @@ class LiveShot(
             crossedTargetLine = detourSampled && detourMin < 0.0 && detourMax > 0.0,
             maxDetour = if (!detourSampled) 0.0 else StrictMath.max(-detourMin, detourMax),
             captureDwell = captureBest,
+            markedBodyHit = markedHit,
         )
     }
 

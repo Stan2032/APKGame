@@ -49,7 +49,7 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
     val campaignWon: Boolean
         get() = when (spec.objective) {
             Objective.BREACH -> hp[1] <= 0
-            Objective.CAPTURE -> objectiveMet
+            Objective.CAPTURE, Objective.COURIER -> objectiveMet
         }
 
     /** DUEL: winning player index, or null (draw / not over). Shooter survives ties. */
@@ -81,15 +81,15 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         val winIndex = results.indices.lastOrNull { i ->
             gambitKept[i] && when (spec.objective) {
                 Objective.BREACH -> results[i].stationHits.any { it == 1 }
-                Objective.CAPTURE -> results[i].captureDwell >= Tuning.CAPTURE_TICKS
+                else -> objectiveSatisfiedBy(results[i])
             }
         }
         val winning = winIndex?.let { results[it] }
         val declared = winning != null && winning.input.gambitId != Gambit.NONE.id
         val workedTheField = winning != null && (
-            // Holding a ring for four seconds cannot happen by accident — a
-            // flyby tops out well short of it (Tuning.CAPTURE_TICKS).
-            spec.objective == Objective.CAPTURE ||
+            // Neither holding a ring for four seconds nor leading a drifting
+            // comet happens by accident.
+            spec.objective != Objective.BREACH ||
                 declared ||
                 winning.slingshotGain >= Tuning.THREE_STAR_MIN_GAIN ||
                 winning.styleBonus > 0
@@ -99,6 +99,13 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
             shotsUsed <= 2 -> 2
             else -> 1
         }
+    }
+
+    /** Has this shot achieved what the system asks? Rules, not measurement. */
+    fun objectiveSatisfiedBy(r: ShotResult): Boolean = when (spec.objective) {
+        Objective.BREACH -> r.stationHits.any { it == 1 }
+        Objective.CAPTURE -> r.captureDwell >= Tuning.CAPTURE_TICKS
+        Objective.COURIER -> r.markedBodyHit
     }
 
     fun beginShot(
@@ -114,7 +121,7 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         // Capture is impossible without a brake, so the objective issues the
         // shell rather than assuming the player has unlocked it.
         if (spec.objective.forcesRetro) ProjectileType.RETRO.id else typeId,
-        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId, spec.captureBody,
+        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId, spec.markedBody,
     )
 
     /** Apply a finished shot to match state. Must be called exactly once per shot. */
@@ -132,13 +139,9 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         foldHash(if (kept) 1L else 0L)
         val hits = if (kept) result.stationHits else emptyList()
 
-        // A held ring counts only if the declaration held too — the shot is
-        // wasted either way, and that has to mean wasted for every objective.
-        if (kept && spec.objective == Objective.CAPTURE &&
-            result.captureDwell >= Tuning.CAPTURE_TICKS
-        ) {
-            objectiveMet = true
-        }
+        // The objective can only be met by a shot that kept its declaration —
+        // a wasted shot is wasted for every objective, not just for damage.
+        if (kept && objectiveSatisfiedBy(result)) objectiveMet = true
         foldHash(if (objectiveMet) 1L else 0L)
 
         val type = ProjectileType.byId(input.typeId)

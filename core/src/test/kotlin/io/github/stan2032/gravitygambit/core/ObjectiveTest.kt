@@ -30,7 +30,7 @@ class ObjectiveTest {
         ),
         solverHitRate = 0.05,
         objectiveId = Objective.CAPTURE.id,
-        captureBody = 0,
+        markedBody = 0,
     )
 
     /**
@@ -48,7 +48,7 @@ class ObjectiveTest {
                 val d = LiveShot(
                     spec.bodies, spec.stations, 0, angle, power,
                     ProjectileType.STANDARD.id,
-                    maxTicks = Tuning.SOLVER_MAX_TICKS, captureBody = 0,
+                    maxTicks = Tuning.SOLVER_MAX_TICKS, markedBody = 0,
                 ).runToCompletion().captureDwell
                 if (d > best) best = d
             }
@@ -83,7 +83,7 @@ class ObjectiveTest {
                     val r = LiveShot(
                         spec.bodies, spec.stations, 0, angle, power,
                         ProjectileType.RETRO.id, presetBrakeTick = burn,
-                        maxTicks = Tuning.SOLVER_MAX_TICKS, captureBody = 0,
+                        maxTicks = Tuning.SOLVER_MAX_TICKS, markedBody = 0,
                     ).runToCompletion()
                     if (r.captureDwell >= Tuning.CAPTURE_TICKS) {
                         winner = Triple(angle, power, burn); break@outer
@@ -111,7 +111,7 @@ class ObjectiveTest {
     @Test
     fun breachSystemsAreUntouched() {
         val spec = captureSpec().copy(
-            objectiveId = Objective.BREACH.id, captureBody = -1,
+            objectiveId = Objective.BREACH.id, markedBody = -1,
         )
         val e = MatchEngine(spec, GameMode.CAMPAIGN)
         val r = e.beginShot(2700, 1000, ProjectileType.STANDARD.id).runToCompletion()
@@ -138,10 +138,10 @@ class ObjectiveTest {
                 )
                 if (spec.objective != Objective.CAPTURE) continue
                 found++
-                assertTrue("capture system has no marked body", spec.captureBody >= 0)
+                assertTrue("capture system has no marked body", spec.markedBody >= 0)
                 assertTrue(
                     "s$sector.l$level asks for a capture it cannot pay",
-                    SystemGenerator.proveCapture(spec, spec.captureBody),
+                    SystemGenerator.proveCapture(spec, spec.markedBody),
                 )
             }
         }
@@ -165,5 +165,100 @@ class ObjectiveTest {
                 Seeds.daily(20700L), Seeds.DAILY_DIFFICULTY, GameMode.DAILY,
             ).objective,
         )
+    }
+}
+
+/**
+ * Courier: strike the drifting comet rather than a fixed station. Cheap to add
+ * because comets already existed — but measurement found two levels whose comet
+ * could not be hit at all, so presence is not proof (D-27).
+ */
+class CourierTest {
+
+    private fun courierSpec(vx: Double = 60.0): SystemSpec = SystemSpec(
+        seed = 55L,
+        difficulty = 4,
+        name = "Courier Range",
+        bodies = listOf(
+            Body(200.0, 900.0, 40.0, 1.2e6, BodyKind.PLANET, 2),
+            Body(500.0, 700.0, 18.0, 2.4e5, BodyKind.COMET, 9, vx = vx),
+        ),
+        stations = listOf(
+            Station(Tuning.WORLD_W / 2, Tuning.WORLD_H - 150.0, 0),
+            Station(Tuning.WORLD_W / 2, 150.0, 1),
+        ),
+        solverHitRate = 0.05,
+        objectiveId = Objective.COURIER.id,
+        markedBody = 1,
+    )
+
+    @Test
+    fun strikingTheMarkedCometWinsWithoutTouchingAStation() {
+        val spec = courierSpec()
+        assertTrue("the range must be winnable at all", SystemGenerator.proveCourier(spec, 1))
+
+        var won: ShotResult? = null
+        outer@ for (angle in 0 until 3600 step SystemGenerator.GAMBIT_ANGLE_STEP) {
+            for (power in SystemGenerator.GAMBIT_POWERS) {
+                val e = MatchEngine(spec, GameMode.CAMPAIGN)
+                val r = e.beginShot(angle, power, ProjectileType.STANDARD.id).runToCompletion()
+                if (r.markedBodyHit) {
+                    e.commit(r)
+                    assertTrue("striking the comet wins the system", e.campaignWon)
+                    assertTrue("and it did so without hitting a station", r.stationHits.isEmpty())
+                    won = r
+                    break@outer
+                }
+            }
+        }
+        assertNotNull("no shot struck the marked comet", won)
+    }
+
+    /** A different body's death must not count as the delivery. */
+    @Test
+    fun hittingSomethingElseIsNotDelivery() {
+        val spec = courierSpec()
+        val e = MatchEngine(spec, GameMode.CAMPAIGN)
+        // Straight into the planet, which is body 0, not the marked comet.
+        var struckPlanet: ShotResult? = null
+        outer@ for (angle in 0 until 3600 step 20) {
+            for (power in intArrayOf(300, 600, 900)) {
+                val r = LiveShot(
+                    spec.bodies, spec.stations, 0, angle, power,
+                    ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
+                    markedBody = 1,
+                ).runToCompletion()
+                if (r.bodyHitCount > 0 && !r.markedBodyHit) { struckPlanet = r; break@outer }
+            }
+        }
+        assertNotNull("expected some shot to die on the wrong body", struckPlanet)
+        e.commit(struckPlanet!!)
+        assertFalse("dying on the wrong body is not a delivery", e.campaignWon)
+    }
+
+    /** Every generated Courier system must have a comet that can be struck. */
+    @Test
+    fun everyCourierSystemIsProvablyWinnable() {
+        var found = 0
+        for (sector in 0 until 6) {
+            for (level in 0 until 12 step 2) {
+                val spec = SystemGenerator.generate(
+                    Seeds.campaign(sector, level),
+                    Seeds.campaignDifficulty(sector, level),
+                    GameMode.CAMPAIGN,
+                )
+                if (spec.objective != Objective.COURIER) continue
+                found++
+                assertEquals(
+                    "a Courier must mark a comet",
+                    BodyKind.COMET, spec.bodies[spec.markedBody].kind,
+                )
+                assertTrue(
+                    "s$sector.l$level asks for a delivery it cannot pay",
+                    SystemGenerator.proveCourier(spec, spec.markedBody),
+                )
+            }
+        }
+        assertTrue("no courier systems generated at all", found > 0)
     }
 }

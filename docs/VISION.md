@@ -122,7 +122,7 @@ sonifies each pulse so the field can be learned **by ear**.
 Why: adds a timing skill orthogonal to aiming, and gives the game a sonic
 identity — "the level has a beat" is something no competitor has.
 
-### 3.5 Objectives beyond destruction — **Capture SHIPPED 0.10.0**
+### 3.5 Objectives beyond destruction — **Capture + Courier SHIPPED**
 
 Procedurally selected win conditions per system:
 - **Breach** (current) — destroy the core.
@@ -138,7 +138,11 @@ Procedurally selected win conditions per system:
   the player a RETRO shell whatever their loadout, and it is the first thing in
   the game that gives that shell a reason to exist.
 - **Thread** — pass through gates in order.
-- **Courier** — strike a moving comet, not a fixed station.
+- **Courier** ✅ — strike the marked drifting comet, not a fixed station: the
+  target moves, so the shot has to be led. Cheap to add because comets already
+  existed — but *not* cheap to assume: of 36 sampled levels only 11 carried a
+  comet, and **two of those comets could not be hit at all**. Presence is not
+  proof, which is why nothing ships without one.
 - **Survivor** — get the shot home again after a flyby.
 
 Why: this is the multi-faceted variety the project always intended;
@@ -182,7 +186,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 |---|---|---|
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
-| **C** ◐ | Objectives (Capture shipped 0.10.0) (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
+| **C** ◐ | Objectives (Capture + Courier shipped; Thread open) (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
 | **D** | Expedition run structure + mutators | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification | Best after Expedition, so it lands as depth rather than noise. |
 | **F** | Debris/consequence | Tune last; it interacts with every other system. |

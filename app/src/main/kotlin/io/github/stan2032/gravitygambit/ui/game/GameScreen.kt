@@ -360,13 +360,15 @@ private fun MatchUI(
             // Comets drift, so they draw at their live simulation position —
             // exactly where the physics says they are.
             drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
-            if (c.objective == Objective.CAPTURE && c.spec.captureBody >= 0) {
-                drawCaptureRing(
-                    c.spec.bodies[c.spec.captureBody],
-                    c.liveShot?.tick ?: 0,
-                    c.captureProgress ?: 0f,
-                    time, t, cch,
-                )
+            if (c.spec.markedBody >= 0) {
+                val marked = c.spec.bodies[c.spec.markedBody]
+                val tick = c.liveShot?.tick ?: 0
+                when (c.objective) {
+                    Objective.CAPTURE ->
+                        drawCaptureRing(marked, tick, c.captureProgress ?: 0f, time, t, cch)
+                    Objective.COURIER -> drawMarkedTarget(marked, tick, time, t, cch)
+                    else -> Unit
+                }
             }
             drawStations(c.engine.stations, c.engine.hp, c.launch.mode, time, t, cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {

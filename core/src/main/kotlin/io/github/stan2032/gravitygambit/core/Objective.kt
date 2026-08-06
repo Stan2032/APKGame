@@ -33,10 +33,24 @@ enum class Objective(val id: Int, val displayName: String, val brief: String) {
      * *when* to burn rather than only where to aim.
      */
     CAPTURE(1, "Capture", "Hold orbit around the marked world"),
+
+    /**
+     * Strike the drifting comet rather than a fixed station: the target moves,
+     * so the shot has to be led.
+     *
+     * Cheap to add because comets already exist, but not cheap to assume — of
+     * 36 sampled levels only 11 carried a comet, and **two of those comets
+     * could not be hit at all**. Which is the whole reason [Objective] is only
+     * ever assigned after a proof (D-27).
+     */
+    COURIER(2, "Courier", "Strike the drifting comet"),
     ;
 
     /** Capture is impossible without a brake, so it issues one. */
     val forcesRetro: Boolean get() = this == CAPTURE
+
+    /** Does this objective point at a particular body? */
+    val needsMarkedBody: Boolean get() = this == CAPTURE || this == COURIER
 
     companion object {
         fun byId(id: Int): Objective = entries.firstOrNull { it.id == id } ?: BREACH

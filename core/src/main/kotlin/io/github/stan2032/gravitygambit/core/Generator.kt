@@ -70,10 +70,10 @@ object SystemGenerator {
     const val CAPTURE_ANGLE_STEP = 60
     val CAPTURE_POWERS = intArrayOf(200, 350, 500)
     val CAPTURE_BURN_TICKS = intArrayOf(100, 140, 180, 220, 260)
-    /** Fraction of eligible campaign systems that ask for a capture. */
-    const val CAPTURE_CHANCE = 0.28
-    /** Below this the field is too sparse to hold an orbit worth flying. */
-    const val CAPTURE_MIN_DIFFICULTY = 2
+    /** Fraction of eligible campaign systems that ask for something else. */
+    const val OBJECTIVE_CHANCE = 0.28
+    /** Below this the field is too sparse for an objective worth flying. */
+    const val OBJECTIVE_MIN_DIFFICULTY = 2
     private const val MAX_ATTEMPTS = 70
 
     /**
@@ -112,12 +112,19 @@ object SystemGenerator {
         difficulty: Int,
         mode: GameMode,
     ): SystemSpec {
-        if (mode != GameMode.CAMPAIGN || difficulty < CAPTURE_MIN_DIFFICULTY) return spec
+        if (mode != GameMode.CAMPAIGN || difficulty < OBJECTIVE_MIN_DIFFICULTY) return spec
         val rng = Rng(Rng.mix(seed, 0x0B1EC71E5L))
-        if (!rng.chance(CAPTURE_CHANCE)) return spec
-        val target = captureCandidate(spec) ?: return spec
-        if (!proveCapture(spec, target)) return spec
-        return spec.copy(objectiveId = Objective.CAPTURE.id, captureBody = target)
+        if (!rng.chance(OBJECTIVE_CHANCE)) return spec
+
+        // Collect only the objectives this system has been *proved* to pay,
+        // then pick among them. Order is fixed so the choice stays a pure
+        // function of the seed.
+        val offers = ArrayList<Pair<Objective, Int>>(2)
+        captureCandidate(spec)?.let { if (proveCapture(spec, it)) offers.add(Objective.CAPTURE to it) }
+        courierCandidate(spec)?.let { if (proveCourier(spec, it)) offers.add(Objective.COURIER to it) }
+        if (offers.isEmpty()) return spec
+        val (objective, target) = offers[rng.nextInt(offers.size)]
+        return spec.copy(objectiveId = objective.id, markedBody = target)
     }
 
     /**
@@ -136,6 +143,32 @@ object SystemGenerator {
         return if (best >= 0) best else null
     }
 
+    /** The comet a Courier must strike; null if the system has none. */
+    private fun courierCandidate(spec: SystemSpec): Int? =
+        spec.bodies.indexOfFirst { it.kind == BodyKind.COMET }.takeIf { it >= 0 }
+
+    /**
+     * Is the marked comet actually reachable? Measured need: of 36 sampled
+     * levels 11 carried a comet and **two of those could not be hit at all**,
+     * so presence is not proof.
+     */
+    fun proveCourier(spec: SystemSpec, bodyIndex: Int): Boolean {
+        var angle = 0
+        while (angle < 3600) {
+            for (power in GAMBIT_POWERS) {
+                val res = LiveShot(
+                    spec.bodies, spec.stations, 0, angle, power,
+                    ProjectileType.STANDARD.id,
+                    maxTicks = Tuning.SOLVER_MAX_TICKS,
+                    markedBody = bodyIndex,
+                ).runToCompletion()
+                if (res.markedBodyHit) return true
+            }
+            angle += GAMBIT_ANGLE_STEP
+        }
+        return false
+    }
+
     /** Is there a RETRO shot and burn tick that holds the ring? First hit wins. */
     fun proveCapture(spec: SystemSpec, bodyIndex: Int): Boolean {
         var angle = 0
@@ -147,7 +180,7 @@ object SystemGenerator {
                         ProjectileType.RETRO.id,
                         presetBrakeTick = burn,
                         maxTicks = Tuning.SOLVER_MAX_TICKS,
-                        captureBody = bodyIndex,
+                        markedBody = bodyIndex,
                     ).runToCompletion()
                     if (res.captureDwell >= Tuning.CAPTURE_TICKS) return true
                 }

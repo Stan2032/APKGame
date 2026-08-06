@@ -109,7 +109,7 @@ class MatchController private constructor(
     val effectiveType: Int
         get() = if (objective.forcesRetro) ProjectileType.RETRO.id else selectedType
 
-    /** 0..1 progress of the ring run in flight; null when not a capture system. */
+    /** 0..1 progress of the ring run in flight; null unless a ring is in play. */
     val captureProgress: Float?
         get() {
             if (objective != Objective.CAPTURE) return null
@@ -395,6 +395,7 @@ class MatchController private constructor(
                     // The verb has to match what was actually asked of you.
                     title = when {
                         won && objective == Objective.CAPTURE -> "Orbit held!"
+                        won && objective == Objective.COURIER -> "Comet struck!"
                         won -> "Core breached!"
                         else -> "Out of shots"
                     },

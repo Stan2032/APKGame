@@ -603,6 +603,35 @@ fun DrawScope.drawCaptureRing(
 }
 
 /**
+ * The Courier target: a reticle on the comet you have been sent to strike.
+ * Comets already look like comets, so the mark has to say *this one* — a
+ * counter-rotating bracket that no other body wears.
+ */
+fun DrawScope.drawMarkedTarget(
+    body: Body,
+    tick: Int,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    val c = tr.o(body.xAt(tick), body.yAt(tick))
+    val r = tr.r(body.radius) * 2.6f
+    drawCircle(StarYellow.copy(alpha = 0.12f), r * 1.5f, c)
+    for (k in 0 until 4) {
+        val a = (k / 4f) * 6.2831855f - t * 0.5f
+        val ca = StrictMath.cos(a.toDouble()).toFloat()
+        val sa = StrictMath.sin(a.toDouble()).toFloat()
+        drawLine(
+            StarYellow.copy(alpha = 0.9f),
+            Offset(c.x + ca * r, c.y + sa * r),
+            Offset(c.x + ca * r * 1.45f, c.y + sa * r * 1.45f),
+            strokeWidth = cache.med,
+        )
+    }
+    drawCircle(StarYellow.copy(alpha = 0.5f), r, c, style = Stroke(cache.thin))
+}
+
+/**
  * The floating aim stick: a ring where the finger landed, a knob where it is
  * now, and a heading spike opposite the pull. Drawn at the touch point rather
  * than at the station, so the gesture is never trapped in a screen corner and

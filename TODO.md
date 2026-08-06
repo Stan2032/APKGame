@@ -18,9 +18,10 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [x] Stage B: Gambits — shipped 0.9.0 (four verifiable declarations, per-seat generator-proved menus, damage multiplier in duels, protocol v5).
 - [ ] [H] **Play the gambits**: is ×2.2 damage too swingy in a duel against 100 HP? Does "wasted shot" feel like a fair price or a punishment? Are four declarations enough variety, or does the menu go stale?
 - [ ] [A] Consider an unscored *Blind* practice toggle (D-23): the idea is good, only the *scoring* is unverifiable.
-- [◐] Stage C: objectives beyond destruction. **Capture shipped 0.10.0**; Thread and Courier still open.
+- [◐] Stage C: objectives beyond destruction. **Capture (0.10.0) and Courier (0.11.0) shipped**; Thread still open.
+- [ ] [H] **Play a Courier system**: is leading a drifting comet satisfying or fiddly? Does the reticle make the target obvious?
 - [ ] [H] **Play a Capture system**: is the insertion burn readable, or does it feel like guesswork? Is 4 seconds the right hold? Does the ring communicate the rule without words?
-- [ ] [A] Stage C cont.: Thread (gates in order) and Courier (strike a moving comet). Each needs its own generator proof (D-27) — do not ship an objective the arena has not been shown to pay.
+- [ ] [A] Stage C cont.: **Thread** (pass gates in order) — the last of the three, and the only one needing a new world entity. Needs its own generator proof (D-27), and its own spec field rather than `markedBody`, since gates are an ordered list (D-28).
 - [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
@@ -73,6 +74,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.11.0 Stage C second objective: **Courier** (strike the marked drifting comet). Measured first again — only 11 of 36 levels carry a comet and two of those cannot be hit, so `proveCourier` gates it. Generalised `captureBody` → `markedBody` and made objective assignment pick among all proved-payable objectives (D-28), so the next objective costs an enum entry rather than three new branches. Protocol v7.
 - [x] [A] v0.10.1 Audit pass 4: DETERMINISM.md's hashed-content list was four protocol versions stale and described the removed frame-counted pacing as the contract; now enforced structurally by `everyTurnInputFieldChangesTheHash` (asserts TurnInput's exact field list). TESTING.md rewritten against the real tree (1 of 8 files listed) with the measured lessons as extension rules. Test file split three ways so names mean what they say.
 - [x] [A] v0.10.0 Stage C first objective: **Capture**. Measured before building — an unbraked shot cannot hold a ring at all (hyperbolic arrival, no dissipation; best 191 ticks vs a 240 bar), so Capture became an orbital-insertion puzzle requiring the RETRO burn (339-818 ticks with it), which finally gives that shell a purpose. Campaign-only, never assigned without a generator proof. Protocol v6. D-26, D-27.
 - [x] [A] v0.9.4 Audit pass 3: TUNING.md corrected against code — difficulty bands (two versions stale, and the same band I'd already fixed in DESIGN.md), the star rule, two missing style bonuses, scatter-vs-curated generation, missing comets/pulsars, the streak multiplier, hot-seat's zero payout; added the Gambits and Anchors sections that never existed. ARCHITECTURE.md file map verified complete.
