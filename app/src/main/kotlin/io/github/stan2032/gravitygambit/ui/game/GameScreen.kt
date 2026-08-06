@@ -228,15 +228,26 @@ private fun MatchUI(
         if (c.phase == Phase.OVER && !c.rewardsApplied) {
             c.rewardsApplied = true
             val s = c.summary ?: return@LaunchedEffect
+            // Season XP rides on the same handshake as stardust, so a match
+            // can never pay one and not the other.
+            val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
             c.dustEarned = when (c.launch.mode) {
                 GameMode.CAMPAIGN -> repo.recordCampaign(
                     c.launch.sector, c.launch.level, c.launch.difficulty, s.stars,
+                    epochDay = today,
+                    gambitsKept = c.engine.gambitKept.indices.count { i ->
+                        c.engine.gambitKept[i] &&
+                            c.engine.results[i].input.gambitId != Gambit.NONE.id
+                    },
+                    objectiveMet = c.engine.objectiveMet,
                 )
                 GameMode.DAILY -> repo.recordDaily(c.launch.epochDay, s.score)
                 GameMode.DUEL -> {
                     val winner = c.engine.duelWinner()
                     if (!c.launch.hotseat && winner != null) {
-                        repo.recordDuel(win = winner == c.localPlayer, codeDuel = true)
+                        repo.recordDuel(
+                            win = winner == c.localPlayer, codeDuel = true, epochDay = today,
+                        )
                     } else 0
                 }
             }
@@ -257,7 +268,10 @@ private fun MatchUI(
         if (canvasSize.width > 0) WorldTransform(canvasSize.width.toFloat(), canvasSize.height.toFloat()) else null
     }
 
-    val previewTicks = Economy.previewTicks(profile.previewLevel)
+    // Duels issue the top preview to both players; elsewhere it is earned.
+    val previewTicks = Economy.previewTicks(
+        if (c.launch.mode == GameMode.DUEL) Economy.MAX_PREVIEW_LEVEL else profile.previewLevel
+    )
     val anchorSig = c.anchors.joinToString { "${'$'}{it.x},${'$'}{it.y},${'$'}{it.attract}" }
     val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig) {
         if (c.phase == Phase.AIMING && c.isMyTurn) {
@@ -638,8 +652,15 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // In a duel every shell is issued to both players, so what
+                    // either of them bought cannot decide the match.
+                    val available = if (c.launch.mode == GameMode.DUEL) {
+                        Economy.duelLoadout()
+                    } else {
+                        profile.unlockedProjectiles
+                    }
                     for (type in ProjectileType.entries) {
-                        val unlocked = profile.unlockedProjectiles.contains(type.id)
+                        val unlocked = available.contains(type.id)
                         val selected = c.selectedType == type.id
                         if (selected) {
                             Button(onClick = {}, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {

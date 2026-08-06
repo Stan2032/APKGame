@@ -6,6 +6,18 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-08-06
+- **Duels normalize: both players are issued every shell and the top preview.** An audit of the monetization question found the game was *already* selling PVP advantage while DESIGN.md claimed it was not — the preview upgrade (✦250/✦600) tripled look-ahead **in duels**, and Breaker's 50 damage against Bolt's 34 sat behind ✦900 of purchasable stardust.
+  - The deeper reason this had to change: **this game cannot referee loadouts.** A duel travels as `(seed, turns, hash)` and the receiver re-simulates it, so it can verify the *physics* but never the *shopping* — a claimed loadout is taken on trust, which is the hole that got the Blind gambit cut, except this one decides who wins. With no matchmaking there is no ladder to absorb a paid edge either; it just breaks the match your friend sent you.
+  - Normalizing is not a revenue sacrifice. It is precisely what allows the season track to be sold hard without any of it being pay-to-win. (D-29)
+- **The season track: 28 days, 50 tiers, fed by verified play.** Campaign clears scaled by difficulty and stars, the daily scaled by streak, code duels win *or* lose, plus a little for kept gambits and met objectives. Hot-seat earns nothing, same as it earns no stardust.
+  - Free lane pays stardust, thickening at every 5th and 10th tier. Paid lane (`season_pass`, a consumable bought **per season**) pays shells, trails, preview tiers and larger drops — **additive and retroactive**, so buying at tier 30 immediately pays every premium tier up to 30.
+  - **No tier-skip product.** It would convert, and it would also turn the only long-term progression system into a receipt.
+- **Why not Clash Royale's card levels**, since that was the ask: CR works because a server owns your stats and trophy matchmaking pairs comparable players. We have neither by design, and stat progression is exactly the thing this architecture cannot verify. The season track delivers the long tail without requiring accounts, a backend, or trusting the sender. (D-30)
+- **The tier curve is calibrated, not chosen.** The first attempt needed a committed player **69 days to finish a 28-day season** — a track nobody could complete. `SeasonTest` models a committed day and a tourist day and fails if the season becomes unfinishable *or* trivial; it caught this immediately. At the shipped values a committed player lands around day 23, and the daily alone would take eight months.
+- Season state rolls over by date: a new season wipes XP, claims and pass ownership, applied on read as well as write, so a player who was away for a month never sees last season's tier.
+- Tests: 141 (90 `:core` + 51 `:app`), 9 new — including the load-bearing one, that nothing on the track can reach a duel: every shell the premium lane grants must already be in the duel loadout, and no granted preview tier may exceed what duels issue.
+
 ## [0.11.0] — 2026-08-06
 - ⚠️ **Protocol v7.** A second objective changes what a seed generates again, so v6 codes are refused.
 - **Courier: strike the marked comet** (VISION Stage C, second objective). The target drifts, so the shot has to be led rather than aimed.

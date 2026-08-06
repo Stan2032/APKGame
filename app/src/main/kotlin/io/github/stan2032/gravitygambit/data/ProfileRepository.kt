@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.core.Profile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,12 +40,29 @@ class ProfileRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Add season XP, rolling into the current season first so a player who was
+     * away for a month never earns into a season that has ended.
+     */
+    private fun Profile.plusSeasonXp(epochDay: Long, xp: Int): Profile {
+        val rolled = rolledIntoSeason(epochDay)
+        return rolled.copy(seasonXp = rolled.seasonXp + xp)
+    }
+
     /** Ad Pass holders earn multiplied match rewards (docs/ADS.md). */
     private fun withPassMultiplier(base: Int): Int =
         if (profile.value.adPassActive) base * AdRewards.PASS_REWARD_MULTIPLIER else base
 
     /** Returns stardust earned (for the summary UI); applies stars + reward atomically. */
-    fun recordCampaign(sector: Int, level: Int, difficulty: Int, stars: Int): Int {
+    fun recordCampaign(
+        sector: Int,
+        level: Int,
+        difficulty: Int,
+        stars: Int,
+        epochDay: Long,
+        gambitsKept: Int = 0,
+        objectiveMet: Boolean = false,
+    ): Int {
         if (stars <= 0) return 0
         val snapshot = profile.value
         val mapKey = "$sector:$level"
@@ -57,9 +75,11 @@ class ProfileRepository(private val context: Context) {
             Economy.campaignReward(difficulty, stars, firstClear = false)
         }
         val earned = withPassMultiplier(base)
+        val xp = Season.campaignXp(difficulty, stars, firstClear = prev == 0) +
+            Season.flourishXp(gambitsKept, objectiveMet)
         update { p ->
             val old = p.campaignStars[mapKey] ?: 0
-            p.copy(
+            p.plusSeasonXp(epochDay, xp).copy(
                 stardust = p.stardust + earned,
                 campaignStars = p.campaignStars + (mapKey to maxOf(old, stars)),
             )
@@ -87,28 +107,73 @@ class ProfileRepository(private val context: Context) {
             val dayKey = epochDay.toString()
             val best = maxOf(p.dailyBest[dayKey] ?: 0, score)
             val streak = Economy.dailyStreakAfter(p.lastDailyDay, p.dailyStreak, epochDay)
-            p.copy(
-                stardust = p.stardust + earned,
-                dailyBest = p.dailyBest + (dayKey to best),
-                dailyStreak = streak,
-                lastDailyDay = epochDay,
-            )
+            p.plusSeasonXp(epochDay, if (firstPlayToday) Season.dailyXp(score, streak) else 0)
+                .copy(
+                    stardust = p.stardust + earned,
+                    dailyBest = p.dailyBest + (dayKey to best),
+                    dailyStreak = streak,
+                    lastDailyDay = epochDay,
+                )
         }
         return earned
     }
 
     /** Returns stardust earned. Hot-seat duels award nothing (self-farm guard). */
-    fun recordDuel(win: Boolean, codeDuel: Boolean): Int {
+    fun recordDuel(win: Boolean, codeDuel: Boolean, epochDay: Long): Int {
         if (!codeDuel) return 0
         val earned = withPassMultiplier(Economy.duelReward(win, codeDuel = true))
+        val xp = Season.duelXp(win, codeDuel = true)
         update { p ->
-            p.copy(
+            p.plusSeasonXp(epochDay, xp).copy(
                 stardust = p.stardust + earned,
                 duelWins = p.duelWins + (if (win) 1 else 0),
                 duelLosses = p.duelLosses + (if (win) 0 else 1),
             )
         }
         return earned
+    }
+
+    // ---- Season track ----
+
+    /**
+     * Collect every unclaimed reward the player has already reached, on both
+     * lanes they are entitled to. Returns what was granted, for the UI to show.
+     */
+    fun claimSeason(epochDay: Long): List<Season.Reward> {
+        val snapshot = profile.value.rolledIntoSeason(epochDay)
+        val tier = snapshot.seasonTier
+        val free = Season.claimableTiers(tier, premium = false, snapshot.seasonClaimedFree.toSet())
+        val premium = if (!snapshot.seasonPassOwned) emptyList() else {
+            Season.claimableTiers(tier, premium = true, snapshot.seasonClaimedPremium.toSet())
+        }
+        val granted = free.mapNotNull { Season.reward(it, false) } +
+            premium.mapNotNull { Season.reward(it, true) }
+        if (granted.isEmpty()) return emptyList()
+
+        update { p ->
+            var next = p.rolledIntoSeason(epochDay)
+            for (r in granted) next = next.applyReward(r)
+            next.copy(
+                seasonClaimedFree = (next.seasonClaimedFree + free).distinct(),
+                seasonClaimedPremium = (next.seasonClaimedPremium + premium).distinct(),
+            )
+        }
+        return granted
+    }
+
+    private fun Profile.applyReward(r: Season.Reward): Profile = when (r.kind) {
+        Season.RewardKind.STARDUST -> copy(stardust = stardust + r.amount)
+        Season.RewardKind.TRAIL -> copy(ownedTrails = (ownedTrails + r.trailId).distinct())
+        // Grants apply to Campaign/Daily; a duel issues the top tier to
+        // everyone regardless, so this can never widen a PVP gap.
+        Season.RewardKind.PREVIEW_TIER -> copy(previewLevel = maxOf(previewLevel, r.amount))
+        Season.RewardKind.PROJECTILE ->
+            copy(unlockedProjectiles = (unlockedProjectiles + r.amount).distinct())
+    }
+
+    /** Called after Play confirms the season-pass purchase for the current season. */
+    fun grantSeasonPass(epochDay: Long) {
+        update { p -> p.rolledIntoSeason(epochDay).copy(seasonPassOwned = true) }
     }
 
     /**

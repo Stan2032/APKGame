@@ -5,8 +5,12 @@ import kotlinx.serialization.json.Json
 
 /**
  * Player profile — the entire save state, serialized to JSON in DataStore.
- * Everything is earnable in-game; IAP only accelerates cosmetics. That keeps
- * PVP fair, players happy, and the Play Data-Safety story trivial.
+ *
+ * Everything is earnable in-game; purchases accelerate and add breadth. **None
+ * of it can decide a duel**: duels issue every shell and the top preview to
+ * both players ([Economy.duelLoadout]), because a share code can verify the
+ * physics but never the shopping (D-29). That is what keeps PVP fair, and it
+ * is what lets the season track sell hard without being pay-to-win.
  */
 @Serializable
 data class Profile(
@@ -29,6 +33,15 @@ data class Profile(
     val adWatchesToday: Int = 0,
     val lastAdWatchDay: Long = 0,
     val lastPassBonusDay: Long = 0,
+    // ---- Season track (Season.kt) ----
+    /** Which season the stored progress belongs to; a new one resets xp/claims. */
+    val seasonId: Int = 0,
+    val seasonXp: Int = 0,
+    /** Tiers already collected, as "free" and "premium" lane sets. */
+    val seasonClaimedFree: List<Int> = emptyList(),
+    val seasonClaimedPremium: List<Int> = emptyList(),
+    /** Whether the paid lane is owned **for [seasonId]** — passes do not carry over. */
+    val seasonPassOwned: Boolean = false,
 ) {
     val totalStars: Int get() = campaignStars.values.sum()
 
@@ -44,6 +57,25 @@ data class Profile(
     fun toJson(): String = json.encodeToString(serializer(), this)
 
     fun starsFor(sector: Int, level: Int): Int = campaignStars["$sector:$level"] ?: 0
+
+    val seasonTier: Int get() = Season.tierFor(seasonXp)
+
+    /**
+     * The profile as it should look for [epochDay]'s season: a rollover wipes
+     * xp, claims and pass ownership. Applied on read as well as on write, so a
+     * player who was away for a month never sees last season's tier.
+     */
+    fun rolledIntoSeason(epochDay: Long): Profile {
+        val id = Season.indexFor(epochDay)
+        if (id == seasonId) return this
+        return copy(
+            seasonId = id,
+            seasonXp = 0,
+            seasonClaimedFree = emptyList(),
+            seasonClaimedPremium = emptyList(),
+            seasonPassOwned = false,
+        )
+    }
 }
 
 object Economy {
@@ -76,6 +108,36 @@ object Economy {
         1 -> 180
         else -> 270
     }
+
+    /**
+     * Top preview tier — what a duel issues to *both* players.
+     *
+     * The preview upgrade used to apply in duels, so a player who had bought
+     * it saw three times further ahead than one who had not. Nothing about a
+     * share code can detect that, and there is no matchmaking to absorb it:
+     * you simply sent your friend a match you were better equipped for. See
+     * [duelLoadout].
+     */
+    const val MAX_PREVIEW_LEVEL = 2
+
+    /**
+     * **In a duel, both players are issued everything.**
+     *
+     * Duels are the one mode where two people's purchases meet, and this game
+     * cannot referee that: a duel travels as (seed, turns, hash) and the
+     * receiving device re-simulates it, so it can verify the *physics* but not
+     * the *shopping*. A claimed loadout would have to be taken on trust —
+     * exactly the hole that got the Blind gambit cut (D-23), except this one
+     * decides who wins. And with no ladder, a paid edge is not smoothed out;
+     * it just breaks the match your friend sent you.
+     *
+     * So duels normalize: the full rack of shells and the top preview, for
+     * everyone, unconditionally. Progression is real and long, but it lives in
+     * Campaign, Daily and Expedition — the modes where beating your own past
+     * is the point. This is what lets the game sell progression hard without
+     * any of it being pay-to-win (D-29).
+     */
+    fun duelLoadout(): List<Int> = ProjectileType.entries.map { it.id }
 
     fun campaignReward(difficulty: Int, stars: Int, firstClear: Boolean): Int =
         if (firstClear) 25 + 10 * difficulty + 10 * stars else 5 + 2 * stars
@@ -163,12 +225,19 @@ object AdRewards {
  * $0.99 / $2.99 / $2.49 — deliberately cheap; see docs/MONETIZATION.md).
  */
 object Iap {
+    /**
+     * The season pass: consumable, because it is bought **per season** rather
+     * than owned forever. Grants the premium lane for the current season only,
+     * and pays out every tier already reached the moment it is bought.
+     */
+    const val SEASON_PASS = "season_pass"           // consumable: premium lane, this season
+
     const val STARDUST_SMALL = "stardust_small"     // consumable: +600 stardust
     const val STARDUST_LARGE = "stardust_large"     // consumable: +2200 stardust
     const val COSMIC_PACK = "cosmic_pack"           // entitlement: all cosmetic trails
 
     val CONSUMABLE_GRANTS = mapOf(STARDUST_SMALL to 600, STARDUST_LARGE to 2200)
-    val ALL_PRODUCT_IDS = listOf(STARDUST_SMALL, STARDUST_LARGE, COSMIC_PACK)
+    val ALL_PRODUCT_IDS = listOf(STARDUST_SMALL, STARDUST_LARGE, COSMIC_PACK, SEASON_PASS)
 
     /**
      * Ad Pass subscriptions: no ads ever shown to you, all rewarded-ad boosts

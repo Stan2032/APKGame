@@ -99,9 +99,35 @@ this section used to claim were not true):
   "biggest stardust payouts" full stop was simply false. Hot-seat duels pay
   **nothing**: one person holds both seats, so a payout there is a self-farm.
 
-Cosmetics never touch gameplay, so PVP stays fair by construction — and note
-that this is why the streak pays in stardust rather than in anything a duel
-can feel.
+**Duels normalize** (D-29): both players are issued every shell and the top
+preview, unconditionally, so nothing anyone bought or unlocked can decide a
+match. This was not always true — the preview upgrade and the Breaker's extra
+damage both reached duels, while this document claimed they did not. The fix
+is not a revenue sacrifice: it is exactly what allows the season track to be
+sold hard without any of it being pay-to-win.
+
+The reason is structural, not squeamish. A duel travels as `(seed, turns,
+hash)` and the receiving device re-simulates it, so it can verify the
+*physics* but never the *shopping* — a claimed loadout would have to be
+believed. Progression therefore lives where beating your own past is the
+point: Campaign, Daily, Expedition.
+
+## The season track — the long game
+
+A 28-day season, 50 tiers, XP from verified play in every mode: campaign
+clears (scaled by difficulty and stars), the daily (scaled by streak), code
+duels win or lose, plus a little for kept gambits and met objectives.
+Hot-seat earns nothing, same as it earns no stardust.
+
+- **Free lane** — stardust, thickening at every 5th and 10th tier.
+- **Paid lane** (`season_pass`, a consumable bought *per season*) — shells,
+  trails, preview tiers, and larger stardust drops. Additive and retroactive:
+  buying at tier 30 immediately pays every premium tier up to 30.
+- **No buy-tiers product.** A track you can pay to skip is a receipt, not
+  progression.
+- The curve is calibrated against a modelled play rate, not chosen: a
+  committed player finishes around day 23 of 28; the daily alone would take
+  eight months. `SeasonTest` fails if it drifts either way.
 
 ## The generator (the "cutting edge" part, honestly)
 

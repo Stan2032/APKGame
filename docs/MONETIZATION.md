@@ -15,6 +15,7 @@ and the Play policy surface minimal.
 | `stardust_small` | Consumable | +600 ✦ | $0.99 |
 | `stardust_large` | Consumable | +2200 ✦ | $2.99 |
 | `cosmic_pack` | Non-consumable | every cosmetic trail, current & future | $2.49 |
+| `season_pass` | Consumable (per season) | The season's premium lane: shells, trails, preview tiers, bigger stardust drops — additive to the free lane and retroactive to every tier already earned | $4.99/season |
 | `ad_pass_weekly` | Subscription | 2× match rewards, ✦50/day, never any ads | $1.99/wk |
 | `ad_pass_monthly` | Subscription | same — the headline offer | $4.99/mo |
 
@@ -27,6 +28,12 @@ playbook live in [ADS.md](ADS.md).
 Notes:
 - Stardust buys *nothing* a player can't earn by playing; packs are a
   time-shortcut only. State this in the store listing — it converts.
+- **Nothing purchasable can decide a duel** (D-29). Duels issue every shell
+  and the top preview to both players, so the season pass, the stardust packs
+  and the shop are all free to be generous without becoming pay-to-win. Say
+  this in the listing too: "PVP is skill only — everyone gets everything."
+- There is deliberately **no tier-skip product**. It would convert, and it
+  would also turn the one long-term progression system into a receipt.
 - `cosmic_pack` is deliberately the "generous" SKU: cheap, permanent,
   restore-supported (`queryPurchasesAsync` on every connect).
 - Prices are set in Play Console, not code; local currency floors sometimes
