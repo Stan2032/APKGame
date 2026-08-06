@@ -160,15 +160,42 @@ class MatchController private constructor(
 
     // ---- Aiming ----
 
-    fun setAimFromDrag(worldPos: Vec2) {
-        val station = engine.stations[engine.currentShooter]
-        val dx = station.x - worldPos.x
-        val dy = station.y - worldPos.y
+    /**
+     * Aiming is a **floating joystick**: the drag is measured from wherever the
+     * finger landed, not from the station.
+     *
+     * Anchoring it to the station forced every aim gesture into the bottom of
+     * the screen — the thumb covered the play area it was aiming into, and the
+     * reachable arc was clipped by the screen edge. Relative dragging means
+     * the gesture works anywhere, and pull-back-to-aim reads as a slingshot.
+     */
+    var dragOrigin by mutableStateOf<Vec2?>(null); private set
+    var dragCurrent by mutableStateOf<Vec2?>(null); private set
+
+    fun beginAimDrag(worldPos: Vec2) {
+        dragOrigin = worldPos
+        dragCurrent = worldPos
+        aiming = true
+    }
+
+    fun updateAimDrag(worldPos: Vec2) {
+        val origin = dragOrigin ?: return
+        dragCurrent = worldPos
+        // Pull back from the origin to aim the opposite way, like a slingshot.
+        val dx = origin.x - worldPos.x
+        val dy = origin.y - worldPos.y
         val len = sqrt(dx * dx + dy * dy)
-        if (len < 14.0) return
+        if (len < AIM_DEAD_ZONE) return
         val deg = Math.toDegrees(atan2(dy, dx))
         aimAngleDeci = (((deg * 10).roundToInt() % 3600) + 3600) % 3600
-        aimPower = (((len - 30.0) / 430.0) * 1000).roundToInt().coerceIn(0, 1000)
+        aimPower = (((len - AIM_DEAD_ZONE) / AIM_FULL_PULL) * 1000)
+            .roundToInt().coerceIn(0, 1000)
+    }
+
+    fun endAimDrag() {
+        aiming = false
+        dragOrigin = null
+        dragCurrent = null
     }
 
     fun nudgeAngle(deltaDeci: Int) {
@@ -368,6 +395,10 @@ class MatchController private constructor(
         const val TRAIL_CAP = 600
         /** World-space tap tolerance for grabbing an existing anchor. */
         const val ANCHOR_TAP_RADIUS = 46.0
+        /** Pull distance (world units) below which the aim does not change. */
+        const val AIM_DEAD_ZONE = 26.0
+        /** Pull distance that corresponds to full power. */
+        const val AIM_FULL_PULL = 300.0
 
         /**
          * Heavy: generates (or verifies + rebuilds) the star system. Run on a

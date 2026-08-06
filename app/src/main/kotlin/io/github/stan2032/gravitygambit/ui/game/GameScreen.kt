@@ -5,7 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,10 +40,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -50,7 +53,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
@@ -84,6 +90,7 @@ import io.github.stan2032.gravitygambit.ui.ShareMessages
 import io.github.stan2032.gravitygambit.ui.screens.FeedbackDialog
 import io.github.stan2032.gravitygambit.ui.shareText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
@@ -300,7 +307,7 @@ private fun MatchUI(
         // than the screen height, and overlaying meant the controls covered
         // play area. The canvas takes the space that is actually left.
         val topReserve = if (wide) 0.dp else 62.dp
-        val bottomReserve = if (wide) 0.dp else 188.dp
+        val bottomReserve = if (wide) 0.dp else 196.dp
 
         Canvas(
             Modifier
@@ -316,21 +323,30 @@ private fun MatchUI(
                     }
                 }
                 .pointerInput(c, c.placingAnchors) {
-                    detectDragGestures(
-                        onDragStart = { pos ->
-                            if (c.phase == Phase.AIMING && c.isMyTurn && !c.placingAnchors) {
-                                c.aiming = true
-                                tr?.let { c.setAimFromDrag(it.toWorld(pos)) }
+                    // Hand-rolled rather than detectDragGestures: that reports
+                    // its origin only *after* touch slop is exceeded, which
+                    // would plant the stick a few pixels from the finger and
+                    // delay it appearing. Here the ring is centred on the
+                    // actual touch-down and is visible from the first frame.
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        if (c.placingAnchors || c.phase != Phase.AIMING || !c.isMyTurn) {
+                            return@awaitEachGesture
+                        }
+                        val t0 = tr ?: return@awaitEachGesture
+                        c.beginAimDrag(t0.toWorld(down.position))
+                        try {
+                            while (true) {
+                                val change = awaitPointerEvent().changes
+                                    .firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                c.updateAimDrag(t0.toWorld(change.position))
+                                change.consume()
                             }
-                        },
-                        onDragEnd = { c.aiming = false },
-                        onDragCancel = { c.aiming = false },
-                        onDrag = { change, _ ->
-                            if (c.phase == Phase.AIMING && c.isMyTurn && !c.placingAnchors) {
-                                tr?.let { c.setAimFromDrag(it.toWorld(change.position)) }
-                            }
-                        },
-                    )
+                        } finally {
+                            c.endAimDrag()
+                        }
+                    }
                 }
         ) {
             val t = tr ?: return@Canvas
@@ -347,6 +363,12 @@ private fun MatchUI(
                 drawPreview(previewPaths, t)
             }
             drawAnchors(c.anchors, c.placingAnchors, time, t, cch)
+            // The floating joystick, drawn where the finger actually is.
+            val dragFrom = c.dragOrigin
+            val dragTo = c.dragCurrent
+            if (dragFrom != null && dragTo != null) {
+                drawAimStick(dragFrom, dragTo, c.aimPower, t, cch)
+            }
             if (c.trailVersion >= 0) { // draw-phase dependency on trail mutations
                 drawTrail(c.trail, trailLut, t)
             }
@@ -545,11 +567,11 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                 PowerMeter(c.aimPower)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FineTune("◀", "Rotate left") { c.nudgeAngle(-1) }
-                    FineTune("▶", "Rotate right") { c.nudgeAngle(1) }
+                    FineTune("◀", "Rotate left") { c.nudgeAngle(-it) }
+                    FineTune("▶", "Rotate right") { c.nudgeAngle(it) }
                     Spacer(Modifier.weight(1f))
-                    FineTune("−", "Less power") { c.nudgePower(-10) }
-                    FineTune("+", "More power") { c.nudgePower(10) }
+                    FineTune("−", "Less power") { c.nudgePower(-10 * it) }
+                    FineTune("+", "More power") { c.nudgePower(10 * it) }
                 }
                 Spacer(Modifier.height(8.dp))
                 // Flow, not Row: at large system font sizes four chips no
@@ -695,16 +717,83 @@ private fun PowerMeter(power: Int) {
     }
 }
 
-/** Fine-tune control: a labelled tap target, not a cryptic "−.1°" chip. */
+/**
+ * Fine-tune control: press and hold to repeat, rather than tapping once per
+ * 0.1°. Held long enough the step itself grows (×1 → ×3 → ×8), so the same
+ * control covers "nudge it a hair" and "swing it right round" without a second
+ * widget. Aiming coarsely is the joystick's job; this is the vernier.
+ */
 @Composable
-private fun FineTune(glyph: String, description: String, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.semantics { contentDescription = description },
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+private fun FineTune(glyph: String, description: String, onStep: (Int) -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val step by rememberUpdatedState(onStep)
+    var pressed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pressed) {
+        if (!pressed) return@LaunchedEffect
+        delay(HOLD_START_MS)
+        var n = 0
+        while (true) {
+            step(holdScale(n))
+            if (n == HOLD_RAMP_1 || n == HOLD_RAMP_2) {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            delay(holdInterval(n))
+            n++
+        }
+    }
+
+    Box(
+        Modifier
+            // A raw pointerInput carries no semantics, so the button's
+            // TalkBack affordance is declared explicitly: screen-reader users
+            // get a single step per activation, which is what they can do.
+            .semantics {
+                contentDescription = description
+                role = Role.Button
+                onClick(label = "adjust") { step(1); true }
+            }
+            .clip(RoundedCornerShape(11.dp))
+            .background(
+                if (pressed) AccentCyan.copy(alpha = 0.22f) else PanelColor.copy(alpha = 0.7f)
+            )
+            .width(58.dp)
+            .heightIn(min = 48.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        // Fire immediately so a single tap is still one step,
+                        // even if it is shorter than a frame.
+                        step(1)
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        pressed = true
+                        tryAwaitRelease()
+                        pressed = false
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
     ) {
         Text(glyph, fontSize = 17.sp, color = AccentCyan, fontWeight = FontWeight.Bold)
     }
+}
+
+/** Repeats before the step size grows. Held ≈1.0s, then ≈1.7s. */
+private const val HOLD_RAMP_1 = 8
+private const val HOLD_RAMP_2 = 20
+/** Hold before auto-repeat begins — long enough that a tap stays a tap. */
+private const val HOLD_START_MS = 320L
+
+private fun holdScale(n: Int): Int = when {
+    n < HOLD_RAMP_1 -> 1
+    n < HOLD_RAMP_2 -> 3
+    else -> 8
+}
+
+private fun holdInterval(n: Int): Long = when {
+    n < HOLD_RAMP_1 -> 90L
+    n < HOLD_RAMP_2 -> 55L
+    else -> 40L
 }
 
 @Composable

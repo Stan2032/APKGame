@@ -549,3 +549,69 @@ fun DrawScope.drawAnchors(
         drawCircle(Color.White.copy(alpha = 0.9f * emphasis), base * 0.42f, c)
     }
 }
+
+/**
+ * The floating aim stick: a ring where the finger landed, a knob where it is
+ * now, and a heading spike opposite the pull. Drawn at the touch point rather
+ * than at the station, so the gesture is never trapped in a screen corner and
+ * never has to cover the target it is aiming at.
+ *
+ * The ring is drawn at exactly the dead-zone radius, so "inside the ring does
+ * nothing" is something the player can see rather than infer.
+ */
+fun DrawScope.drawAimStick(
+    origin: Vec2,
+    current: Vec2,
+    power: Int,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    val o = tr.o(origin)
+    val p = tr.o(current)
+    val frac = (power / 1000f).coerceIn(0f, 1f)
+    val tint = lerp(AccentCyan, StarYellow, frac)
+
+    val base = tr.r(MatchController.AIM_DEAD_ZONE)
+    drawCircle(Color.White.copy(alpha = 0.05f), base, o)
+    drawCircle(tint.copy(alpha = 0.30f), base, o, style = Stroke(cache.thin))
+
+    // Power arc just outside the ring: how much of the full pull is taken up.
+    val ar = base * 1.35f
+    drawArc(
+        color = tint.copy(alpha = 0.85f),
+        startAngle = -90f, sweepAngle = 354f * frac, useCenter = false,
+        topLeft = o - Offset(ar, ar), size = Size(ar * 2, ar * 2),
+        style = Stroke(cache.med),
+    )
+
+    // The pull itself, plus the knob under the finger.
+    drawLine(tint.copy(alpha = 0.45f), o, p, strokeWidth = cache.thin)
+    val knob = tr.r(11.0)
+    drawCircle(tint.copy(alpha = 0.20f), knob * 2.2f, p)
+    drawCircle(tint.copy(alpha = 0.85f), knob, p)
+    drawCircle(Color.White.copy(alpha = 0.85f), knob * 0.42f, p)
+
+    // Heading spike: the shot leaves opposite the pull, so the gesture reads as
+    // a slingshot instead of a steering wheel.
+    val dx = origin.x - current.x
+    val dy = origin.y - current.y
+    val len = StrictMath.sqrt(dx * dx + dy * dy)
+    if (len < 1e-6) return
+    val ux = dx / len
+    val uy = dy / len
+    val from = MatchController.AIM_DEAD_ZONE * 1.5
+    val to = from + 30.0 + frac * 90.0
+    val tip = tr.o(origin.x + ux * to, origin.y + uy * to)
+    drawLine(
+        tint.copy(alpha = 0.9f),
+        tr.o(origin.x + ux * from, origin.y + uy * from),
+        tip,
+        strokeWidth = cache.med,
+    )
+    val back = to - 13.0
+    val side = 6.5
+    val bx = origin.x + ux * back
+    val by = origin.y + uy * back
+    drawLine(tint, tip, tr.o(bx - uy * side, by + ux * side), strokeWidth = cache.med * 0.8f)
+    drawLine(tint, tip, tr.o(bx + uy * side, by - ux * side), strokeWidth = cache.med * 0.8f)
+}

@@ -22,6 +22,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] Stage F: debris from misses.
 
 ## NOW (blocks first playtest / release track)
+- [ ] [H] **Judge the 0.8.0 aiming on a device**: does the floating stick land where your thumb expects? Is the 26-unit dead zone too sticky or too loose? Do the fine-tune buttons ramp fast enough held, without overshooting?
+- [ ] [A] **Open question from 0.8.0**: `AIM_FULL_PULL` is 300 *world* units, so the physical drag for full power scales with screen size — a long haul on a tablet, a flick on a small phone. Decide after playtest whether full pull should instead be a fraction of the *viewport* (e.g. 30% of the shorter edge). Deliberately not changed blind: which one feels right is not derivable from the geometry.
 - [ ] [H] **Re-test 0.7.0 levels**: is the straight shot really gone? Do levels now feel like they have a purpose — is there a visible route to find? Are they now too *hard* (bands were recalibrated from measurement, not feel)?
 - [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
@@ -65,6 +67,10 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 ---
 
 ## ARCHIVE (completed — grows forever)
+### 2026-08-06
+- [x] [A] v0.8.0 aiming controls from owner feedback: floating joystick that appears at the touch point (was pinned to the station, i.e. to one screen corner), hand-rolled gesture so the ring centres on the true touch-down; press-and-hold auto-repeat with a growing step (×1/×3/×8) on the fine-tune buttons; TalkBack role/activation declared explicitly on the new raw pointer target; portrait reserve 188→196dp for 48dp touch targets.
+- [x] [A] v0.7.0 curated generation: layouts built around the shot they force (keeper on the direct line + shepherds), `fallsToNaiveShot` rejection on every path including fallbacks, third star now requires working the field, difficulty bands recalibrated, protocol v4. 0/72 levels fall to a straight shot; generation ~20x faster.
+
 ### 2026-08-04
 - [x] [A] v0.4.0 playfeel pass from owner feedback: comets (moving bodies) + pulsars, slingshot/speed scoring, aiming redesign (power meter by feel, labelled fine-tune), bespoke Home, copy trimmed ~700 chars, protocol v2.
 - [x] [A] DuelFlowUiTest (hand-off overlay: code duel vs hot-seat vs handback) — last untested UI now covered.

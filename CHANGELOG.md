@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-06
+- **Aiming is a floating joystick.** The stick now appears wherever the finger lands and reads the pull *relative to that point*, instead of being anchored to the station. Anchoring it there meant the gesture lived permanently in one screen corner: the thumb covered the play area it was aiming into, and the reachable arc was clipped by the screen edge — you could not pull "past" the corner, so half the aim space was hard to reach and the other half was hidden under your own hand. Pull back to aim the opposite way; the arrow reads as a slingshot rather than a steering wheel.
+  - Built on a hand-rolled `awaitEachGesture` rather than `detectDragGestures`, because the latter only reports its origin *after* touch slop is exceeded — the ring would have appeared a few pixels off the finger and one gesture-slop late. It now centres on the true touch-down and is visible from the first frame.
+  - Drawn as a dead-zone ring (so "inside here does nothing" is visible, not folklore), a power arc, the pull line, and a heading spike tinted cyan→yellow with power.
+- **Fine-tune buttons repeat on hold.** They were single-tap only, which meant ~450 taps to swing the aim 45°. Press and hold now auto-repeats after 320ms, and the *step itself* grows the longer it is held (×1 → ×3 → ×8, with a haptic tick at each change), so one control covers "a hair to the left" and "swing it right round". A tap is still exactly one step — the immediate step fires on press, not on release, so a tap shorter than a frame still counts.
+  - The rewritten control is a raw pointer target, which carries no semantics of its own, so its TalkBack role and single-step activation are now declared explicitly rather than inherited from `TextButton`.
+- Portrait control reserve 188dp → 196dp: the fine-tune targets grew to a 48dp minimum (accessibility touch target), and reserved rows are how this layout avoids covering the board.
+- Tests: 103 (55 `:core` + 48 `:app`; two new: aim is origin-relative across distant touch points, and the dead zone does not steer while the stick clears on release).
+
 ## [0.7.0] — 2026-08-06
 - ⚠️ **Protocol v4.** Curated generation and the longer solver horizon change what a seed produces, so older codes are refused rather than replayed into a different universe.
 - **Levels now have a purpose.** A player cleared a level with a straight shot, used no gravity, and took three stars — and they were right that the level had none. Measurement confirmed it was systemic: **5 of 36 campaign levels fell to a near-straight shot.** Two root causes, both fixed:

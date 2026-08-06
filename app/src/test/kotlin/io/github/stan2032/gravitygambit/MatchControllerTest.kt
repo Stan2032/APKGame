@@ -4,6 +4,7 @@ import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.MatchRecord
 import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.core.ShareCodec
+import io.github.stan2032.gravitygambit.core.Vec2
 import io.github.stan2032.gravitygambit.ui.GameLaunch
 import io.github.stan2032.gravitygambit.ui.game.MatchController
 import io.github.stan2032.gravitygambit.ui.game.Phase
@@ -140,6 +141,55 @@ class MatchControllerTest {
         c.aimPower = 1000
         c.nudgePower(100)
         assertEquals(1000, c.aimPower)
+    }
+
+    /**
+     * The aim gesture must be *relative* to wherever the finger landed. If it
+     * were anchored to the station, aiming would be pinned to one screen
+     * corner — the bug this replaced. Two drags with identical displacement
+     * from different origins must therefore produce identical aim.
+     */
+    @Test
+    fun aimDragIsRelativeToTheTouchPoint() {
+        val c = MatchController.create(
+            GameLaunch(mode = GameMode.CAMPAIGN, seed = Seeds.campaign(0, 2), difficulty = 0)
+        )!!
+
+        // Pull straight down from the origin -> the shot heads straight up.
+        c.beginAimDrag(Vec2(500.0, 500.0))
+        c.updateAimDrag(Vec2(500.0, 500.0 + MatchController.AIM_DEAD_ZONE + 150.0))
+        val angleA = c.aimAngleDeci
+        val powerA = c.aimPower
+        c.endAimDrag()
+
+        c.beginAimDrag(Vec2(120.0, 1300.0))
+        c.updateAimDrag(Vec2(120.0, 1300.0 + MatchController.AIM_DEAD_ZONE + 150.0))
+        assertEquals("same displacement, far-away origin, same aim", angleA, c.aimAngleDeci)
+        assertEquals(powerA, c.aimPower)
+        c.endAimDrag()
+
+        // 2700 deci-degrees = -90° in screen space = up. Pull down, fly up.
+        assertEquals(2700, angleA)
+        assertEquals(150.0 / MatchController.AIM_FULL_PULL * 1000, powerA.toDouble(), 1.0)
+    }
+
+    @Test
+    fun aimDragDeadZoneDoesNotSteerAndStickClearsOnRelease() {
+        val c = MatchController.create(
+            GameLaunch(mode = GameMode.CAMPAIGN, seed = Seeds.campaign(0, 3), difficulty = 0)
+        )!!
+        c.aimAngleDeci = 1234
+        c.aimPower = 500
+
+        c.beginAimDrag(Vec2(400.0, 400.0))
+        c.updateAimDrag(Vec2(400.0, 400.0 + MatchController.AIM_DEAD_ZONE - 1.0))
+        assertEquals("inside the dead zone the aim is untouched", 1234, c.aimAngleDeci)
+        assertEquals(500, c.aimPower)
+        assertNotNull("the stick is still drawn while held", c.dragOrigin)
+
+        c.endAimDrag()
+        assertNull("the stick disappears on release", c.dragOrigin)
+        assertNull(c.dragCurrent)
     }
 
     @Test
