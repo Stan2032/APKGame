@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -210,7 +211,12 @@ private fun MatchUI(
                     val start = withFrameNanos { it }
                     var p = 0f
                     while (isActive && p < 1f) {
-                        p = ((withFrameNanos { it } - start) / 1e9f / 0.7f).coerceAtMost(1f)
+                        val elapsed = (withFrameNanos { it } - start) / 1e9f
+                        // Hit-stop: hold the first frames still. A beat of
+                        // stillness on impact is the cheapest way to make a hit
+                        // read as a hit rather than as an animation starting.
+                        p = if (elapsed < Explosion.HIT_STOP_SECONDS) 0f
+                        else ((elapsed - Explosion.HIT_STOP_SECONDS) / 0.7f).coerceAtMost(1f)
                         c.explosionProgress = p
                     }
                 }
@@ -375,6 +381,12 @@ private fun MatchUI(
             val cch = cache ?: return@Canvas
             // timeSec read here = draw-phase-only invalidation for ambience.
             val time = timeSec
+            // The board shakes; the HUD does not. Shaking the readouts would
+            // make the numbers unreadable at exactly the moment they matter.
+            val ex = c.explosion
+            val sx = if (ex == null) 0f else t.r(ex.shakeX(c.explosionProgress))
+            val sy = if (ex == null) 0f else t.r(ex.shakeY(c.explosionProgress))
+            translate(sx, sy) {
             drawSpaceBackdrop(cch, time)
             drawBodies(cch, time)
             // Comets drift, so they draw at their live simulation position —
@@ -411,6 +423,7 @@ private fun MatchUI(
                 if (!shot.done) drawProjectilesGlow(shot::visitProjectiles, t)
             }
             c.explosion?.let { drawExplosion(it, c.explosionProgress, t, cch) }
+            }
             drawVignette(cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawAim(

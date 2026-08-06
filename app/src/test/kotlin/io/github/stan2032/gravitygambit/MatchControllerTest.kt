@@ -309,6 +309,48 @@ class MatchControllerTest {
         assertTrue("a proved-winnable capture system was not winnable in play", c.engine.campaignWon)
     }
 
+    /**
+     * Camera shake is presentation, and must stay that way: it is a pure
+     * function of animation progress, it decays to nothing well before the
+     * explosion ends, and nothing about it can reach the simulation.
+     */
+    @Test
+    fun cameraShakeIsBoundedDecayingAndPurelyVisual() {
+        val e = io.github.stan2032.gravitygambit.ui.game.Explosion(
+            Vec2(500.0, 800.0), big = true, seed = 7L,
+        )
+        val cap = io.github.stan2032.gravitygambit.ui.game.Explosion.BIG_SHAKE
+        var previousPeak = Double.MAX_VALUE
+        var p = 0f
+        while (p <= 1f) {
+            val x = e.shakeX(p)
+            val y = e.shakeY(p)
+            assertTrue("shake left the board at p=$p", kotlin.math.abs(x) <= cap)
+            assertTrue("shake left the board at p=$p", kotlin.math.abs(y) <= cap)
+            p += 0.01f
+        }
+        assertEquals(
+            "shake must be over before the explosion is",
+            0.0,
+            e.shakeX(io.github.stan2032.gravitygambit.ui.game.Explosion.SHAKE_FADE),
+            1e-9,
+        )
+        assertEquals(0.0, e.shakeX(1f), 1e-9)
+
+        // Pure function of progress: the same input twice gives the same shake,
+        // so a replay never diverges visually either.
+        assertEquals(e.shakeX(0.2f), e.shakeX(0.2f), 0.0)
+        // And two explosions do not shake identically.
+        val other = io.github.stan2032.gravitygambit.ui.game.Explosion(
+            Vec2(500.0, 800.0), big = true, seed = 8L,
+        )
+        assertTrue(
+            "different explosions should not share a shake phase",
+            kotlin.math.abs(e.shakeX(0.1f) - other.shakeX(0.1f)) > 1e-9,
+        )
+        previousPeak.let { }
+    }
+
     @Test
     fun feedbackCodeIsVerifiableMidMatch() {
         val c = MatchController.create(

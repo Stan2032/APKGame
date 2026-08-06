@@ -10,6 +10,12 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 > multi-day waits (ID verification, bank micro-deposit, 12 testers × 14 days)
 > should all be started as early as possible; they, not the code, set the date.
 
+> **Direction (owner, 2026-08-06 — D-32):** alternate feature work and launch
+> prep, one unit each; Expedition is **additive**, not a campaign replacement;
+> difficulty stays **demanding** (do not soften bands or star rules to widen
+> the audience); presentation gets **real investment** — it is a storefront
+> product and screenshots sell the listing.
+
 ## VISION WORK (docs/VISION.md — the long game; production is not close)
 - [x] Stage A engine: anchors in TurnInput + simulation + codec v3 + tests.
 - [x] Stage A UI: anchor placement mode — tap to place, tap to flip, tap to remove; live preview; pips show budget. v0.5.0.
@@ -22,9 +28,15 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] **Play a Courier system**: is leading a drifting comet satisfying or fiddly? Does the reticle make the target obvious?
 - [ ] [H] **Play a Capture system**: is the insertion burn readable, or does it feel like guesswork? Is 4 seconds the right hold? Does the ring communicate the rule without words?
 - [ ] [H] **Play a Thread system**: is the order readable from the lit gate alone? Is the 78-unit half-width gate too tight or too forgiving (D-31)?
-- [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
+- [ ] [A] Stage D: Expedition run structure — **additive, alongside the campaign** (D-32b), not a replacement. Chained systems, route choice, mutators, a meta-currency that unlocks starting options.
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
+
+## PRESENTATION (D-32d — real investment, it is a storefront product)
+- [x] [A] Impact juice: decaying camera shake (board only, never the HUD) + 75ms hit-stop. v0.13.1.
+- [ ] [A] Audio gap is the biggest single hole: **no music or ambience at all**, and the 7 SFX have never been heard by a human. Seed-derived drone pad per system (`tools/gen_sfx.py` is the synthesis pipeline).
+- [ ] [A] Win/star flourish on the summary — the moment a level falls is currently understated.
+- [ ] [A] Screenshot-moment polish specifically (the shots listed in STORE_LISTING): slingshot arc, capture ring, anchors bending a preview, gambit dialog, season ladder.
 
 ## SEASON TRACK (shipped 0.12.0 engine / 0.12.1 UI)
 - [x] [A] Season screen, Home entry, XP on the match summary, `season_pass` billing wiring. v0.12.1.
@@ -80,6 +92,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.13.1 Owner direction captured as D-32 (split cadence · Expedition additive · difficulty stays demanding · presentation gets real investment); first presentation unit = impact juice (decaying camera shake + hit-stop), tested as provably presentation-only.
 - [x] [A] v0.13.0 **Stage C complete**: Thread (gates in order). Gates derived from a real trajectory rather than scattered, then re-proved independently (D-31); order enforced with a test that fails a flight passing all three out of sequence; crossings folded into the hash. Protocol v8.
 - [x] [A] v0.12.2 Audit pass 5 (store-facing): PLAY_STORE_CHECKLIST contradicted itself on permissions ("No permissions at all" three sections after correctly documenting them) and undercounted IAP products 3→6; STORE_LISTING still described the 0.2.0 game and quoted a duel-code length wrong at both ends; the "nothing you can buy wins a duel" line was false when written and is true now. Same numbers corrected in README, MULTIPLAYER, BillingManager and AI_LOOK_AVOIDANCE (whose own example of "be concrete" was the wrong figure). D-13 amended.
 - [x] [A] v0.12.1 Season track made visible: screen with both-lane 50-tier ladder auto-scrolled to the player's tier, Home entry, XP on the match summary, `season_pass` wired as a per-season consumable (consume-then-grant), offer hidden when billing cannot serve it, rollover applied on display.

@@ -163,9 +163,15 @@ systems*). Death ends the run; a meta-currency persists and unlocks
 starting options.
 
 Why: "one more run" is the strongest known retention loop, and it makes
-generated content feel like a journey instead of a list. The current
-12-levels-per-sector campaign is a checklist and should be **replaced** by
-this, not supplemented.
+generated content feel like a journey instead of a list.
+
+> **Amended 2026-08-06 (D-32b).** This section originally argued Expedition
+> should **replace** the 12-levels-per-sector campaign. The owner's decision is
+> that it is **additive**: the campaign stays as the teaching and progression
+> spine, Expedition becomes a third PVE mode. The replacement would have
+> invalidated the stars, sector gating and unlock ladder that the season track
+> and the shop both reference, and forced a save migration — for a tidiness
+> gain. Two overlapping PVE modes is the accepted cost.
 
 ---
 

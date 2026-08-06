@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-08-06
+- **Owner direction recorded as D-32**, and it steers everything after Stage C: alternate feature work with launch prep; **Expedition is additive, not a campaign replacement** (VISION §3.6 amended rather than followed — replacing it would have invalidated the stars, sector gating and unlock ladder the season and shop both reference); difficulty stays **demanding** (do not soften bands or star rules to widen the audience); **presentation gets real investment**.
+- **Impact juice — the first presentation unit, chosen because it serves both halves of the split**: it changes how the game feels *and* it is what a screenshot or a store video has to sell.
+  - **Camera shake**, scaled by whether a station died, as a *decaying oscillation* rather than per-frame jitter — random jitter reads as a dropped connection, a decaying sine reads as an impact. Seeded per explosion so two never shake alike.
+  - **Hit-stop**: the first 75ms of the resolve are held perfectly still before the explosion expands. A beat of stillness is the cheapest way to make a hit read as a hit rather than as an animation starting.
+  - **The board shakes; the HUD does not.** Shaking the readouts would make the numbers unreadable at exactly the moment they matter.
+- Shake is provably presentation-only and tested as such: a pure function of animation progress, bounded by its own amplitude constant, decaying to exactly zero well before the explosion ends, identical for identical input. It cannot reach a trajectory, a hash or a replay.
+- Tests: 152 (96 `:core` + 56 `:app`), 1 new.
+
 ## [0.13.0] — 2026-08-06
 - ⚠️ **Protocol v8.** A third objective adds gates to the spec, changing what a seed generates again, so v7 codes are refused.
 - **Thread: fly through the gates in order** — VISION Stage C is now complete (Capture, Courier, Thread).

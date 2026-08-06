@@ -33,6 +33,41 @@ enum class Phase { AIMING, FLYING, RESOLVING, HANDOFF, OVER }
 class Explosion(val at: Vec2, val big: Boolean, seed: Long) {
     class Particle(val dx: Double, val dy: Double, val speed: Double, val hue: Int)
 
+    /** Seeded phase so two explosions never shake identically. */
+    private val phase: Double = Rng(seed xor 0x5A4EL).range(0.0, 6.2831853)
+
+    /**
+     * Camera shake, in world units, as a pure function of the animation
+     * progress — a decaying oscillation rather than random jitter per frame,
+     * so it reads as an impact rather than as a dropped connection.
+     *
+     * Presentation only: the camera never touches the simulation, so shaking
+     * it cannot affect a trajectory, a hash, or a replay.
+     */
+    fun shakeX(progress: Float): Double = shake(progress, 0.0)
+    fun shakeY(progress: Float): Double = shake(progress, 1.7)
+
+    private fun shake(progress: Float, offset: Double): Double {
+        if (progress >= SHAKE_FADE) return 0.0
+        val t = progress / SHAKE_FADE
+        val decay = (1.0 - t) * (1.0 - t)
+        val amp = if (big) BIG_SHAKE else SMALL_SHAKE
+        return amp * decay * StrictMath.sin(phase + offset + t * SHAKE_CYCLES)
+    }
+
+    companion object {
+        /** Shake is over well before the explosion is — it punctuates, not lingers. */
+        const val SHAKE_FADE = 0.45f
+        const val SHAKE_CYCLES = 34.0
+        const val BIG_SHAKE = 26.0
+        const val SMALL_SHAKE = 9.0
+        /**
+         * Frozen frames before the explosion expands. A beat of stillness on
+         * impact is the cheapest way to make a hit feel like it landed.
+         */
+        const val HIT_STOP_SECONDS = 0.075f
+    }
+
     val particles: List<Particle> = buildList {
         val rng = Rng(seed)
         repeat(if (big) 30 else 16) {
