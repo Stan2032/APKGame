@@ -77,6 +77,19 @@ the anchor-leverage probe in 0.6.0.)
   carries the measurements a gambit is judged on, so the added work is four
   comparisons per *winning* sample. The dedicated sweep remains only as a
   second opinion for a seat whose scan came back empty.
+- **Ambience: ~40ms to render, then zero.** One 7-second pad is 154,350
+  samples × ~7 voices, built once per system on Dispatchers.Default while the
+  level is already on screen (`AmbienceTest.renderIsCheapEnoughToBuildOnLevelStart`,
+  desktop budget 400ms). Two choices keep it there. (1) A precomputed sine
+  table, indexed by exact integer modular arithmetic — every voice advances a
+  whole number of table steps per sample, so there is one transcendental call
+  per *table entry* instead of one per sample per voice, with no interpolation
+  and no drift. (2) `MODE_STATIC` with hardware loop points, so after the
+  single write the pad costs **no application CPU at all**, however long it
+  plays. That option only exists because the loop is seamless by construction;
+  a seam would have forced a crossfading streamer and a thread to run it for
+  the whole match. Transient cost is ~1.5MB of float buffers, freed after
+  render; resident cost is the 301KB PCM loop. APK cost is zero (docs/AUDIO.md).
 - The gravity accumulation loop is now indexed rather than iterator-based. It
   is the single hottest loop in the game (bodies x projectiles x ticks x
   thousands of solver sims) and was allocating an iterator per projectile per

@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
+import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.Gambit
@@ -105,6 +106,7 @@ fun GameScreen(
     ads: RewardedAdsProvider,
     sound: SoundManager,
     onNavigate: (Nav) -> Unit,
+    ambience: AmbienceTrack = remember { AmbienceTrack() },
 ) {
     var controller by remember(launch) { mutableStateOf<MatchController?>(null) }
     var failed by remember(launch) { mutableStateOf(false) }
@@ -129,7 +131,7 @@ fun GameScreen(
             BackHandler { onNavigate(exitTarget) }
             CenteredMessage("Charting the system…", "solving gravity, guaranteeing a route", null)
         }
-        else -> MatchUI(controller!!, profile, repo, ads, sound, exitTarget, onNavigate)
+        else -> MatchUI(controller!!, profile, repo, ads, sound, ambience, exitTarget, onNavigate)
     }
 }
 
@@ -157,6 +159,7 @@ private fun MatchUI(
     repo: ProfileRepository,
     ads: RewardedAdsProvider,
     sound: SoundManager,
+    ambience: AmbienceTrack,
     exitTarget: Nav,
     onNavigate: (Nav) -> Unit,
 ) {
@@ -167,6 +170,11 @@ private fun MatchUI(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var showQuit by remember { mutableStateOf(false) }
     var timeSec by remember { mutableStateOf(0f) }
+
+    // The pad is a property of the system, so it is set from the system and
+    // not from the screen: a rematch on the same seed keeps playing without a
+    // rebuild, and a new seed rebuilds off the main thread (AmbienceTrack).
+    LaunchedEffect(c) { ambience.setSystem(c.spec) }
 
     // Global clock for ambient animation (twinkle, pulses).
     LaunchedEffect(Unit) {
@@ -181,6 +189,10 @@ private fun MatchUI(
         when (c.phase) {
             Phase.FLYING -> {
                 sound.play(SoundManager.Sfx.FIRE, volume = if (c.isReplaying) 0.7f else 1f)
+                // Restart the pad at sample zero so a pulsar's tremolo tracks
+                // the pull the shot is actually flying through. No-op without a
+                // pulsar; the launch report covers the seek where there is one.
+                ambience.resyncPulsarPhase()
                 // Time-based pacing: ticks derive from wall clock, not frame
                 // count, so playback speed is identical on 60/90/120Hz panels.
                 var startNanos = -1L

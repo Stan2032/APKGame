@@ -57,6 +57,19 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         }
 
         SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    CardTitle("System ambience")
+                    Subtitle("A drone built from the masses on the board. Pulsars pulse in it.")
+                }
+                Switch(
+                    checked = profile.musicEnabled,
+                    onCheckedChange = { on -> repo.update { it.copy(musicEnabled = on) } },
+                )
+            }
+        }
+
+        SectionCard {
             Column {
                 CardTitle("Send feedback")
                 Subtitle("Sent through an app you choose. The game sends nothing itself.")

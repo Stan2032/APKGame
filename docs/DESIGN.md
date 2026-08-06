@@ -199,5 +199,10 @@ Console), CI producing APK + AAB.
 2. **Orbital motion** — planets on deterministic rails (`pos(t)`), timing
    becomes a weapon.
 3. **Leagues** — weekly seed sets with shared verification codes.
-4. **Sound design** — synthesized, seed-derived ambient per system.
+4. ~~**Sound design** — synthesized, seed-derived ambient per system.~~
+   **Shipped 0.14.0**, pulled forward from post-v1 because the game having no
+   music at all was the largest gap a first impression would notice. It went
+   further than this line planned: the pad is derived from the *bodies* rather
+   than only from the seed, the harmony is chosen by the objective, and a
+   pulsar's voice swells at its real gravity period (docs/AUDIO.md, D-33).
 5. **Ghost racing** — overlay a friend's daily replay as a translucent ghost.

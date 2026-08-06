@@ -8,13 +8,14 @@
 
 ## :core file map (io.github.stan2032.gravitygambit.core)
 - `Rng.kt` — SplitMix64 + static `mix(a,b)` seed derivation. FROZEN constants (D-5).
-- `Model.kt` — Vec2, GameMode, Body(+BodyKind STAR/PLANET/REPULSOR), Station, SystemSpec, TurnInput (quantized: angleDeci 0..3599, power 0..1000, brakeTick), ProjectileType enum (damage/radius/maxPowerFrac/splits/canBrake), `Tuning` (ALL physics+scoring constants; see TUNING.md).
+- `Model.kt` — Vec2, GameMode, Body(+BodyKind STAR/PLANET/REPULSOR/COMET/PULSAR; motion and pulsar mass are pure functions of the integer tick, never mutable state), Station, `Gate`, SystemSpec (+`objectiveId`/`markedBody`/`gates`/`gambitMasks`), TurnInput (quantized: angleDeci 0..3599, power 0..1000, brakeTick), ProjectileType enum (damage/radius/maxPowerFrac/splits/canBrake), `Tuning` (ALL physics+scoring constants; see TUNING.md).
 - `Gambit.kt` — the declarable constraints, each with a `satisfiedBy(ShotResult)` decided purely from measurements the simulation took. Rules only; no state.
 - `Simulation.kt` — `LiveShot`: tick-stepped shot sim (semi-implicit Euler, dt=1/60, softened gravity, splits, brake, collisions, bounds, style detection, FNV-1a hash folding every 8 ticks + events). `ShotResult`. `Preview.trajectories()` (aim preview = same sim, capped ticks). `ProjView` for rendering.
 - `MatchEngine.kt` — turn order, HP, damage, daily scoring+target relocation (`DailyLogic`, seeded by hit count), stars, over/winner logic, combined match hash. `MatchReplayer.rebuild()` = verification path (same engine ⇒ can't diverge).
 - `Generator.kt` — `SystemGenerator.generate(seed,difficulty,mode)`: candidate layout (rejection placement) → solver (180 angles × 5 powers, STANDARD, 600 ticks) → accept iff hitRate ∈ band; duel = both-sides + ratio ≤4 fairness; 24 attempts → nearest-miss fallback → hardcoded fallback. `NameGen`, `Seeds` (campaign/daily/duel seed derivation, difficulty curve, LEVELS_PER_SECTOR=12, LAUNCH_EPOCH_DAY=20666).
 - `Replay.kt` — `MatchRecord`, `ShareCodec` ("GG1."+base64url: magic/ver/mode/diff/seed/turns[8B each]/hash/crc32; tolerant substring decode; range-validated). `decodeAndVerify()` = decode → regenerate → resim → hash compare → `VerifiedMatch`|null.
-- `Economy.kt` — `Profile` (full save state, kotlinx-serialization JSON, ignoreUnknownKeys⇒forward-compatible), `Economy` (trails, projectile unlocks star+dust gates, preview tiers 90/180/270 ticks, rewards, SECTOR_UNLOCK_STARS=20), `AdRewards` (watch ✦40 ×5/day; pass ×2 + ✦50/day), `Iap` (3 INAPP + 2 SUBS ids).
+- `Economy.kt` — `Profile` (full save state, kotlinx-serialization JSON, ignoreUnknownKeys⇒forward-compatible), `Economy` (trails, projectile unlocks star+dust gates, preview tiers 90/180/270 ticks, rewards, SECTOR_UNLOCK_STARS=20), `AdRewards` (watch ✦40 ×5/day; pass ×2 + ✦50/day), `Iap` (4 INAPP incl. `season_pass` + 2 SUBS ids).
+- `Ambience.kt` — the generated pad: `voicesFor(SystemSpec)` derives one partial per body (pitch from mass, phase from position, harmony set from the objective) and `render()` mixes them to a seamless 7s 16-bit mono loop. Periodicity is stored as *integer cycles per loop*, never hertz, which is what makes the seam exact; roots are multiples of 80 so every just-intonation ratio lands whole. A pulsar's tremolo runs at its real gravity period (`AmbienceWav` writes samples to .wav for listening). Never hashed, never on the wire — see AUDIO.md.
 
 ## :app file map (io.github.stan2032.gravitygambit)
 - `GravityGambitApp` — Application; owns ProfileRepository singleton.
@@ -33,13 +34,14 @@
 - `ui/ShareMessages.kt` — the text that leaves the app into someone else's chat; must stand alone for a stranger (`STORE_URL` hook turns codes into install links at launch). `ui/Share.kt` — share-sheet helper.
 - `ui/screens/Feedback.kt` — `GGFB1` blob composition + dialog; match reports attach a verifiable replay code (pipeline: `feedback/README.md`).
 - `audio/SoundManager.kt` — SoundPool wrapper over 7 synthesized SFX (`tools/gen_sfx.py`); `enabled` mirrors the profile setting, play() is a no-op when off.
+- `audio/AmbienceTrack.kt` — plays `:core`'s generated pad on an `AudioTrack` in `MODE_STATIC` with hardware loop points, so an hour of drone costs no CPU after the one write. Builds off the main thread keyed on (seed, objective) so a rematch does not rebuild; `resyncPulsarPhase()` seeks to sample 0 on fire so a pulsar's tremolo tracks the pull the shot is flying through (no-op without a pulsar). Owned by MainActivity for onPause/onResume/onDestroy; every AudioTrack call is guarded — losing the drone is acceptable, crashing is not. Gated on `Profile.musicEnabled`, which is deliberately **separate** from `soundEnabled`.
 - `ads/RewardedAds.kt` — see below; ships as `NoOpRewardedAds`.
 
 ## Data flow (one shot)
 touch down anywhere on the board → floating stick → pull → quantize (angleDeci,power ints) → preview via same sim (~0.065ms) → FIRE → `engine.beginShot` → `advanceBy(n)` where n comes from wall-clock elapsed time (UI thread; ~µs per tick) → done → `engine.commit(result)` (rules+hash) → RESOLVING anim → next phase. Code duel: turns → `ShareCodec.encode(MatchRecord)` → messenger → peer `decodeAndVerify` → rebuilt engine + replay queue.
 
 ## Threading
-Main: sim stepping (trivial cost), UI. Dispatchers.Default: system generation + code verification (100ms–3s). Dispatchers.IO: DataStore writes. No other concurrency.
+Main: sim stepping (trivial cost), UI. Dispatchers.Default: system generation + code verification (100ms–3s), ambience rendering (~40ms desktop / ~150ms phone, once per system). Dispatchers.IO: DataStore writes. Audio: SoundPool and AudioTrack both mix on their own system threads; after the one static write the pad needs no application thread at all. No other concurrency.
 
 ## Persistence
 Single JSON Profile in DataStore prefs. Forward-compatible (unknown keys ignored, defaults on new fields). Corrupt ⇒ default Profile (never crash). No match-in-progress persistence (D-9).

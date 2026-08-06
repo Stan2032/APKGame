@@ -21,7 +21,9 @@
 >
 > **Call your shot.** Declare before you fire — under 40% power, through the pull of two different worlds, or the long way round without ever crossing the line to the target. Keep the promise and the shot pays up to 2.2×. Break it and the shot is wasted. The game only ever offers a call it has proved this level can pay.
 >
-> **Campaign** — endless generated sectors. Every level is machine-proven solvable before you see it, and a level beatable by simply pointing at the target is thrown away. Some systems ask for something other than destruction: hold orbit around a marked world for four seconds, or strike a comet that will not stay still.
+> **Campaign** — endless generated sectors. Every level is machine-proven solvable before you see it, and a level beatable by simply pointing at the target is thrown away. Some systems ask for something other than destruction: hold orbit around a marked world for four seconds, strike a comet that will not stay still, or thread three gates in the right order.
+>
+> **Every system has its own sound.** Nothing here is a recording. The drone under each level is built from the worlds on the board — heavier bodies sing lower — and where a pulsar beats, you can hear its gravity rise and fall before you fire through it.
 >
 > **Daily Challenge** — one seed for the whole world each day. Five shots, moving target, share a result code that mathematically proves your score.
 >
@@ -47,6 +49,16 @@ Keyword notes: gravity, slingshot, artillery, orbit, pvp, duel, offline game, ph
 - "up to 2.2×" is the largest gambit payout; "four seconds" is
   `Tuning.CAPTURE_TICKS` at 60Hz. Re-check both against TUNING.md before
   submitting, and never round a claim in the game's favour.
+- **The audio paragraph is the one line here that no human has yet checked.**
+  Every clause in it is true of the code — the pad is synthesized per system
+  from the bodies, heavier bodies do get lower voices, and a pulsar's tremolo
+  does run at its real gravity period (docs/AUDIO.md, `AmbienceTest`). What is
+  *unverified* is whether any of it is audible as described on a phone
+  speaker. "You can hear its gravity rise and fall" is a promise made to a
+  stranger's ears, so **do not submit this paragraph until someone has
+  listened** (TODO PRESENTATION). If the pulsar reads as wobble rather than as
+  a pulse, cut that clause and keep the first two sentences, which stand on
+  their own.
 
 ## Screenshots (phone, min 4; capture from real gameplay, portrait, no device frames, no fake-quote overlays)
 1. Mid-flight slingshot around a planet, trail glowing (the money shot — retake until beautiful).

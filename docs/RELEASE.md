@@ -140,6 +140,20 @@ told you almost nothing.*
       truncate.
 - [ ] Landscape/tablet: the HUD sits in the letterbox bars, the board is not
       covered.
+- [ ] **Ambience** (docs/AUDIO.md — none of this can be checked off a device):
+      - the pad fades in rather than snapping on, and **menus are silent**;
+      - it does **not** click, tick or thump every seven seconds. The seam is
+        proved continuous in the samples, so a tick here means playback, not
+        synthesis — suspect the `resyncPulsarPhase` seek or the fade;
+      - it stops when you leave the app and comes back when you return;
+      - two different systems audibly differ, and the same system sounds the
+        same on a second visit;
+      - on a pulsar system, the swell is legible as a *pulse* and not as
+        wobble — this is the sonification claim, and it is the one worth
+        being sceptical about;
+      - **Settings → System ambience off** silences the pad while sound
+        effects keep firing, and **Sound effects off** leaves the pad running.
+        They are separate switches and each must work alone.
 
 ### 6. Environment
 - [ ] Airplane mode: everything in sections 2–5 still works. The game is

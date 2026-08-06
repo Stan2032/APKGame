@@ -27,6 +27,13 @@ data class Profile(
     val duelLosses: Int = 0,
     val hapticsEnabled: Boolean = true,
     val soundEnabled: Boolean = true,
+    /**
+     * The generated ambience pad, separate from [soundEnabled] on purpose:
+     * wanting the hit to land audibly and wanting a drone under it are
+     * different wants, and collapsing them into one switch forces players who
+     * only object to the second into silence.
+     */
+    val musicEnabled: Boolean = true,
     val lastDuelCode: String = "",
     /** Ad Pass subscription state (reconciled against Play Billing on connect). */
     val adPassActive: Boolean = false,

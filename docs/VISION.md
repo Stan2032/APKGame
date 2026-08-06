@@ -112,7 +112,7 @@ Why: every shot now matters even when it fails, tension escalates within a
 match instead of resetting, and in duels the arena visibly degrades into
 something neither player designed — a shared story.
 
-### 3.4 Resonance — the system has a rhythm
+### 3.4 Resonance — the system has a rhythm — **half shipped 0.14.0**
 
 Pulsars already breathe on fixed periods. Make that a *timing* mechanic:
 fire in phase and the assist amplifies; fire out of phase and it fights you.
@@ -121,6 +121,18 @@ sonifies each pulse so the field can be learned **by ear**.
 
 Why: adds a timing skill orthogonal to aiming, and gives the game a sonic
 identity — "the level has a beat" is something no competitor has.
+
+**Shipped:** the ear half. The generated pad gives a pulsar a voice that
+swells at its real gravity period, phase-locked to the shot (docs/AUDIO.md
+§2). The field can now be learned by ear before it is a rule.
+
+**Still open:** the *mechanic* — phase currently changes the pull, as it
+always has, but nothing rewards firing in phase beyond the physics itself.
+Polyrhythm needs multiple pulsars with different periods, which the pad
+already supports (each gets its own tremolo) but the generator does not yet
+produce. Note the constraint D-33 exposes: a second period only stays
+phase-locked across loop repeats if it also divides the loop length, so
+periods must be chosen from divisors of 7 seconds rather than freely.
 
 ### 3.5 Objectives beyond destruction — **SHIPPED (Capture, Courier, Thread)**
 
@@ -197,9 +209,9 @@ Each stage is independently shippable and playable; none blocks a playtest.
 |---|---|---|
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
-| **C** ✅ | Objectives (Capture, Courier and Thread all shipped) (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
-| **D** | Expedition run structure + mutators | Needs B and C to have something to string together. |
-| **E** | Resonance + audio sonification | Best after Expedition, so it lands as depth rather than noise. |
+| **C** ✅ | Objectives — Capture, Courier and Thread all shipped | Multiplies existing procgen without new art. |
+| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b) | Needs B and C to have something to string together. |
+| **E** | Resonance + audio sonification — **sonification half shipped 0.14.0**, resonance *mechanic* still open | Taken early against the plan, because the game had no music at all and the pulsar pad answers both problems at once (D-33). The gameplay half still wants Expedition first. |
 | **F** | Debris/consequence | Tune last; it interacts with every other system. |
 
 Protocol note: A changes `TurnInput`; C and F change simulation outcomes.

@@ -59,6 +59,9 @@ class AccessibilityTest {
         }
         compose.onNodeWithText("Haptic feedback").assertExists()
         compose.onNodeWithText("Sound effects").assertExists()
+        // Ambience is its own switch, not a mode of the sound one: a player
+        // who wants impacts but not a drone must be able to say so.
+        compose.onNodeWithText("System ambience").assertExists()
     }
 
     @Test

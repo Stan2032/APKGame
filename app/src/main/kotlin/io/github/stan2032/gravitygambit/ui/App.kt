@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.stan2032.gravitygambit.ads.NoOpRewardedAds
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
+import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.billing.BillingManager
 import io.github.stan2032.gravitygambit.core.GameMode
@@ -58,6 +59,7 @@ fun App(
     billing: BillingManager,
     sound: SoundManager,
     ads: RewardedAdsProvider = NoOpRewardedAds,
+    ambience: AmbienceTrack = remember { AmbienceTrack() },
 ) {
     var nav by remember { mutableStateOf<Nav>(Nav.Home) }
     val profile by repo.profile.collectAsState()
@@ -69,6 +71,10 @@ fun App(
         }
     }
     LaunchedEffect(profile.soundEnabled) { sound.enabled = profile.soundEnabled }
+    LaunchedEffect(profile.musicEnabled) { ambience.enabled = profile.musicEnabled }
+    // Menus are silent on purpose: arriving in a system should be a change you
+    // hear, which only works if the place you came from was quiet.
+    LaunchedEffect(nav is Nav.Game) { if (nav !is Nav.Game) ambience.setSystem(null) }
 
     Box(Modifier.fillMaxSize().background(BgColor)) {
         // Living backdrop everywhere except the match itself, which renders its
@@ -95,6 +101,7 @@ fun App(
                 repo = repo,
                 ads = ads,
                 sound = sound,
+                ambience = ambience,
                 onNavigate = { nav = it },
             )
         }
