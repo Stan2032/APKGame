@@ -6,6 +6,17 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-08-06
+- **Expedition is playable.** The junction screen, the run's home between systems, and a Home entry to reach it. VISION Stage D is complete.
+- **The screen answers one question — which way, and can I afford it?** So every number a route card shows is in the same unit as the gauge above it: travel is stated *before* the leg is taken, and each card gives the fuel a clear returns at one star and at three. A run mode where the price appears after committing feels arbitrary rather than tense, and tension is the entire product here.
+- **The fuel gauge is drawn relative to the tank you started with, not to a maximum**, because there isn't one — fuel can and should exceed the starting tank on a good run, and a bar pinned at "full" would hide exactly the stretch a player most wants to see. Below a couple of legs' worth it turns amber and says so in words.
+- Difficulty shows as pips, not the generator's 0–11. Nobody reads 0–11; what a player needs at a junction is "harder than the last one" at a glance.
+- **A leg exits to the junction, never to the star map**, and launches with sector/level −1 so an Expedition clear can never hand out campaign sector unlocks for systems the player never found on the grid. Held by a test, because the two modes now share a generator and it would be an easy thing to break silently.
+- **The run banks the moment it ends, not when the player taps through the summary** — the screen showing a payout must not also be the thing deciding whether it happened. Keyed on the run itself, so a recomposition cannot pay twice and an abandoned run cannot pay at all.
+- **No mid-run save, deliberately** (D-9's reasoning applied to D-34): a run is a sitting. Persisting one would mean persisting the generated leg, the fuel and the match inside it — and would invite quitting out of a system that went badly in order to reroll it, which is precisely the pressure the mode exists to create.
+- The Home glyph is a path that forks — one line in, three out. The whole decision a run keeps asking, drawn once, rather than a second copy of the campaign's orbit mark.
+- Tests: 184 (121 `:core` + 63 `:app`), 5 new — including that an Uncharted card names its condition, since a condition the card does not mention would make Uncharted a third difficulty label.
+
 ## [0.15.1] — 2026-08-06
 - **CI release signing, wired and self-activating.** It was the last agent-doable item on the launch path, and it was marked "blocked on the keystore existing" — which was true of *using* it and not of *building* it. Add four repository secrets and the next run signs; there is no flag to remember and no workflow edit to make later, which is the failure this shape is designed against.
 - **The real hazard here is not a broken build, it is a plausible one.** `app/build.gradle.kts` deliberately falls back to the debug key so release builds stay installable for testing — which means a debug-signed `.aab` is byte-for-byte as convincing as a real one in a downloads folder, right up until Play refuses it and you spend an hour doubting the build rather than the key. Three defences, all cheap:

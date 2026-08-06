@@ -166,7 +166,7 @@ Why: this is the multi-faceted variety the project always intended;
 procgen supplies layouts, objectives supply *reasons*, and the combination
 multiplies rather than adds.
 
-### 3.6 Expedition — the compulsive spine — **engine shipped 0.15.0**
+### 3.6 Expedition — the compulsive spine — **shipped 0.15.0–0.16.0**
 
 A **run** is a chain of systems. You carry hull, fuel, and anchors between
 them. Between systems you choose your route (safe/rich/unknown) and take a
@@ -248,7 +248,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
 | **C** ✅ | Objectives — Capture, Courier and Thread all shipped | Multiplies existing procgen without new art. |
-| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b). **Engine shipped 0.15.0**; UI is the next unit. | Needs B and C to have something to string together. |
+| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b). **Shipped 0.15.0 (engine) + 0.16.0 (junction UI).** | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification — **sonification half shipped 0.14.0**, resonance *mechanic* still open | Taken early against the plan, because the game had no music at all and the pulsar pad answers both problems at once (D-33). The gameplay half still wants Expedition first. |
 | **F** | Debris/consequence | Tune last; it interacts with every other system. |
 

@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.core.Profile
 import kotlinx.coroutines.CoroutineScope
@@ -128,6 +129,28 @@ class ProfileRepository(private val context: Context) {
                 stardust = p.stardust + earned,
                 duelWins = p.duelWins + (if (win) 1 else 0),
                 duelLosses = p.duelLosses + (if (win) 0 else 1),
+            )
+        }
+        return earned
+    }
+
+    /**
+     * Bank a finished Expedition run: stardust, season XP, and the personal
+     * best. Returns the stardust for the summary.
+     *
+     * Paid once at the end rather than per leg, so depth is the unit the mode
+     * rewards (D-34) — per-leg payment would make a run strictly worse than
+     * playing the same systems in the campaign, since a run also risks them.
+     */
+    fun recordExpedition(run: Expedition.Run, epochDay: Long): Int {
+        val earned = withPassMultiplier(Expedition.payout(run))
+        val xp = Season.expeditionXp(run.depth, run.wrecks)
+        update { p ->
+            p.plusSeasonXp(epochDay, xp).copy(
+                stardust = p.stardust + earned,
+                expeditionRuns = p.expeditionRuns + 1,
+                expeditionBestDepth = maxOf(p.expeditionBestDepth, run.depth),
+                expeditionBestScore = maxOf(p.expeditionBestScore, run.score),
             )
         }
         return earned

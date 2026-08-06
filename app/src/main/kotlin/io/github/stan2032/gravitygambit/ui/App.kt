@@ -16,11 +16,15 @@ import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.billing.BillingManager
+import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.GameMode
+import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.data.ProfileRepository
 import io.github.stan2032.gravitygambit.ui.game.GameScreen
 import io.github.stan2032.gravitygambit.ui.screens.CampaignScreen
 import io.github.stan2032.gravitygambit.ui.screens.DuelScreen
+import io.github.stan2032.gravitygambit.ui.screens.ExpeditionScreen
+import io.github.stan2032.gravitygambit.ui.screens.expeditionLaunch
 import io.github.stan2032.gravitygambit.ui.screens.HelpScreen
 import io.github.stan2032.gravitygambit.ui.screens.HomeScreen
 import io.github.stan2032.gravitygambit.ui.screens.SeasonScreen
@@ -40,12 +44,20 @@ data class GameLaunch(
     val importedCode: String? = null,
     /** Distinguishes replays of an identical launch (retry/rematch) in nav state. */
     val nonce: Long = 0L,
+    /**
+     * Set when this match is one leg of an Expedition run. The mode stays
+     * CAMPAIGN — a leg *is* a campaign match (D-34) — but the leg carries the
+     * run's conditions (a Dark run removes the aim trace) and marks the match
+     * as one whose rewards belong to the run rather than to the star map.
+     */
+    val expeditionLeg: Expedition.Leg? = null,
 )
 
 sealed interface Nav {
     data object Home : Nav
     data object Campaign : Nav
     data object Duel : Nav
+    data object Expedition : Nav
     data object Season : Nav
     data object Shop : Nav
     data object Settings : Nav
@@ -64,6 +76,18 @@ fun App(
     var nav by remember { mutableStateOf<Nav>(Nav.Home) }
     val profile by repo.profile.collectAsState()
 
+    /**
+     * The Expedition run in progress, or null between runs.
+     *
+     * Held here rather than persisted, and that is the design (D-9's reasoning
+     * applied to D-34): a run is a sitting. Storing one would mean storing the
+     * generated leg, the fuel and the match inside it — and would invite
+     * quitting out of a system that went badly to reroll it, which is exactly
+     * the pressure a run mode exists to create.
+     */
+    var expedition by remember { mutableStateOf<Expedition.Run?>(null) }
+    var runNonce by remember { mutableStateOf(0L) }
+
     // Ad Pass daily drop, claimed automatically on app open.
     LaunchedEffect(profile.adPassActive) {
         if (profile.adPassActive) {
@@ -76,6 +100,20 @@ fun App(
     // hear, which only works if the place you came from was quiet.
     LaunchedEffect(nav is Nav.Game) { if (nav !is Nav.Game) ambience.setSystem(null) }
 
+    // Bank a run the moment it ends, not when the player taps through the
+    // summary — the screen showing the payout must not also be the thing that
+    // decides whether it happened. Keyed on the run itself, so a recomposition
+    // cannot pay twice and an abandoned run cannot pay at all.
+    val finished = expedition?.takeIf { it.over }
+    LaunchedEffect(finished) {
+        if (finished != null) {
+            repo.recordExpedition(
+                finished,
+                java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay(),
+            )
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(BgColor)) {
         // Living backdrop everywhere except the match itself, which renders its
         // own (far richer) universe.
@@ -85,6 +123,21 @@ fun App(
             is Nav.Home -> HomeScreen(profile = profile, onNavigate = { nav = it })
             is Nav.Campaign -> CampaignScreen(profile = profile, onNavigate = { nav = it })
             is Nav.Duel -> DuelScreen(profile = profile, onNavigate = { nav = it })
+            is Nav.Expedition -> ExpeditionScreen(
+                profile = profile,
+                run = expedition,
+                onStart = {
+                    expedition = Expedition.Run(
+                        seed = Seeds.expeditionRun(System.currentTimeMillis())
+                    )
+                },
+                onAbandon = { expedition = null; nav = Nav.Home },
+                onTake = { leg ->
+                    runNonce++
+                    nav = Nav.Game(expeditionLaunch(leg, runNonce))
+                },
+                onNavigate = { nav = it },
+            )
             is Nav.Season -> SeasonScreen(
                 profile = profile, repo = repo, billing = billing,
                 onNavigate = { nav = it },
@@ -102,6 +155,20 @@ fun App(
                 ads = ads,
                 sound = sound,
                 ambience = ambience,
+                // Applied here rather than inside the match, because the run
+                // is App's state and the match must stay a match: a leg does
+                // not know it is part of anything.
+                onLegFinished = { shots, stars, cleared ->
+                    val leg = n.launch.expeditionLeg
+                    val current = expedition
+                    if (leg != null && current != null && !current.over) {
+                        expedition = if (cleared) {
+                            Expedition.afterClear(current, leg, shots, stars)
+                        } else {
+                            Expedition.afterWreck(current, leg, shots)
+                        }
+                    }
+                },
                 onNavigate = { nav = it },
             )
         }

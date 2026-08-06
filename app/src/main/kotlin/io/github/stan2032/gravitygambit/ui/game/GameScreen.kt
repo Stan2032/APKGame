@@ -70,6 +70,7 @@ import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Objective
@@ -107,6 +108,8 @@ fun GameScreen(
     sound: SoundManager,
     onNavigate: (Nav) -> Unit,
     ambience: AmbienceTrack = remember { AmbienceTrack() },
+    /** Reports an Expedition leg's outcome to the run that owns it (D-34). */
+    onLegFinished: (shots: Int, stars: Int, cleared: Boolean) -> Unit = { _, _, _ -> },
 ) {
     var controller by remember(launch) { mutableStateOf<MatchController?>(null) }
     var failed by remember(launch) { mutableStateOf(false) }
@@ -116,10 +119,14 @@ fun GameScreen(
         if (created == null) failed = true else controller = created
     }
 
-    val exitTarget: Nav = when (launch.mode) {
+    val exitTarget: Nav = when {
+        // A leg exits to the junction it came from, never to the star map.
+        launch.expeditionLeg != null -> Nav.Expedition
+        else -> when (launch.mode) {
         GameMode.CAMPAIGN -> Nav.Campaign
         GameMode.DAILY -> Nav.Home
         GameMode.DUEL -> Nav.Duel
+        }
     }
 
     when {
@@ -131,7 +138,7 @@ fun GameScreen(
             BackHandler { onNavigate(exitTarget) }
             CenteredMessage("Charting the system…", "solving gravity, guaranteeing a route", null)
         }
-        else -> MatchUI(controller!!, profile, repo, ads, sound, ambience, exitTarget, onNavigate)
+        else -> MatchUI(controller!!, profile, repo, ads, sound, ambience, exitTarget, onNavigate, onLegFinished)
     }
 }
 
@@ -162,6 +169,7 @@ private fun MatchUI(
     ambience: AmbienceTrack,
     exitTarget: Nav,
     onNavigate: (Nav) -> Unit,
+    onLegFinished: (shots: Int, stars: Int, cleared: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -252,7 +260,16 @@ private fun MatchUI(
             // Baseline through the rollover: the first match of a new season
             // starts from that season's zero, not from last season's total.
             val xpBefore = profile.rolledIntoSeason(today).seasonXp
-            c.dustEarned = when (c.launch.mode) {
+            val leg = c.launch.expeditionLeg
+            c.dustEarned = if (leg != null) {
+                // An Expedition leg pays nothing on its own: the run banks
+                // once, at the end (D-34). Paying per leg would make a run
+                // strictly better than the campaign for the same systems while
+                // also being the thing that risks them, and would write
+                // campaign stars for a sector the player never visited.
+                onLegFinished(c.engine.shotsUsed, s.stars, s.win)
+                0
+            } else when (c.launch.mode) {
                 GameMode.CAMPAIGN -> repo.recordCampaign(
                     c.launch.sector, c.launch.level, c.launch.difficulty, s.stars,
                     epochDay = today,
@@ -292,9 +309,16 @@ private fun MatchUI(
         if (canvasSize.width > 0) WorldTransform(canvasSize.width.toFloat(), canvasSize.height.toFloat()) else null
     }
 
-    // Duels issue the top preview to both players; elsewhere it is earned.
+    // Duels issue the top preview to both players; elsewhere it is earned —
+    // and a Dark run takes it away for one leg, which is the only place in the
+    // game where firing blind is a rule rather than a claim (D-23, D-34).
     val previewTicks = Economy.previewTicks(
-        if (c.launch.mode == GameMode.DUEL) Economy.MAX_PREVIEW_LEVEL else profile.previewLevel
+        when {
+            c.launch.mode == GameMode.DUEL -> Economy.MAX_PREVIEW_LEVEL
+            c.launch.expeditionLeg != null ->
+                Expedition.previewLevelFor(c.launch.expeditionLeg, profile.previewLevel)
+            else -> profile.previewLevel
+        }
     )
     val anchorSig = c.anchors.joinToString { "${'$'}{it.x},${'$'}{it.y},${'$'}{it.attract}" }
     val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig) {

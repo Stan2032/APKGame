@@ -20,7 +20,7 @@ repo (PERFORMANCE.md) — the previous entry claimed ~90s and ~15s, and it is
 not knowable now whether that reflected a slower machine or a smaller suite.
 Treat them as orders of magnitude, and re-measure before quoting.
 
-## :app suite (app/src/test — 58 tests across 11 classes)
+## :app suite (app/src/test — 63 tests across 12 classes)
 - `DuelFlowUiTest` (3): drives a real shot through the composed screen and asserts the hand-off moment — code duels surface "Shot locked in" with Share/Copy; hot-seat asks for the phone and **never** offers a code; tapping through hands control to player two. This is where the headline feature happens, so a crash here must not hide behind green unit tests.
 - `AppSmokeTest` (7) (Robolectric, phone-sized viewport): Home renders every mode and routes correctly; Daily launch carries today's seed; Campaign gates locked content; Duel rejects garbage codes without navigating; Help and theme render. Note: use `assertExists()` for below-fold content — `assertIsDisplayed()` additionally requires viewport visibility and will fail on long screens.
 - `GameScreenTest` (5): the match screen — the game itself, and the hardest thing here to test, because its ambient animation means the composition **never goes idle**, so the default auto-advancing clock hangs. Pattern: `mainClock.autoAdvance = false` plus an `awaitText` pump that advances the clock while polling, since system generation also runs on a background dispatcher. Covers campaign/daily HUDs, the first-launch coaching hint appearing only for fresh profiles, and the corrupt-code refusal screen. **Copy this pattern for any future test touching the match screen.**
@@ -31,6 +31,7 @@ Treat them as orders of magnitude, and re-measure before quoting.
 - `SeasonScreenTest` (4): the ladder scrolls to the player's tier, claiming pays out, a stale `seasonId` rolls over on read, and the pass offer hides itself when billing cannot serve it.
 - `WideScreenTest` (7): the same match at phone-landscape, tablet-landscape and tablet-portrait — the HUD must move into the letterbox bars and never cover the board (D-17).
 - `ShareMessagesTest` (4): the text that leaves the app into a stranger's chat must stand alone, and the store link must not ship as a placeholder before launch.
+- `ExpeditionScreenTest` (5): drives a run through the composed junction — briefing → three route cards → taking one; that the leg's cost is stated *before* it is taken (a run mode where the price appears after committing feels arbitrary); that an Uncharted card names its condition; that an ended run shows what it paid; and that a leg launches as a CAMPAIGN match with sector/level −1, which is what keeps an Expedition clear out of the star map (D-34).
 - `AmbienceTrackTest` (2): a full session of ambience calls — and a session where the activity is destroyed mid-build — must never throw. Robolectric's audio stack is a hostile device, which is exactly what makes it the right place to check the "losing the drone is acceptable, crashing is not" guarantee.
 
 ## :core suite (core/src/test — 121 tests across 20 classes in 13 files)
