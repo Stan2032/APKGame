@@ -57,6 +57,23 @@ object SystemGenerator {
      */
     const val GAMBIT_ANGLE_STEP = 40
     val GAMBIT_POWERS = intArrayOf(250, 350, 500, 700, 900, 1000)
+
+    /**
+     * Search grid for proving a [Objective.CAPTURE] system is winnable.
+     *
+     * Deliberately narrow, and aimed where the answers actually are: a probe
+     * that swept the whole space found every capture solution at low power
+     * (200-350) with the burn around ticks 140-220, because a capture is a
+     * slow arrival followed by an insertion burn. Searching the fast half of
+     * the power range is searching where solutions cannot be.
+     */
+    const val CAPTURE_ANGLE_STEP = 60
+    val CAPTURE_POWERS = intArrayOf(200, 350, 500)
+    val CAPTURE_BURN_TICKS = intArrayOf(100, 140, 180, 220, 260)
+    /** Fraction of eligible campaign systems that ask for a capture. */
+    const val CAPTURE_CHANCE = 0.28
+    /** Below this the field is too sparse to hold an orbit worth flying. */
+    const val CAPTURE_MIN_DIFFICULTY = 2
     private const val MAX_ATTEMPTS = 70
 
     /**
@@ -74,8 +91,73 @@ object SystemGenerator {
 
     fun maxRate(difficulty: Int): Double = minOf(0.30, minRate(difficulty) * 22.0)
 
-    fun generate(seed: Long, difficulty: Int, mode: GameMode): SystemSpec {
-        val spec = generateLayout(seed, difficulty, mode)
+    fun generate(seed: Long, difficulty: Int, mode: GameMode): SystemSpec =
+        withObjective(withGambitMasks(generateLayout(seed, difficulty, mode), mode), seed, difficulty, mode)
+
+    /**
+     * Assign the system's objective — and only ever one it has been *proved*
+     * to be able to pay.
+     *
+     * Campaign only. A duel is a contest between two players and a daily is a
+     * score gauntlet; neither has a place for "hold an orbit", and inventing
+     * one would change what those modes are.
+     *
+     * If the proof fails the system stays a Breach. That is the D-24 rule
+     * applied a second time: the game must never set a task it cannot confirm
+     * is achievable, and a failed proof is not a reason to ship it anyway.
+     */
+    private fun withObjective(
+        spec: SystemSpec,
+        seed: Long,
+        difficulty: Int,
+        mode: GameMode,
+    ): SystemSpec {
+        if (mode != GameMode.CAMPAIGN || difficulty < CAPTURE_MIN_DIFFICULTY) return spec
+        val rng = Rng(Rng.mix(seed, 0x0B1EC71E5L))
+        if (!rng.chance(CAPTURE_CHANCE)) return spec
+        val target = captureCandidate(spec) ?: return spec
+        if (!proveCapture(spec, target)) return spec
+        return spec.copy(objectiveId = Objective.CAPTURE.id, captureBody = target)
+    }
+
+    /**
+     * The heaviest settled world: an orbit needs something to orbit, and a
+     * marked target that drifts (comet) or repels (anomaly) would be a
+     * different, worse puzzle.
+     */
+    private fun captureCandidate(spec: SystemSpec): Int? {
+        var best = -1
+        var bestMass = 0.0
+        for (i in spec.bodies.indices) {
+            val b = spec.bodies[i]
+            if (b.kind != BodyKind.STAR && b.kind != BodyKind.PLANET) continue
+            if (b.mass > bestMass) { bestMass = b.mass; best = i }
+        }
+        return if (best >= 0) best else null
+    }
+
+    /** Is there a RETRO shot and burn tick that holds the ring? First hit wins. */
+    fun proveCapture(spec: SystemSpec, bodyIndex: Int): Boolean {
+        var angle = 0
+        while (angle < 3600) {
+            for (power in CAPTURE_POWERS) {
+                for (burn in CAPTURE_BURN_TICKS) {
+                    val res = LiveShot(
+                        spec.bodies, spec.stations, 0, angle, power,
+                        ProjectileType.RETRO.id,
+                        presetBrakeTick = burn,
+                        maxTicks = Tuning.SOLVER_MAX_TICKS,
+                        captureBody = bodyIndex,
+                    ).runToCompletion()
+                    if (res.captureDwell >= Tuning.CAPTURE_TICKS) return true
+                }
+            }
+            angle += CAPTURE_ANGLE_STEP
+        }
+        return false
+    }
+
+    private fun withGambitMasks(spec: SystemSpec, mode: GameMode): SystemSpec {
         val seats = if (mode == GameMode.DUEL) 2 else 1
         // Accepted layouts already carry masks from their (completed) solver
         // sweeps, at no extra cost. The dedicated sweep is only paid for a seat

@@ -35,6 +35,11 @@ class ShotResult(
     val crossedTargetLine: Boolean = false,
     /** Furthest the flight strayed from that line, in world units. */
     val maxDetour: Double = 0.0,
+    /**
+     * Longest unbroken run of ticks the shot spent inside the capture ring of
+     * the designated body ([Objective.CAPTURE]). 0 when no body was designated.
+     */
+    val captureDwell: Int = 0,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -55,6 +60,12 @@ class LiveShot(
     private val anchors: List<Anchor> = emptyList(),
     /** Declared constraint, judged from the flight afterwards (see [Gambit]). */
     private val gambitId: Int = 0,
+    /**
+     * Body whose capture ring this shot is being measured against, or -1.
+     * Measurement only — it never influences the trajectory, so a Breach
+     * system and a Capture system with identical inputs fly identically.
+     */
+    private val captureBody: Int = -1,
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -98,6 +109,9 @@ class LiveShot(
     private var detourMin = 0.0
     private var detourMax = 0.0
     private var detourSampled = false
+    /** Live, for the HUD: how long the current unbroken ring run has lasted. */
+    var captureRun = 0; private set
+    private var captureBest = 0
     private val lineNx: Double
     private val lineNy: Double
     private val targetX: Double
@@ -181,6 +195,8 @@ class LiveShot(
             if (p.alive) anyAlive = true
         }
 
+        if (captureBody >= 0) sampleCapture()
+
         if (tick % HASH_STRIDE == 0) {
             for (p in projs) if (p.alive) {
                 foldHash(StrictMath.round(p.px * 1000.0))
@@ -260,6 +276,33 @@ class LiveShot(
         } else {
             if (d < detourMin) detourMin = d
             if (d > detourMax) detourMax = d
+        }
+    }
+
+    /**
+     * Holding the ring: any live projectile inside the annulus keeps the run
+     * alive, and the run must be unbroken. Sampled once per tick rather than
+     * per projectile so a splitter cannot bank two runs at once.
+     */
+    private fun sampleCapture() {
+        val b = bodies[captureBody]
+        val bx = b.xAt(tick)
+        val by = b.yAt(tick)
+        val inner = b.radius + Tuning.CAPTURE_RING_INNER
+        val outer = b.radius + Tuning.CAPTURE_RING_OUTER
+        var inside = false
+        for (p in projs) {
+            if (!p.alive) continue
+            val dx = bx - p.px
+            val dy = by - p.py
+            val d2 = dx * dx + dy * dy
+            if (d2 >= inner * inner && d2 <= outer * outer) { inside = true; break }
+        }
+        if (inside) {
+            captureRun++
+            if (captureRun > captureBest) captureBest = captureRun
+        } else {
+            captureRun = 0
         }
     }
 
@@ -382,6 +425,7 @@ class LiveShot(
             deflectorCount = deflectors,
             crossedTargetLine = detourSampled && detourMin < 0.0 && detourMax > 0.0,
             maxDetour = if (!detourSampled) 0.0 else StrictMath.max(-detourMin, detourMax),
+            captureDwell = captureBest,
         )
     }
 

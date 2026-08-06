@@ -1,6 +1,10 @@
 package io.github.stan2032.gravitygambit
 
 import io.github.stan2032.gravitygambit.core.Gambit
+import io.github.stan2032.gravitygambit.core.Objective
+import io.github.stan2032.gravitygambit.core.ProjectileType
+import io.github.stan2032.gravitygambit.core.SystemGenerator
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.MatchRecord
 import io.github.stan2032.gravitygambit.core.Seeds
@@ -236,6 +240,73 @@ class MatchControllerTest {
             c.gambitChoices,
         )
         for (g in c.gambitChoices) assertTrue(g in Gambit.declarable)
+    }
+
+    /**
+     * A Capture system must be winnable through the whole presentation path,
+     * not merely in the engine: the shell has to be issued, the brake has to
+     * be reachable, and holding the ring has to end the match as a win.
+     */
+    @Test
+    fun aCaptureSystemIsWinnableThroughTheController() {
+        // Find a generated capture system the same way the campaign would.
+        var launch: GameLaunch? = null
+        var spec: io.github.stan2032.gravitygambit.core.SystemSpec? = null
+        outer@ for (sector in 0 until 6) {
+            for (level in 0 until 12) {
+                val d = Seeds.campaignDifficulty(sector, level)
+                val s = SystemGenerator.generate(Seeds.campaign(sector, level), d, GameMode.CAMPAIGN)
+                if (s.objective == Objective.CAPTURE) {
+                    spec = s
+                    launch = GameLaunch(
+                        mode = GameMode.CAMPAIGN, seed = Seeds.campaign(sector, level),
+                        difficulty = d, sector = sector, level = level,
+                    )
+                    break@outer
+                }
+            }
+        }
+        assertNotNull("no capture system generated — the objective is dead", launch)
+
+        val c = MatchController.create(launch!!)!!
+        assertEquals(Objective.CAPTURE, c.objective)
+        assertEquals(
+            "the brake must be reachable or the system cannot be won",
+            ProjectileType.RETRO.id, c.effectiveType,
+        )
+
+        // Find the winning inputs with bare simulations first — cheap — then
+        // drive only that one through the controller. Brute-forcing the whole
+        // grid through the real per-tick playback path took 56 seconds for an
+        // assertion that needs exactly one solution.
+        var solution: Triple<Int, Int, Int>? = null
+        outer2@ for (angle in 0 until 3600 step SystemGenerator.CAPTURE_ANGLE_STEP) {
+            for (power in SystemGenerator.CAPTURE_POWERS) {
+                for (burn in SystemGenerator.CAPTURE_BURN_TICKS) {
+                    val r = io.github.stan2032.gravitygambit.core.LiveShot(
+                        spec!!.bodies, spec.stations, 0, angle, power,
+                        ProjectileType.RETRO.id, presetBrakeTick = burn,
+                        maxTicks = Tuning.SOLVER_MAX_TICKS, captureBody = spec.captureBody,
+                    ).runToCompletion()
+                    if (r.captureDwell >= Tuning.CAPTURE_TICKS) {
+                        solution = Triple(angle, power, burn); break@outer2
+                    }
+                }
+            }
+        }
+        assertNotNull("the generator proved this winnable but nothing wins it", solution)
+
+        val (angle, power, burn) = solution!!
+        c.aimAngleDeci = angle
+        c.aimPower = power
+        c.fire()
+        var frames = 0
+        while (c.phase == Phase.FLYING && frames++ < 4000) {
+            if (c.liveShot?.tick == burn) c.brakeNow()
+            c.advanceBy(1)
+        }
+        if (c.phase == Phase.RESOLVING) c.postResolve()
+        assertTrue("a proved-winnable capture system was not winnable in play", c.engine.campaignWon)
     }
 
     @Test

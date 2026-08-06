@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import io.github.stan2032.gravitygambit.core.Anchor
+import io.github.stan2032.gravitygambit.core.Body
 import io.github.stan2032.gravitygambit.core.BodyKind
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Rng
@@ -547,6 +548,57 @@ fun DrawScope.drawAnchors(
         drawCircle(color.copy(alpha = 0.22f * emphasis), base * 2.2f, c)
         drawCircle(color, base, c)
         drawCircle(Color.White.copy(alpha = 0.9f * emphasis), base * 0.42f, c)
+    }
+}
+
+/**
+ * The capture ring: the annulus the shot must hold to win a Capture system
+ * (docs/VISION.md §3.5). Drawn as the band it actually is rather than a single
+ * circle, because "get inside this band and stay there" is the literal rule —
+ * a player should be able to see the target, not be told it.
+ *
+ * Fills toward gold as the run builds so the four seconds are legible without
+ * a number.
+ */
+fun DrawScope.drawCaptureRing(
+    body: Body,
+    tick: Int,
+    progress: Float,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    val c = tr.o(body.xAt(tick), body.yAt(tick))
+    val inner = tr.r(body.radius + Tuning.CAPTURE_RING_INNER)
+    val outer = tr.r(body.radius + Tuning.CAPTURE_RING_OUTER)
+    val tint = lerp(AccentCyan, StarYellow, progress)
+
+    drawCircle(tint.copy(alpha = 0.05f + 0.10f * progress), outer, c)
+    drawCircle(tint.copy(alpha = 0.55f), inner, c, style = Stroke(cache.thin))
+    drawCircle(tint.copy(alpha = 0.55f), outer, c, style = Stroke(cache.thin))
+
+    // A sweep that closes as the run builds: the ring is filling with time.
+    if (progress > 0f) {
+        val mid = (inner + outer) / 2f
+        drawArc(
+            color = StarYellow.copy(alpha = 0.85f),
+            startAngle = -90f, sweepAngle = 360f * progress, useCenter = false,
+            topLeft = c - Offset(mid, mid), size = Size(mid * 2, mid * 2),
+            style = Stroke((outer - inner) * 0.5f),
+        )
+    }
+
+    // Slow marker ticks so the band reads as a target, not decoration.
+    for (k in 0 until 12) {
+        val a = (k / 12f) * 6.2831855f + t * 0.12f
+        val ca = StrictMath.cos(a.toDouble()).toFloat()
+        val sa = StrictMath.sin(a.toDouble()).toFloat()
+        drawLine(
+            tint.copy(alpha = 0.30f),
+            Offset(c.x + ca * inner, c.y + sa * inner),
+            Offset(c.x + ca * (inner + (outer - inner) * 0.18f), c.y + sa * (inner + (outer - inner) * 0.18f)),
+            strokeWidth = cache.thin,
+        )
     }
 }
 

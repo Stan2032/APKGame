@@ -6,6 +6,20 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-08-06
+- ⚠️ **Protocol v6.** Systems now carry an objective, which changes both what a seed generates and what winning means, so v5 codes are refused.
+- **Capture: hold orbit around the marked world** (VISION Stage C, first objective beyond destruction). Four unbroken seconds inside a ring, and the system is yours.
+- **The physics wrote this feature, not the design doc.** VISION specified "achieve a stable orbit"; measuring first showed that is *unreachable by aiming*. A shot arriving from far away is on a hyperbolic trajectory — a two-body encounter with nothing to dissipate energy cannot capture, it must leave. Across twelve generated levels no unbraked shot exceeded **191 ticks** of ring dwell, and every refined optimum pinned itself against the slowest launch the game permits, which is the search asking to go slower than the game allows. The RETRO brake is the only dissipation that exists — and with it the same levels reached **339–818 ticks**. So Capture is an orbital-insertion puzzle: arrive slow, burn at the right moment, drop into the ring. (D-26)
+- Consequences that follow from that, rather than from taste:
+  - The bar is **240 ticks** — above the 191 a flyby can reach, so a flyby can never satisfy it by accident. Same principle as rejecting levels the obvious shot wins.
+  - A Capture system **issues a RETRO shell** whatever the player has unlocked. An objective that demands a tool you may not own is a dead end, and the burn button now follows the shell that actually flies rather than the one selected — gating it on the selection would have left the brake unreachable on precisely the systems that cannot be won without it.
+  - **This is the first thing in the game that gives the RETRO shell a reason to exist.**
+- Objectives are campaign-only and never assigned without proof: ~28% roll at difficulty ≥2, and only if `proveCapture` finds a real solution — otherwise the system stays a Breach. D-24's rule applied again: never set a task you cannot confirm is achievable. Worst measured generation 280ms (the proof early-exits on first solution). (D-27)
+- Holding the ring counts as having worked the field, so a one-shot capture is worth three stars; a hit inside a broken declaration still cannot be a winning shot, for any objective.
+- Renderer: the ring is drawn as the band it actually is — inner and outer edge, filling toward gold as the run builds — so the rule is visible rather than explained.
+- Tests: 128 (77 `:core` + 51 `:app`), 7 new. One of them pins the finding itself: if an unbraked shot ever holds the ring, Capture has stopped requiring the burn that justifies it and the test fails.
+- Trimmed a 56-second test down to 0.98s: it was brute-forcing the proof grid through the full per-tick playback path when it needed exactly one solution.
+
 ## [0.9.4] — 2026-08-06
 - **Third audit pass: TUNING.md was describing a game two protocol versions old.** This is the file whose entire purpose is to be an accurate map of the knobs, so drift here is worse than drift anywhere else — someone tuning from it would have been tuning constants that no longer exist. Corrected against the code:
   - **Difficulty bands** still read `max(8e-4, 0.03×0.72^d)` / `min(0.28, 14×minRate)` / 600 solver ticks — all superseded in 0.7.0. (I corrected the same stale band in DESIGN.md in 0.9.1 and missed this copy of it; the "too hard? raise 0.72→0.78" advice pointed at a constant that isn't there.) Now the live `max(6e-4, 0.019×0.80^d)`, `min(0.30, 22×minRate)`, 950 ticks, with the recalibration reason attached.

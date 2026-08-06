@@ -18,7 +18,9 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [x] Stage B: Gambits — shipped 0.9.0 (four verifiable declarations, per-seat generator-proved menus, damage multiplier in duels, protocol v5).
 - [ ] [H] **Play the gambits**: is ×2.2 damage too swingy in a duel against 100 HP? Does "wasted shot" feel like a fair price or a punishment? Are four declarations enough variety, or does the menu go stale?
 - [ ] [A] Consider an unscored *Blind* practice toggle (D-23): the idea is good, only the *scoring* is unverifiable.
-- [ ] [A] Stage C: objectives beyond destruction (Capture / Thread / Courier).
+- [◐] Stage C: objectives beyond destruction. **Capture shipped 0.10.0**; Thread and Courier still open.
+- [ ] [H] **Play a Capture system**: is the insertion burn readable, or does it feel like guesswork? Is 4 seconds the right hold? Does the ring communicate the rule without words?
+- [ ] [A] Stage C cont.: Thread (gates in order) and Courier (strike a moving comet). Each needs its own generator proof (D-27) — do not ship an objective the arena has not been shown to pay.
 - [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
@@ -71,6 +73,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.10.0 Stage C first objective: **Capture**. Measured before building — an unbraked shot cannot hold a ring at all (hyperbolic arrival, no dissipation; best 191 ticks vs a 240 bar), so Capture became an orbital-insertion puzzle requiring the RETRO burn (339-818 ticks with it), which finally gives that shell a purpose. Campaign-only, never assigned without a generator proof. Protocol v6. D-26, D-27.
 - [x] [A] v0.9.4 Audit pass 3: TUNING.md corrected against code — difficulty bands (two versions stale, and the same band I'd already fixed in DESIGN.md), the star rule, two missing style bonuses, scatter-vs-curated generation, missing comets/pulsars, the streak multiplier, hot-seat's zero payout; added the Gambits and Anchors sections that never existed. ARCHITECTURE.md file map verified complete.
 - [x] [A] v0.9.3 CI runs once per change, not twice (push+pull_request were both firing on feature-branch pushes); artifacts now come from the PR run.
 - [x] [H/A] **Repo now has a PR flow.** `main` created at the session branch's tip (agent) and set as default (owner). The repo had been born empty, so its first push became both default and only branch — a branch cannot PR into itself, so every change had been landing straight on the repo head with nothing gating it. Work continues on `claude/google-play-apk-game-139njt`; `main` moves only via draft PRs that CI has passed. D-20 rewritten.

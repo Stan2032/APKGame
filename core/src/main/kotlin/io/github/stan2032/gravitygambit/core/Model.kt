@@ -109,7 +109,16 @@ data class SystemSpec(
      * so the sweep can under-report but never invent. What is offered exists.
      */
     val gambitMasks: List<Int> = listOf(0, 0),
+    /** What this system asks of the player (docs/VISION.md §3.5). */
+    val objectiveId: Int = Objective.BREACH.id,
+    /**
+     * Which body the [Objective.CAPTURE] ring belongs to. -1 when the
+     * objective does not use one.
+     */
+    val captureBody: Int = -1,
 ) {
+    val objective: Objective get() = Objective.byId(objectiveId)
+
     /** Declarations this seat is known to be able to honour, in menu order. */
     fun gambitOptionsFor(seat: Int): List<Gambit> {
         val mask = gambitMasks.getOrElse(seat) { 0 }
@@ -235,6 +244,23 @@ object Tuning {
 
     /** Speed gained from the field that a three-star shot must demonstrate. */
     const val THREE_STAR_MIN_GAIN = 45.0
+
+    // ---- Capture objective (docs/VISION.md §3.5; see Objective.kt) ----
+    /**
+     * The ring the shot must hold, as offsets from the target body's surface,
+     * and how long it must hold it.
+     *
+     * 240 ticks (4s) is not a taste: measured across twelve generated levels,
+     * the best an *unbraked* shot ever managed was 191 ticks — a single flyby
+     * transit, not an orbit. Sitting the bar above that means a flyby can
+     * never accidentally satisfy Capture, the same principle that makes
+     * `fallsToNaiveShot` reject levels the obvious shot wins. Braked shots on
+     * those same levels reached 339-818, so the bar is comfortably clearable
+     * by the manoeuvre it is asking for.
+     */
+    const val CAPTURE_RING_INNER = 40.0
+    const val CAPTURE_RING_OUTER = 190.0
+    const val CAPTURE_TICKS = 240
 
     // ---- Gambit thresholds (docs/VISION.md §3.2; see Gambit.kt) ----
     /** "Featherweight": power must be under this, on the 0..1000 scale. */

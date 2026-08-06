@@ -122,11 +122,21 @@ sonifies each pulse so the field can be learned **by ear**.
 Why: adds a timing skill orthogonal to aiming, and gives the game a sonic
 identity — "the level has a beat" is something no competitor has.
 
-### 3.5 Objectives beyond destruction
+### 3.5 Objectives beyond destruction — **Capture SHIPPED 0.10.0**
 
 Procedurally selected win conditions per system:
 - **Breach** (current) — destroy the core.
-- **Capture** — achieve a stable orbit for N ticks without collision.
+- **Capture** ✅ — hold a ring around the marked world for 240 unbroken ticks.
+  The build taught the design rather than the reverse. A shot arriving from far
+  away is on a **hyperbolic** trajectory: with a single dominant body and
+  nothing to dissipate energy it *must* leave again, however well aimed.
+  Measured across twelve generated levels, the best dwell any unbraked shot
+  achieved was **191 ticks**, and every refined optimum pinned itself against
+  the slowest launch the game permits — the search was asking to go slower than
+  physics allows. Fire a RETRO shell and burn at the right moment and the same
+  levels yield **339–818**. So Capture is an orbital-insertion puzzle, it hands
+  the player a RETRO shell whatever their loadout, and it is the first thing in
+  the game that gives that shell a reason to exist.
 - **Thread** — pass through gates in order.
 - **Courier** — strike a moving comet, not a fixed station.
 - **Survivor** — get the shot home again after a flyby.
@@ -172,7 +182,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 |---|---|---|
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
-| **C** | Objectives (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
+| **C** ◐ | Objectives (Capture shipped 0.10.0) (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
 | **D** | Expedition run structure + mutators | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification | Best after Expedition, so it lands as depth rather than noise. |
 | **F** | Debris/consequence | Tune last; it interacts with every other system. |

@@ -70,6 +70,7 @@ import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
+import io.github.stan2032.gravitygambit.core.Objective
 import io.github.stan2032.gravitygambit.core.Preview
 import io.github.stan2032.gravitygambit.core.ProjectileType
 import io.github.stan2032.gravitygambit.core.Seeds
@@ -359,6 +360,14 @@ private fun MatchUI(
             // Comets drift, so they draw at their live simulation position —
             // exactly where the physics says they are.
             drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
+            if (c.objective == Objective.CAPTURE && c.spec.captureBody >= 0) {
+                drawCaptureRing(
+                    c.spec.bodies[c.spec.captureBody],
+                    c.liveShot?.tick ?: 0,
+                    c.captureProgress ?: 0f,
+                    time, t, cch,
+                )
+            }
             drawStations(c.engine.stations, c.engine.hp, c.launch.mode, time, t, cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawPreview(previewPaths, t)
@@ -520,6 +529,22 @@ private fun ColumnScope.HudContent(c: MatchController) {
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             )
         }
+        if (c.objective != Objective.BREACH) {
+            Spacer(Modifier.height(6.dp))
+            val progress = c.captureProgress ?: 0f
+            Text(
+                if (c.phase == Phase.FLYING && progress > 0f) {
+                    "Holding orbit… ${(progress * 100).toInt()}%"
+                } else {
+                    c.objective.brief
+                },
+                color = if (progress > 0f) StarYellow else AccentCyan,
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .background(PanelColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
         c.lastResult?.let { res ->
             if (c.phase == Phase.RESOLVING) {
                 // The verdict on a declaration comes first: it is the thing the
@@ -596,6 +621,15 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                     FineTune("+", "More power") { c.nudgePower(10 * it) }
                 }
                 Spacer(Modifier.height(8.dp))
+                if (c.objective.forcesRetro) {
+                    // The shell is issued, not chosen: a capture is impossible
+                    // without a brake, so offering the other three would be
+                    // offering three ways to fail.
+                    Text(
+                        "Retro shell issued — burn to drop into orbit",
+                        color = TextDim, fontSize = 12.sp,
+                    )
+                } else
                 // Flow, not Row: at large system font sizes four chips no
                 // longer fit one line and must wrap rather than clip.
                 FlowRow(
@@ -631,7 +665,7 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                 }
             }
             c.phase == Phase.FLYING && !c.isReplaying &&
-                ProjectileType.byId(c.selectedType).canBrake && !c.brakeUsed -> {
+                ProjectileType.byId(c.effectiveType).canBrake && !c.brakeUsed -> {
                 Button(
                     onClick = {
                         sound.play(SoundManager.Sfx.BRAKE)

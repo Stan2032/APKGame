@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.Gambit
+import io.github.stan2032.gravitygambit.core.Objective
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.LiveShot
 import io.github.stan2032.gravitygambit.core.MatchEngine
@@ -96,6 +97,25 @@ class MatchController private constructor(
      */
     val gambitChoices: List<Gambit>
         get() = spec.gambitOptionsFor(engine.currentShooter)
+
+    val objective: Objective get() = spec.objective
+
+    /**
+     * The shell that will actually fly. Capture *issues* a RETRO regardless of
+     * loadout, so the UI must read this rather than [selectedType] — gating the
+     * burn button on the selection would have left the brake unreachable on
+     * exactly the systems that cannot be won without it.
+     */
+    val effectiveType: Int
+        get() = if (objective.forcesRetro) ProjectileType.RETRO.id else selectedType
+
+    /** 0..1 progress of the ring run in flight; null when not a capture system. */
+    val captureProgress: Float?
+        get() {
+            if (objective != Objective.CAPTURE) return null
+            val run = liveShot?.captureRun ?: return 0f
+            return (run.toFloat() / Tuning.CAPTURE_TICKS).coerceIn(0f, 1f)
+        }
 
     /** Did the shot just resolved honour its declaration? Null if none was made. */
     val lastGambitKept: Boolean?
@@ -372,7 +392,12 @@ class MatchController private constructor(
                 val won = engine.campaignWon
                 Summary(
                     win = won,
-                    title = if (won) "Core breached!" else "Out of shots",
+                    // The verb has to match what was actually asked of you.
+                    title = when {
+                        won && objective == Objective.CAPTURE -> "Orbit held!"
+                        won -> "Core breached!"
+                        else -> "Out of shots"
+                    },
                     subtitle = if (won) "${spec.name} cleared in ${engine.shotsUsed} shot${if (engine.shotsUsed == 1) "" else "s"}"
                     else "The core survives. Study the field and try again.",
                     stars = engine.starsEarned(),
