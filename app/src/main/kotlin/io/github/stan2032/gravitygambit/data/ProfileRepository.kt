@@ -71,7 +71,18 @@ class ProfileRepository(private val context: Context) {
     fun recordDaily(epochDay: Long, score: Int): Int {
         val snapshot = profile.value
         val firstPlayToday = snapshot.lastDailyDay != epochDay
-        val earned = if (firstPlayToday) withPassMultiplier(Economy.dailyReward(score)) else 0
+        // Pay for the streak this run *establishes*, not the one it started
+        // from, so the multiplier matches the number the player is shown. It
+        // cannot be farmed: a streak advances at most once per UTC day, and
+        // only the first play of a day pays at all.
+        val newStreak =
+            Economy.dailyStreakAfter(snapshot.lastDailyDay, snapshot.dailyStreak, epochDay)
+        val earned =
+            if (firstPlayToday) {
+                withPassMultiplier(Economy.dailyReward(score, newStreak))
+            } else {
+                0
+            }
         update { p ->
             val dayKey = epochDay.toString()
             val best = maxOf(p.dailyBest[dayKey] ?: 0, score)

@@ -307,4 +307,55 @@ class EconomyTest {
         assertTrue(Economy.dailyReward(9999) <= 60)
         assertTrue(Economy.duelReward(win = true, codeDuel = true) > Economy.duelReward(win = false, codeDuel = true))
     }
+
+    /**
+     * The streak was a number on the home screen that nothing read, while
+     * DESIGN.md claimed it fed the economy. It pays now, and the ramp is
+     * capped so a long streak never becomes the only sane way to earn.
+     */
+    @Test
+    fun theDailyStreakActuallyPays() {
+        val base = Economy.dailyReward(600, streak = 1)
+        assertEquals("a fresh streak is the plain payout", 60, base)
+        assertTrue("three days is worth more than one", Economy.dailyReward(600, 3) > base)
+        assertTrue(Economy.dailyReward(600, 7) > Economy.dailyReward(600, 3))
+        assertTrue(Economy.dailyReward(600, 14) > Economy.dailyReward(600, 7))
+        assertEquals(
+            "the ramp stops at two weeks rather than compounding forever",
+            Economy.dailyReward(600, 14), Economy.dailyReward(600, 900),
+        )
+        assertTrue(
+            "even a maxed streak stays under a high-difficulty first clear",
+            Economy.dailyReward(600, 900) < Economy.campaignReward(11, 3, firstClear = true),
+        )
+    }
+
+    /**
+     * Hot-seat is one person holding both seats, so paying for it is paying
+     * someone to beat themselves. The rule lives here (D-7) rather than in the
+     * app, where it used to sit while this function still returned a number
+     * for hot-seat that nothing could read.
+     */
+    @Test
+    fun hotSeatDuelsPayNothingAtAll() {
+        assertEquals(0, Economy.duelReward(win = true, codeDuel = false))
+        assertEquals(0, Economy.duelReward(win = false, codeDuel = false))
+        assertTrue(Economy.duelReward(win = true, codeDuel = true) > 0)
+    }
+
+    /**
+     * The claim DESIGN.md makes about the economy's shape, as a test: a code
+     * duel is the biggest *repeatable* earn, while a campaign first-clear —
+     * which exists exactly once per level — may pay more.
+     */
+    @Test
+    fun codeDuelsAreTheBiggestRepeatableEarn() {
+        val duelWin = Economy.duelReward(win = true, codeDuel = true)
+        val campaignReplay = Economy.campaignReward(11, 3, firstClear = false)
+        assertTrue("beats replaying a cleared level", duelWin > campaignReplay)
+        assertTrue(
+            "and matches the best a daily can pay before streak bonuses",
+            duelWin >= Economy.dailyReward(9999, streak = 1),
+        )
+    }
 }

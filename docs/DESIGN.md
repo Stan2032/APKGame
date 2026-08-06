@@ -79,9 +79,26 @@ stardust and teaches advanced play by naming it.
   - *Code duels*: asynchronous PVP over any messenger via ~200-byte
     challenge codes. No servers, no accounts (see docs/MULTIPLAYER.md).
 
-Interlocks: campaign stars → duel arsenal; duel wins → biggest stardust
-payouts; daily streak → cosmetic economy. Cosmetics never touch gameplay, so
-PVP stays fair by construction.
+**Interlocks** (each checked against the code, 2026-08-06 — two of the three
+this section used to claim were not true):
+
+- **Campaign stars → duel arsenal.** True, and the strongest link: the Heavy,
+  Splitter and Retro shells need 12/30/50 campaign stars *and* stardust before
+  they can be carried into a duel.
+- **Daily streak → stardust.** True as of 0.9.0. It was not before: the streak
+  was rendered on the home screen and read by nothing. A defended streak now
+  multiplies the daily payout (×1.2 at 3 days, ×1.4 at 7, ×1.6 at 14 and then
+  capped — a streak should reward returning, not compound into the only sane
+  way to earn).
+- **Duel wins → the biggest *repeatable* payout.** A code-duel win pays 60 and
+  can be earned any number of times; a campaign first-clear pays more at high
+  difficulty (up to 165) but each one exists exactly once. The earlier claim of
+  "biggest stardust payouts" full stop was simply false. Hot-seat duels pay
+  **nothing**: one person holds both seats, so a payout there is a self-farm.
+
+Cosmetics never touch gameplay, so PVP stays fair by construction — and note
+that this is why the streak pays in stardust rather than in anything a duel
+can feel.
 
 ## The generator (the "cutting edge" part, honestly)
 
@@ -89,9 +106,14 @@ PVP stays fair by construction.
 negative-mass repulsor anomaly), then **solves it**: it simulates a 180×5
 grid of candidate shots and measures the hit-rate of the aim space — the
 size of the solution basin. A layout ships only if that rate falls in the
-difficulty band `[0.03·0.72^d, 14×]`. Too easy → rejected. Unwinnable →
-impossible to ship by construction. Duel systems are additionally checked
-from *both* stations so neither player spawns dead.
+difficulty band `[max(0.0006, 0.019·0.80^d), ×22 capped at 0.30]`
+(recalibrated in 0.7.0 when curated layouts made honest hit-rates much lower;
+the old `0.03·0.72^d` floor sat *above* what difficulty 0 actually measured,
+which silently pushed every early level onto the fallback path). Too easy →
+rejected. Unwinnable → impossible to ship by construction. A layout beatable
+by aiming within 22° of the target at any power is rejected outright, on every
+path including the fallbacks. Duel systems are additionally checked from
+*both* stations so neither player spawns dead.
 
 Difficulty is therefore an *empirical measurement* of the level itself, not
 a designer's guess. The fingerprint (`solverHitRate`) is stored in the spec.

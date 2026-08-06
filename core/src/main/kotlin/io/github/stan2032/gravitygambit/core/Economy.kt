@@ -80,7 +80,26 @@ object Economy {
     fun campaignReward(difficulty: Int, stars: Int, firstClear: Boolean): Int =
         if (firstClear) 25 + 10 * difficulty + 10 * stars else 5 + 2 * stars
 
-    fun dailyReward(score: Int): Int = minOf(60, score / 10)
+    /**
+     * Daily payout, multiplied by the streak the player is defending.
+     *
+     * The streak used to be a number on the home screen and nothing else —
+     * DESIGN.md claimed "daily streak → cosmetic economy" and no code read it.
+     * It now pays, which is the only thing that makes a streak worth keeping.
+     *
+     * Multipliers are in tenths so the arithmetic stays integer-exact, and the
+     * top band is reached at two weeks and then stops: a streak should reward
+     * coming back, not compound forever into the only sane way to earn.
+     */
+    fun dailyReward(score: Int, streak: Int = 0): Int =
+        minOf(60, score / 10) * streakMultiplierTenths(streak) / 10
+
+    fun streakMultiplierTenths(streak: Int): Int = when {
+        streak >= 14 -> 16
+        streak >= 7 -> 14
+        streak >= 3 -> 12
+        else -> 10
+    }
 
     /**
      * Daily streak after completing the daily for [playedDay].
@@ -97,10 +116,22 @@ object Economy {
         else -> 1                                           // gap (or first ever): restart
     }
 
+    /**
+     * Duel payout. Hot-seat pays nothing at all: one person controls both
+     * seats, so any payout there is a self-farm, not a match. That rule used
+     * to live in the app's repository while this function still returned 40
+     * for it — a number nothing could ever read. It belongs here (D-7), and
+     * it now says what actually happens.
+     *
+     * A code duel is the biggest *repeatable* payout in the game, which is
+     * deliberate: it needs a second real person and it carries an invite.
+     * Campaign first-clears pay more per match at high difficulty, but each
+     * one exists exactly once.
+     */
     fun duelReward(win: Boolean, codeDuel: Boolean): Int = when {
-        !win -> 10
-        codeDuel -> 60
-        else -> 40
+        !codeDuel -> 0
+        win -> 60
+        else -> 10
     }
 
     /** Sector s unlocks when the previous sector has at least this many stars (of 36). */

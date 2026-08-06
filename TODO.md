@@ -24,6 +24,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] Stage F: debris from misses.
 
 ## NOW (blocks first playtest / release track)
+- [ ] [A] **Keep auditing claims against code, doc by doc.** The 0.9.1 pass found two false interlock claims and a stale difficulty band in DESIGN.md alone. Remaining unaudited prose: ARCHITECTURE.md, MULTIPLAYER.md, MONETIZATION.md, ADS.md, TUNING.md tables. A claim nobody has checked against the artifact is a guess (the lesson from D-3).
 - [ ] [H] **Judge the 0.8.0 aiming on a device**: does the floating stick land where your thumb expects? Is the 26-unit dead zone too sticky or too loose? Do the fine-tune buttons ramp fast enough held, without overshooting?
 - [ ] [H] **Feel question from 0.8.0**: `AIM_FULL_PULL` is 300 world units. Because `WorldTransform` is a *fit*, that is already a fixed fraction of the viewport — ~30% of the board's width in portrait, ~19% of its height in landscape — not a fixed pixel count, so it does not need converting to screen units. The only open question is whether that fraction is the right one, which is a thumb question, not a geometry one.
 - [ ] [H] **Re-test 0.7.0 levels**: is the straight shot really gone? Do levels now feel like they have a purpose — is there a visible route to find? Are they now too *hard* (bands were recalibrated from measurement, not feel)?
@@ -70,6 +71,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.9.1 Interlock audit: checked DESIGN.md's three "modes affect each other" claims against the code; two were false. Daily streak now actually pays (was display-only); duel-payout claim corrected to "biggest repeatable" and pinned by a test; hot-seat's unreachable reward branch moved into `:core` and made honest; stale 0.7.0 difficulty band corrected.
 - [x] [A] v0.9.0 Stage B Gambits: declare-before-firing constraints judged by the simulation; Blind cut as unverifiable (D-23); per-seat generator-proved menus after measurement found unwinnable offers (D-24); duel damage multiplier after finding declarations were pure downside in PVP (D-25); "stolen speed" threshold recalibrated from a 201-shot distribution; feasibility proving folded into the existing solver sweep at no cost; protocol v5.
 - [x] [A] v0.8.0 aiming controls from owner feedback: floating joystick that appears at the touch point (was pinned to the station, i.e. to one screen corner), hand-rolled gesture so the ring centres on the true touch-down; press-and-hold auto-repeat with a growing step (×1/×3/×8) on the fine-tune buttons; TalkBack role/activation declared explicitly on the new raw pointer target; portrait reserve 188→196dp for 48dp touch targets.
 - [x] [A] v0.7.0 curated generation: layouts built around the shot they force (keeper on the direct line + shepherds), `fallsToNaiveShot` rejection on every path including fallbacks, third star now requires working the field, difficulty bands recalibrated, protocol v4. 0/72 levels fall to a straight shot; generation ~20x faster.

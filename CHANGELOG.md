@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-08-06
+- **Audited DESIGN.md's mode-interlock claims against the code. Two of the three were false.**
+  - *"Daily streak → cosmetic economy"* — the streak was rendered on the home screen and **read by nothing**. It now multiplies the daily payout: ×1.2 at three days, ×1.4 at seven, ×1.6 at fourteen, then capped. A streak should reward coming back, not compound until it is the only sane way to earn. It pays the streak the run *establishes*, not the one it started from, so the multiplier matches the number the player is looking at.
+  - *"Duel wins → biggest stardust payouts"* — false: a campaign first-clear pays up to 165 against a duel's 60. What is true is that a code duel is the biggest **repeatable** earn, since first-clears exist exactly once per level. The doc now says that, and a test asserts it so it cannot quietly drift again.
+  - *"Campaign stars → duel arsenal"* — true, and left alone.
+- `Economy.duelReward` returned 40 for hot-seat while the app refused to pay it, so that branch was unreachable. The rule ("hot-seat is one person holding both seats; paying for it is paying someone to beat themselves") now lives in `:core` where the rules belong (D-7) and returns what actually happens: nothing.
+- Corrected a stale difficulty band in DESIGN.md: it still quoted `[0.03·0.72^d, 14×]`, superseded in 0.7.0. The old floor sat *above* what difficulty 0 actually measures, which is what had been silently pushing early levels onto the fallback path.
+- Tests: 119 (69 `:core` + 50 `:app`), 3 new — one per corrected claim.
+
 ## [0.9.0] — 2026-08-06
 - ⚠️ **Protocol v5.** A turn now carries its declaration, and that declaration can nullify a hit, so v4 codes are refused rather than re-judged under different rules.
 - **Gambits: call your shot** (VISION.md Stage B). Before firing you may declare a constraint — *Featherweight* (under 40% power, ×1.5), *Two-body* (pass through the pull of two different worlds, ×1.8), *Stolen speed* (end faster than you launched, ×1.6), *The long way* (never cross the line to the target, ×2.2). Keep the promise and the shot pays the multiple. Break it and the shot is wasted: the hit does not land. That stake is the point — it turns mastery into something risked rather than something displayed, which is what the word has meant all along.
