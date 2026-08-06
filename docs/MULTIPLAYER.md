@@ -44,6 +44,19 @@ turn-based game, including chess-by-mail; mitigations (shot clocks in
 realtime mode, statistical anomaly detection) are roadmap items, and the
 threat model is documented honestly here rather than hand-waved.
 
+### What can and cannot be a scored rule
+
+Everything the receiving device knows, it derives by re-running the physics.
+That draws a hard line around what may carry score. A **gambit** (declared
+constraint, docs/VISION.md §3.2) is judged from the rebuilt flight — power
+used, bodies passed, path relative to the launch→target line — so the peer
+reaches the same verdict independently, and the declaration itself is folded
+into the shot hash, so it cannot be edited after the fact to claim a payout.
+
+A constraint the simulation cannot observe cannot be a scored rule here, no
+matter how good an idea it is. "Fire with no aim preview" is the example: it
+would have to be believed. It was cut for that reason alone (D-23).
+
 ## Protocol details
 
 `GG1.` prefix + base64url(payload):

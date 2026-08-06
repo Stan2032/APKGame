@@ -49,6 +49,14 @@ object SystemGenerator {
     const val LEVERAGE_MAX_TICKS = 600
     const val MAX_LEVERAGE = 0.80
     val SOLVER_POWERS = intArrayOf(300, 500, 700, 900, 1000)
+
+    /**
+     * Grid for proving gambit feasibility. Coarser than the solver grid on
+     * angle (existence, not a rate) but wider on power: "featherweight" lives
+     * below 400, which the solver grid barely samples.
+     */
+    const val GAMBIT_ANGLE_STEP = 40
+    val GAMBIT_POWERS = intArrayOf(250, 350, 500, 700, 900, 1000)
     private const val MAX_ATTEMPTS = 70
 
     /**
@@ -67,6 +75,24 @@ object SystemGenerator {
     fun maxRate(difficulty: Int): Double = minOf(0.30, minRate(difficulty) * 22.0)
 
     fun generate(seed: Long, difficulty: Int, mode: GameMode): SystemSpec {
+        val spec = generateLayout(seed, difficulty, mode)
+        val seats = if (mode == GameMode.DUEL) 2 else 1
+        // Accepted layouts already carry masks from their (completed) solver
+        // sweeps, at no extra cost. The dedicated sweep is only paid for a seat
+        // that came back with nothing — either a fallback layout whose scan
+        // bailed early, or a seat where the solver grid genuinely found no
+        // qualifying shot. Its grid samples low powers the solver grid does
+        // not, so it is a second opinion rather than a repeat.
+        val masks = (0 until seats).map { seat ->
+            val fromScan = spec.gambitMasks.getOrElse(seat) { 0 }
+            if (fromScan != 0) fromScan else gambitOptions(spec, seat)
+        }
+        return spec.copy(
+            gambitMasks = if (seats == 1) listOf(masks[0], masks[0]) else masks,
+        )
+    }
+
+    private fun generateLayout(seed: Long, difficulty: Int, mode: GameMode): SystemSpec {
         var best: SystemSpec? = null
         var bestScore = Double.MAX_VALUE
         val lo = minRate(difficulty)
@@ -79,17 +105,24 @@ object SystemGenerator {
             if (fallsToNaiveShot(candidate, shooter = 0)) continue
             if (mode == GameMode.DUEL && fallsToNaiveShot(candidate, shooter = 1)) continue
 
-            val rate = solveRate(candidate, shooter = 0, lo, hi)
+            val scan = scan(candidate, shooter = 0, lo, hi)
+            val rate = scan.rate
             if (mode == GameMode.DUEL) {
                 // Only solve the mirror side when this one is already in band —
                 // an out-of-band candidate can never be accepted, so the second
                 // (equally expensive) scan would be wasted work.
                 if (rate in lo..hi) {
-                    val rate2 = solveRate(candidate, shooter = 1, lo, hi)
+                    val scan2 = scan(candidate, shooter = 1, lo, hi)
+                    val rate2 = scan2.rate
                     val ratio = if (rate2 > 0) rate / rate2 else 99.0
                     // Both sides must have a real shot, and comparably so.
                     if (rate2 >= lo && ratio <= 4.0 && ratio >= 0.25) {
-                        return candidate.copy(solverHitRate = rate)
+                        // Each seat gets the declarations its own station can
+                        // honour; the fields they face are not the same.
+                        return candidate.copy(
+                            solverHitRate = rate,
+                            gambitMasks = listOf(scan.gambitMask, scan2.gambitMask),
+                        )
                     }
                 }
             } else if (rate in lo..hi) {
@@ -97,7 +130,12 @@ object SystemGenerator {
                 // leverage says whether the player's own tools trivialize it.
                 val leverage = anchorLeverage(candidate, shooter = 0)
                 if (leverage <= MAX_LEVERAGE) {
-                    return candidate.copy(solverHitRate = rate, anchorLeverage = leverage)
+                    return candidate.copy(
+                        solverHitRate = rate,
+                        anchorLeverage = leverage,
+                        // Single-shooter modes: both seats read the same menu.
+                        gambitMasks = listOf(scan.gambitMask, scan.gambitMask),
+                    )
                 }
             }
             // Track nearest miss as fallback (distance to band, log-ish).
@@ -121,6 +159,42 @@ object SystemGenerator {
         return best ?: blockingFallback(seed, difficulty, bothSeats = false)
     }
 
+    /**
+     * Which declarations this arena can honour: a coarse sweep looking for at
+     * least one *winning* shot per gambit. Run once, on the spec that is
+     * actually returned — never on rejected candidates.
+     *
+     * Deliberately coarse, and deliberately asymmetric in its error: a sparse
+     * grid can miss a satisfying shot (so an achievable gambit goes unoffered)
+     * but it can never invent one, because every bit set was set by a real
+     * simulated hit. Under-offering costs a little variety; over-offering would
+     * mean the game inviting the player to make a bet it knows is unwinnable.
+     *
+     * Measured need: on twelve curated levels, "two-body" had **zero** winning
+     * shots on three of them. Without this the menu would have shown it anyway.
+     */
+    fun gambitOptions(spec: SystemSpec, shooter: Int): Int {
+        val target = 1 - shooter
+        val complete = Gambit.declarable.fold(0) { m, g -> m or (1 shl g.id) }
+        var mask = 0
+        var angle = 0
+        while (angle < 3600) {
+            for (power in GAMBIT_POWERS) {
+                if (mask == complete) return mask
+                val res = LiveShot(
+                    spec.bodies, spec.stations, shooter, angle, power,
+                    ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
+                ).runToCompletion()
+                if (res.stationHits.none { it == target }) continue
+                for (g in Gambit.declarable) {
+                    if (g.satisfiedBy(res)) mask = mask or (1 shl g.id)
+                }
+            }
+            angle += GAMBIT_ANGLE_STEP
+        }
+        return mask
+    }
+
     /** Fraction of sampled aim space (STANDARD shot) that hits the opponent station. */
     fun solveRate(spec: SystemSpec, shooter: Int): Double = solveRate(spec, shooter, 0.0, 1.0)
 
@@ -132,12 +206,31 @@ object SystemGenerator {
      * The returned value is exact whenever it lands inside the band, so an
      * accepted spec's recorded solverHitRate is unchanged.
      */
-    fun solveRate(spec: SystemSpec, shooter: Int, lo: Double, hi: Double): Double {
+    fun solveRate(spec: SystemSpec, shooter: Int, lo: Double, hi: Double): Double =
+        scan(spec, shooter, lo, hi).rate
+
+    /**
+     * One solver sweep and everything derivable from it.
+     *
+     * [gambitMask] rides along for free: the sweep already simulates every
+     * sample shot to completion, and [ShotResult] already carries the
+     * measurements a gambit is judged on, so proving feasibility costs four
+     * comparisons per *winning* sample rather than a second sweep. A dedicated
+     * pass measured 300–500ms on hard levels; this measures nothing.
+     *
+     * [complete] says whether the sweep reached the end of the grid. An
+     * early-exited scan has only seen part of the aim space, so its mask is
+     * not trustworthy as a complete answer and callers must not publish it.
+     */
+    class SolveScan(val rate: Double, val complete: Boolean, val gambitMask: Int)
+
+    fun scan(spec: SystemSpec, shooter: Int, lo: Double, hi: Double): SolveScan {
         val target = 1 - shooter
         val total = (3600 / SOLVER_ANGLE_STEP) * SOLVER_POWERS.size
         var hits = 0
         var done = 0
         var angle = 0
+        var mask = 0
         while (angle < 3600) {
             for (power in SOLVER_POWERS) {
                 val shot = LiveShot(
@@ -145,18 +238,23 @@ object SystemGenerator {
                     ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
                 )
                 val res = shot.runToCompletion()
-                if (res.stationHits.any { it == target }) hits++
+                if (res.stationHits.any { it == target }) {
+                    hits++
+                    for (g in Gambit.declarable) {
+                        if (g.satisfiedBy(res)) mask = mask or (1 shl g.id)
+                    }
+                }
                 done++
             }
             // Bounds on the achievable final rate given what's left to sample.
             val remaining = total - done
             val minPossible = hits.toDouble() / total
             val maxPossible = (hits + remaining).toDouble() / total
-            if (minPossible > hi) return minPossible      // provably too easy
-            if (maxPossible < lo) return maxPossible      // provably too hard
+            if (minPossible > hi) return SolveScan(minPossible, false, mask)  // too easy
+            if (maxPossible < lo) return SolveScan(maxPossible, false, mask)  // too hard
             angle += SOLVER_ANGLE_STEP
         }
-        return hits.toDouble() / total
+        return SolveScan(hits.toDouble() / total, true, mask)
     }
 
     /**

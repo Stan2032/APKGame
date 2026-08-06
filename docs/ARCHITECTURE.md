@@ -9,6 +9,7 @@
 ## :core file map (io.github.stan2032.gravitygambit.core)
 - `Rng.kt` — SplitMix64 + static `mix(a,b)` seed derivation. FROZEN constants (D-5).
 - `Model.kt` — Vec2, GameMode, Body(+BodyKind STAR/PLANET/REPULSOR), Station, SystemSpec, TurnInput (quantized: angleDeci 0..3599, power 0..1000, brakeTick), ProjectileType enum (damage/radius/maxPowerFrac/splits/canBrake), `Tuning` (ALL physics+scoring constants; see TUNING.md).
+- `Gambit.kt` — the declarable constraints, each with a `satisfiedBy(ShotResult)` decided purely from measurements the simulation took. Rules only; no state.
 - `Simulation.kt` — `LiveShot`: tick-stepped shot sim (semi-implicit Euler, dt=1/60, softened gravity, splits, brake, collisions, bounds, style detection, FNV-1a hash folding every 8 ticks + events). `ShotResult`. `Preview.trajectories()` (aim preview = same sim, capped ticks). `ProjView` for rendering.
 - `MatchEngine.kt` — turn order, HP, damage, daily scoring+target relocation (`DailyLogic`, seeded by hit count), stars, over/winner logic, combined match hash. `MatchReplayer.rebuild()` = verification path (same engine ⇒ can't diverge).
 - `Generator.kt` — `SystemGenerator.generate(seed,difficulty,mode)`: candidate layout (rejection placement) → solver (180 angles × 5 powers, STANDARD, 600 ticks) → accept iff hitRate ∈ band; duel = both-sides + ratio ≤4 fairness; 24 attempts → nearest-miss fallback → hardcoded fallback. `NameGen`, `Seeds` (campaign/daily/duel seed derivation, difficulty curve, LEVELS_PER_SECTOR=12, LAUNCH_EPOCH_DAY=20666).

@@ -25,6 +25,16 @@ class ShotResult(
     /** Fastest the shot ever travelled — gravity assists show up here. */
     val peakSpeed: Double = 0.0,
     val launchSpeed: Double = 0.0,
+    /**
+     * How many distinct bodies the shot passed close enough to be meaningfully
+     * bent by (within [Tuning.DEFLECT_RADII] body-radii of the surface). Scaled
+     * by body size on purpose: a heavier world has a wider grip.
+     */
+    val deflectorCount: Int = 0,
+    /** True if the flight ever changed sides of the launch→target line. */
+    val crossedTargetLine: Boolean = false,
+    /** Furthest the flight strayed from that line, in world units. */
+    val maxDetour: Double = 0.0,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -43,6 +53,8 @@ class LiveShot(
     private val maxTicks: Int = Tuning.MAX_TICKS,
     /** Player-placed masses bending this shot (docs/VISION.md §3.1). */
     private val anchors: List<Anchor> = emptyList(),
+    /** Declared constraint, judged from the flight afterwards (see [Gambit]). */
+    private val gambitId: Int = 0,
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -77,6 +89,20 @@ class LiveShot(
     private var launchSpeed = 0.0
     private var hash = FNV_OFFSET
 
+    // ---- Gambit measurements (docs/VISION.md §3.2) ----
+    // Closest surface approach per body, so "two-body" can be decided from the
+    // flight rather than claimed by the sender. Anchors are excluded: letting a
+    // player's own placed masses satisfy the declaration would make it free.
+    private val bodyMinDist = DoubleArray(bodies.size) { Double.MAX_VALUE }
+    /** Signed distance from the launch→target line, extremes only. */
+    private var detourMin = 0.0
+    private var detourMax = 0.0
+    private var detourSampled = false
+    private val lineNx: Double
+    private val lineNy: Double
+    private val targetX: Double
+    private val targetY: Double
+
     /** Set when a projectile dies, for the renderer to draw an explosion. */
     var lastImpact: Vec2? = null; private set
     var lastImpactWasStation = false; private set
@@ -93,7 +119,21 @@ class LiveShot(
         launchSpeed = speed
         peakSpeed2 = speed * speed
         projs.add(Proj(nextId++, launchX, launchY, dirX * speed, dirY * speed, type.radius))
+
+        // The line a "long way" shot must not cross: launch point to the other
+        // station. Its unit normal is all that is needed to sign the distance.
+        val target = stations[1 - shooter]
+        targetX = target.x
+        targetY = target.y
+        val tx = targetX - launchX
+        val ty = targetY - launchY
+        val tl = Math.sqrt(tx * tx + ty * ty)
+        if (tl > 1e-9) { lineNx = -ty / tl; lineNy = tx / tl } else { lineNx = 0.0; lineNy = 0.0 }
+
         foldHash(angleDeci.toLong()); foldHash(power.toLong()); foldHash(typeId.toLong())
+        // The declaration is an input, so it is hashed like one: editing the
+        // gambit inside a shared code changes the hash and the code is refused.
+        foldHash(gambitId.toLong())
         for (a in anchors) {
             foldHash(a.x.toLong()); foldHash(a.y.toLong()); foldHash(if (a.attract) 1L else 0L)
         }
@@ -116,7 +156,10 @@ class LiveShot(
 
     /** The finalized input, including the actual brake tick — this is what gets shared. */
     fun finalInput(): TurnInput =
-        TurnInput(shooter, angleDeci, power, typeId, if (brakeUsed) brakeTick else -1, anchors)
+        TurnInput(
+            shooter, angleDeci, power, typeId,
+            if (brakeUsed) brakeTick else -1, anchors, gambitId,
+        )
 
     var result: ShotResult? = null; private set
 
@@ -151,7 +194,10 @@ class LiveShot(
     private fun integrate(p: Proj) {
         var ax = 0.0
         var ay = 0.0
-        for (b in bodies) {
+        // Indexed, not iterator-based: this is the single hottest loop in the
+        // game (bodies x projectiles x ticks x thousands of solver sims).
+        for (i in bodies.indices) {
+            val b = bodies[i]
             // Positions and pulsar mass are functions of the tick, so moving
             // bodies stay bit-deterministic (docs/DETERMINISM.md).
             val dx = b.xAt(tick) - p.px
@@ -161,9 +207,10 @@ class LiveShot(
             val a = b.massAt(tick) / r2
             ax += a * dx / r
             ay += a * dy / r
-            if (b.kind != BodyKind.REPULSOR) {
-                val surface = r - b.radius - p.radius
-                if (surface < minSurfaceDist) minSurfaceDist = surface
+            val surface = r - b.radius - p.radius
+            if (surface < bodyMinDist[i]) bodyMinDist[i] = surface
+            if (b.kind != BodyKind.REPULSOR && surface < minSurfaceDist) {
+                minSurfaceDist = surface
             }
         }
         // Anchors: the player's own contribution to the field. Same softened
@@ -188,6 +235,32 @@ class LiveShot(
         // stole from the field rather than from the launcher.
         val speed2 = p.vx * p.vx + p.vy * p.vy
         if (speed2 > peakSpeed2) peakSpeed2 = speed2
+
+        sampleDetour(p)
+    }
+
+    /**
+     * Signed distance from the launch→target line, sampled only in the middle
+     * of the flight. Both ends are excluded because every shot starts on the
+     * line and a hit necessarily ends on it, so unfiltered samples would report
+     * a crossing for literally every shot that connects.
+     */
+    private fun sampleDetour(p: Proj) {
+        val lx = p.px - launchX
+        val ly = p.py - launchY
+        if (lx * lx + ly * ly < Tuning.DETOUR_CAP2) return
+        val tx = p.px - targetX
+        val ty = p.py - targetY
+        if (tx * tx + ty * ty < Tuning.DETOUR_CAP2) return
+        val d = lx * lineNx + ly * lineNy
+        if (!detourSampled) {
+            detourSampled = true
+            detourMin = d
+            detourMax = d
+        } else {
+            if (d < detourMin) detourMin = d
+            if (d > detourMax) detourMax = d
+        }
     }
 
     private fun collide(p: Proj) {
@@ -290,6 +363,11 @@ class LiveShot(
         }
         foldHash(style.toLong())
 
+        var deflectors = 0
+        for (i in bodies.indices) {
+            if (bodyMinDist[i] <= bodies[i].radius * Tuning.DEFLECT_RADII) deflectors++
+        }
+
         result = ShotResult(
             input = finalInput(),
             stationHits = stationHits.toList(),
@@ -301,6 +379,9 @@ class LiveShot(
             styleNotes = notes,
             peakSpeed = Math.sqrt(peakSpeed2),
             launchSpeed = launchSpeed,
+            deflectorCount = deflectors,
+            crossedTargetLine = detourSampled && detourMin < 0.0 && detourMax > 0.0,
+            maxDetour = if (!detourSampled) 0.0 else StrictMath.max(-detourMin, detourMax),
         )
     }
 

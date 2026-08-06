@@ -92,7 +92,30 @@ data class SystemSpec(
      * (SystemGenerator.anchorLeverage).
      */
     val anchorLeverage: Double = 0.0,
-)
+    /**
+     * Per seat: a bitmask (by [Gambit.id]) of the declarations that seat can
+     * actually honour, proved by the generator finding at least one winning
+     * shot from that station satisfying each. Some layouts simply have no
+     * route that passes two worlds, and offering a bet the arena cannot pay
+     * would be a lie told by the game itself.
+     *
+     * Per seat rather than shared, because in a duel the two stations face
+     * genuinely different fields. Intersecting them was tried first and left
+     * *half of duels with no declarations at all*; each player is now offered
+     * the bets their own seat can win, which is both more honest and more
+     * available. Fairness is already enforced by the hit-rate ratio check.
+     *
+     * Conservative by construction: every bit was set by a real simulated hit,
+     * so the sweep can under-report but never invent. What is offered exists.
+     */
+    val gambitMasks: List<Int> = listOf(0, 0),
+) {
+    /** Declarations this seat is known to be able to honour, in menu order. */
+    fun gambitOptionsFor(seat: Int): List<Gambit> {
+        val mask = gambitMasks.getOrElse(seat) { 0 }
+        return Gambit.declarable.filter { (mask shr it.id) and 1 == 1 }
+    }
+}
 
 /**
  * One quantized aiming input. Quantization is the determinism keystone:
@@ -112,6 +135,12 @@ data class TurnInput(
      * Quantized to integer world coordinates so they stay replay-safe.
      */
     val anchors: List<Anchor> = emptyList(),
+    /**
+     * Declared constraint for this shot ([Gambit] id). Part of the input, not
+     * the outcome: it is chosen before firing and hashed with everything else,
+     * so a shared code cannot be re-declared after the fact.
+     */
+    val gambitId: Int = 0,
 )
 
 /**
@@ -206,6 +235,39 @@ object Tuning {
 
     /** Speed gained from the field that a three-star shot must demonstrate. */
     const val THREE_STAR_MIN_GAIN = 45.0
+
+    // ---- Gambit thresholds (docs/VISION.md §3.2; see Gambit.kt) ----
+    /** "Featherweight": power must be under this, on the 0..1000 scale. */
+    const val FEATHERWEIGHT_MAX_POWER = 400
+
+    /**
+     * "Two-body": a body counts as having bent the shot if the flight came
+     * within this many of its radii of its surface. Scaled by radius rather
+     * than absolute, because a bigger body here is a heavier one — its grip
+     * genuinely does reach further.
+     */
+    const val DEFLECT_RADII = 1.8
+
+    /**
+     * "Stolen speed": gain that unambiguously came from the field. Measured,
+     * not guessed — across 201 winning shots on twelve curated levels the
+     * median gain was 101 and the 10th percentile was 59, so the first value
+     * tried (70) was satisfied by roughly nine winning shots in ten. A
+     * declaration that nearly every hit honours is not a stake. 120 sits near
+     * the 80th percentile: reachable on any level, but only by a shot that
+     * genuinely leaned on the field.
+     */
+    const val STOLEN_SPEED_MIN_GAIN = 120.0
+
+    /**
+     * "The long way": how far off the launch→target line the flight must
+     * stray, and how far from either endpoint samples must be before they
+     * count. Every shot begins on that line and a hit ends on it, so without
+     * the end caps every connecting shot would read as a crossing.
+     */
+    const val LONG_WAY_MIN_DETOUR = 150.0
+    const val DETOUR_CAP = 130.0
+    const val DETOUR_CAP2 = DETOUR_CAP * DETOUR_CAP
 
     const val CAMPAIGN_SHOTS = 4
     const val DAILY_SHOTS = 5

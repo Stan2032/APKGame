@@ -1,5 +1,6 @@
 package io.github.stan2032.gravitygambit
 
+import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.MatchRecord
 import io.github.stan2032.gravitygambit.core.Seeds
@@ -190,6 +191,51 @@ class MatchControllerTest {
         c.endAimDrag()
         assertNull("the stick disappears on release", c.dragOrigin)
         assertNull(c.dragCurrent)
+    }
+
+    /**
+     * A declaration must survive the whole presentation path: chosen before
+     * firing, carried into the engine, judged there, and reset for the next
+     * shot so it can never become a standing setting.
+     */
+    @Test
+    fun declaringAGambitRidesWithTheShotAndResetsAfterIt() {
+        val c = MatchController.create(
+            GameLaunch(mode = GameMode.CAMPAIGN, seed = Seeds.campaign(1, 1), difficulty = 2)
+        )!!
+        assertTrue("a curated level must offer something to declare", c.gambitChoices.isNotEmpty())
+        assertEquals(Gambit.NONE, c.selectedGambit)
+
+        // Declare the one the arena proved it can pay, then fire.
+        val choice = c.gambitChoices.first()
+        c.selectedGambit = choice
+        c.fire()
+        drive(c)
+
+        assertEquals(
+            "the declaration reached the committed turn",
+            choice.id, c.engine.turns[0].gambitId,
+        )
+        assertNotNull("the shot was judged against it", c.lastGambitKept)
+        if (c.phase != Phase.OVER) {
+            assertEquals("and it does not carry into the next shot", Gambit.NONE, c.selectedGambit)
+        }
+    }
+
+    /**
+     * A seat is only ever offered declarations the generator proved that seat
+     * can honour — never the full menu.
+     */
+    @Test
+    fun offeredGambitsComeFromTheArenaNotTheEnum() {
+        val c = MatchController.create(
+            GameLaunch(mode = GameMode.CAMPAIGN, seed = Seeds.campaign(2, 0), difficulty = 4)
+        )!!
+        assertEquals(
+            c.spec.gambitOptionsFor(c.engine.currentShooter),
+            c.gambitChoices,
+        )
+        for (g in c.gambitChoices) assertTrue(g in Gambit.declarable)
     }
 
     @Test

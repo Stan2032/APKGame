@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Preview
 import io.github.stan2032.gravitygambit.core.ProjectileType
@@ -520,15 +521,36 @@ private fun ColumnScope.HudContent(c: MatchController) {
             )
         }
         c.lastResult?.let { res ->
-            if (c.phase == Phase.RESOLVING && res.styleNotes.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    res.styleNotes.joinToString("  ·  "),
-                    color = StarYellow, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .background(PanelColor.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+            if (c.phase == Phase.RESOLVING) {
+                // The verdict on a declaration comes first: it is the thing the
+                // player staked the shot on, and if it broke, the hit they just
+                // watched land did not count. Saying so is not optional.
+                c.lastGambitKept?.let { kept ->
+                    val gambit = Gambit.byId(res.input.gambitId)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (kept) {
+                            "${gambit.displayName} held  ${payoutLabel(gambit)}"
+                        } else {
+                            "${gambit.displayName} broken — shot wasted"
+                        },
+                        color = if (kept) OkGreen else DangerRed,
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .background(PanelColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+                if (res.styleNotes.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        res.styleNotes.joinToString("  ·  "),
+                        color = StarYellow, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .background(PanelColor.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
             }
         }
     }
@@ -667,12 +689,103 @@ private fun AnchorBar(c: MatchController) {
                 Text("Clear", fontSize = 13.sp, color = TextDim)
             }
         }
+        // Shares this row rather than taking its own: vertical space on a
+        // phone is the board, and the board is the game.
+        GambitChip(c)
     }
     if (c.placingAnchors) {
         Text(
             "Tap the field to place. Tap an anchor to flip it, again to remove.",
             color = TextDim, fontSize = 11.sp,
         )
+    }
+}
+
+private fun payoutLabel(g: Gambit): String = "×${g.payoutTenths / 10}.${g.payoutTenths % 10}"
+
+/**
+ * The declaration control (docs/VISION.md §3.2). Absent — not disabled — when
+ * the arena has no declaration it can honour: the generator proves feasibility
+ * per seat, and a control that offers an unwinnable bet is worse than none.
+ */
+@Composable
+private fun GambitChip(c: MatchController) {
+    var picking by remember { mutableStateOf(false) }
+    val choices = c.gambitChoices
+    if (choices.isEmpty()) return
+    val g = c.selectedGambit
+
+    TextButton(
+        onClick = { picking = true },
+        modifier = Modifier.semantics {
+            contentDescription = if (g == Gambit.NONE) {
+                "Declare a gambit"
+            } else {
+                "Gambit: ${g.displayName}, ${g.promise}, pays ${payoutLabel(g)}"
+            }
+        },
+    ) {
+        Text(
+            if (g == Gambit.NONE) "Declare" else "${g.displayName} ${payoutLabel(g)}",
+            color = if (g == Gambit.NONE) TextDim else StarYellow,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+
+    if (picking) {
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            containerColor = PanelColor,
+            title = { Text("Call your shot", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        "Keep the promise and the shot pays more. Break it and the " +
+                            "shot is wasted — the hit will not count.",
+                        color = TextDim, fontSize = 12.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    GambitRow(Gambit.NONE, g == Gambit.NONE) {
+                        c.selectedGambit = Gambit.NONE; picking = false
+                    }
+                    for (option in choices) {
+                        GambitRow(option, g == option) {
+                            c.selectedGambit = option; picking = false
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { picking = false }) { Text("Close", color = AccentCyan) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun GambitRow(g: Gambit, selected: Boolean, onPick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(9.dp))
+            .background(if (selected) AccentCyan.copy(alpha = 0.16f) else Color.Transparent)
+            .semantics { role = Role.Button; onClick(label = "choose") { onPick(); true } }
+            .pointerInput(g) { detectTapGestures { onPick() } }
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                g.displayName,
+                color = if (selected) AccentCyan else TextPrimary,
+                fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.weight(1f))
+            if (g != Gambit.NONE) {
+                Text(payoutLabel(g), color = StarYellow, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Text(g.promise, color = TextDim, fontSize = 11.sp)
     }
 }
 

@@ -15,7 +15,9 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [x] Stage A UI: anchor placement mode — tap to place, tap to flip, tap to remove; live preview; pips show budget. v0.5.0.
 - [x] Stage A solver awareness: `anchorLeverage` measures what fraction of missing shots one anchor can rescue; levels that let anchors trivialize aiming are rejected. v0.6.0.
 - [ ] [A] Optimise duel generation (~330ms; both-sides solve × more bodies since 0.4.0). Not urgent — behind a loading screen — but it is the slowest path in the game.
-- [ ] [A] Stage B: Gambits (declare a constraint before firing for a multiplier; verify from the simulation).
+- [x] Stage B: Gambits — shipped 0.9.0 (four verifiable declarations, per-seat generator-proved menus, damage multiplier in duels, protocol v5).
+- [ ] [H] **Play the gambits**: is ×2.2 damage too swingy in a duel against 100 HP? Does "wasted shot" feel like a fair price or a punishment? Are four declarations enough variety, or does the menu go stale?
+- [ ] [A] Consider an unscored *Blind* practice toggle (D-23): the idea is good, only the *scoring* is unverifiable.
 - [ ] [A] Stage C: objectives beyond destruction (Capture / Thread / Courier).
 - [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
@@ -23,7 +25,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## NOW (blocks first playtest / release track)
 - [ ] [H] **Judge the 0.8.0 aiming on a device**: does the floating stick land where your thumb expects? Is the 26-unit dead zone too sticky or too loose? Do the fine-tune buttons ramp fast enough held, without overshooting?
-- [ ] [A] **Open question from 0.8.0**: `AIM_FULL_PULL` is 300 *world* units, so the physical drag for full power scales with screen size — a long haul on a tablet, a flick on a small phone. Decide after playtest whether full pull should instead be a fraction of the *viewport* (e.g. 30% of the shorter edge). Deliberately not changed blind: which one feels right is not derivable from the geometry.
+- [ ] [H] **Feel question from 0.8.0**: `AIM_FULL_PULL` is 300 world units. Because `WorldTransform` is a *fit*, that is already a fixed fraction of the viewport — ~30% of the board's width in portrait, ~19% of its height in landscape — not a fixed pixel count, so it does not need converting to screen units. The only open question is whether that fraction is the right one, which is a thumb question, not a geometry one.
 - [ ] [H] **Re-test 0.7.0 levels**: is the straight shot really gone? Do levels now feel like they have a purpose — is there a visible route to find? Are they now too *hard* (bands were recalibrated from measurement, not feel)?
 - [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
 - [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
@@ -68,6 +70,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.9.0 Stage B Gambits: declare-before-firing constraints judged by the simulation; Blind cut as unverifiable (D-23); per-seat generator-proved menus after measurement found unwinnable offers (D-24); duel damage multiplier after finding declarations were pure downside in PVP (D-25); "stolen speed" threshold recalibrated from a 201-shot distribution; feasibility proving folded into the existing solver sweep at no cost; protocol v5.
 - [x] [A] v0.8.0 aiming controls from owner feedback: floating joystick that appears at the touch point (was pinned to the station, i.e. to one screen corner), hand-rolled gesture so the ring centres on the true touch-down; press-and-hold auto-repeat with a growing step (×1/×3/×8) on the fine-tune buttons; TalkBack role/activation declared explicitly on the new raw pointer target; portrait reserve 188→196dp for 48dp touch targets.
 - [x] [A] v0.7.0 curated generation: layouts built around the shot they force (keeper on the direct line + shepherds), `fallsToNaiveShot` rejection on every path including fallbacks, third star now requires working the field, difficulty bands recalibrated, protocol v4. 0/72 levels fall to a straight shot; generation ~20x faster.
 

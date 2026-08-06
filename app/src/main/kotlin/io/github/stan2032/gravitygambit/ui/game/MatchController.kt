@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.stan2032.gravitygambit.core.Anchor
+import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.LiveShot
 import io.github.stan2032.gravitygambit.core.MatchEngine
@@ -80,6 +81,30 @@ class MatchController private constructor(
      */
     val anchors = mutableStateListOf<Anchor>()
     var placingAnchors by mutableStateOf(false)
+
+    /**
+     * The declaration riding on this shot (docs/VISION.md §3.2). Reset every
+     * turn: a gambit is a decision about *this* shot, never a standing setting.
+     */
+    var selectedGambit by mutableStateOf(Gambit.NONE)
+
+    /**
+     * The declarations this seat can actually honour here, proved by the
+     * generator. Empty on a tight arena, in which case the control is hidden
+     * rather than shown greyed out — an offer the game cannot pay is worse
+     * than no offer.
+     */
+    val gambitChoices: List<Gambit>
+        get() = spec.gambitOptionsFor(engine.currentShooter)
+
+    /** Did the shot just resolved honour its declaration? Null if none was made. */
+    val lastGambitKept: Boolean?
+        get() {
+            val i = engine.results.lastIndex
+            if (i < 0) return null
+            if (engine.results[i].input.gambitId == Gambit.NONE.id) return null
+            return engine.gambitKept[i]
+        }
 
     /**
      * Tap handling for anchor mode: an empty spot places a new attracting
@@ -212,7 +237,9 @@ class MatchController private constructor(
         if (phase != Phase.AIMING) return
         isReplaying = false
         brakeUsed = false
-        liveShot = engine.beginShot(aimAngleDeci, aimPower, selectedType, -1, anchors.toList())
+        liveShot = engine.beginShot(
+            aimAngleDeci, aimPower, selectedType, -1, anchors.toList(), selectedGambit.id,
+        )
         trail.clear(); trailVersion++
         placingAnchors = false
         phase = Phase.FLYING
@@ -222,7 +249,7 @@ class MatchController private constructor(
         isReplaying = true
         brakeUsed = true // replayed shots brake themselves via presetBrakeTick
         liveShot = engine.beginShot(
-            turn.angleDeci, turn.power, turn.typeId, turn.brakeTick, turn.anchors,
+            turn.angleDeci, turn.power, turn.typeId, turn.brakeTick, turn.anchors, turn.gambitId,
         )
         trail.clear(); trailVersion++
         phase = Phase.FLYING
@@ -299,8 +326,10 @@ class MatchController private constructor(
                 }
             }
             else -> {
-                // Anchors are consumed by the shot they shaped.
+                // Anchors are consumed by the shot they shaped, and so is the
+                // declaration — you re-decide what you are betting every time.
                 anchors.clear()
+                selectedGambit = Gambit.NONE
                 phase = Phase.AIMING // keep last aim: campaign/daily iterate on it
             }
         }
@@ -309,6 +338,7 @@ class MatchController private constructor(
     /** Duel turns flip sides; point the new shooter roughly at the enemy. */
     private fun resetAimFor(shooter: Int) {
         anchors.clear()
+        selectedGambit = Gambit.NONE
         aimAngleDeci = if (shooter == 0) 2700 else 900
         aimPower = 550
     }

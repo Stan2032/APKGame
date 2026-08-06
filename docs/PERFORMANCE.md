@@ -35,6 +35,23 @@ gameplay change gets audited against this doc before merge.
    canvas animates continuously. Lever if battery reports appear: drop the
    ambience clock to 30fps during AIMING by frame-skipping in the clock loop.
 
+## ⚠️ Absolute numbers here are machine-relative — always re-measure A/B
+
+Every millisecond figure below was taken on a shared CI-class runner whose
+speed varies a lot between sessions. **Re-running the same unchanged code on
+2026-08-06 produced 88–136ms where 17–40ms had been recorded days earlier, and
+1.055ms for an aim preview recorded at 0.065ms.** Nothing regressed; the
+machine was slower.
+
+The discipline that follows from this, and it is not optional: **before
+attributing a slowdown to a change, stash the change and re-measure the
+baseline in the same session on the same machine.** Doing that for the 0.9.0
+gambit measurements showed the baseline at 88–136ms against 80–148ms with them
+— i.e. no regression at all, where the recorded numbers alone would have
+suggested a 4x one. Ratios measured back-to-back are trustworthy; absolutes
+carried across sessions are not. (The same trap was avoided once before, with
+the anchor-leverage probe in 0.6.0.)
+
 ## Measured numbers (desktop JVM; phones ~3-6x slower) — `GenerationPerfTest`
 - **Level generation, worst case = difficulty 0** (~100-200ms). Counter-intuitive
   but correct: easy levels need a *rare* high-hit-rate layout, so the generator
@@ -49,9 +66,21 @@ gameplay change gets audited against this doc before merge.
   every sim. Measured by stashing the anchor-leverage probe: still ~324ms
   without it, so the probe is not the cause. Open optimisation if duel start
   ever feels slow — the mirror-side solve is the obvious target.
-- **Aim preview: ~0.065ms/call** at the highest tier with a splitting shot.
-  Runs per drag event during composition; three orders of magnitude under a
-  frame. **Do not "optimize" this** — it was measured, not assumed.
+- **Aim preview: ~0.065ms/call** at the highest tier with a splitting shot
+  (0.4–1.1ms on a slow runner day — see the warning above). Runs per drag event
+  during composition; orders of magnitude under a frame. **Do not "optimize"
+  this** — it was measured, not assumed.
+- **Gambit feasibility proving: free.** Deciding which declarations a level can
+  honour needs a sweep of winning shots. A dedicated one measured 300–500ms on
+  hard levels. Instead it rides on the solver sweep the generator already runs:
+  that sweep simulates every sample to completion, and `ShotResult` already
+  carries the measurements a gambit is judged on, so the added work is four
+  comparisons per *winning* sample. The dedicated sweep remains only as a
+  second opinion for a seat whose scan came back empty.
+- The gravity accumulation loop is now indexed rather than iterator-based. It
+  is the single hottest loop in the game (bodies x projectiles x ticks x
+  thousands of solver sims) and was allocating an iterator per projectile per
+  tick.
 
 ## Current implementation notes (2026-08-04)
 - `RenderCache` rebuilds only on system change or canvas resize. Note it

@@ -19,6 +19,13 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
     val turns = ArrayList<TurnInput>()
     val results = ArrayList<ShotResult>()
 
+    /**
+     * Whether each shot honoured its declaration, parallel to [results]. Shots
+     * with no declaration are always true. Kept here rather than on ShotResult
+     * because it is a *rule*, and [LiveShot] only measures.
+     */
+    val gambitKept = ArrayList<Boolean>()
+
     var score = 0; private set          // daily mode
     var dailyHits = 0; private set
     var combinedHash: Long = LiveShot.FNV_OFFSET; private set
@@ -62,9 +69,18 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
      */
     fun starsEarned(): Int {
         if (!campaignWon) return 0
-        val winning = results.lastOrNull { r -> r.stationHits.any { it == 1 } }
-        val workedTheField = winning != null &&
-            (winning.slingshotGain >= Tuning.THREE_STAR_MIN_GAIN || winning.styleBonus > 0)
+        // The shot that actually breached: a hit inside a broken declaration
+        // did not land, so it cannot be the winning shot either.
+        val winIndex = results.indices.lastOrNull { i ->
+            gambitKept[i] && results[i].stationHits.any { it == 1 }
+        }
+        val winning = winIndex?.let { results[it] }
+        val declared = winning != null && winning.input.gambitId != Gambit.NONE.id
+        val workedTheField = winning != null && (
+            declared ||
+                winning.slingshotGain >= Tuning.THREE_STAR_MIN_GAIN ||
+                winning.styleBonus > 0
+            )
         return when {
             shotsUsed == 1 && workedTheField -> 3
             shotsUsed <= 2 -> 2
@@ -78,9 +94,10 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         typeId: Int,
         presetBrakeTick: Int = -1,
         anchors: List<Anchor> = emptyList(),
+        gambitId: Int = 0,
     ): LiveShot = LiveShot(
         spec.bodies, stations, currentShooter, angleDeci, power, typeId,
-        presetBrakeTick, Tuning.MAX_TICKS, anchors,
+        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId,
     )
 
     /** Apply a finished shot to match state. Must be called exactly once per shot. */
@@ -89,26 +106,48 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         turns.add(input)
         foldHash(result.hash)
 
+        // A declaration is a stake, not a bonus: break it and the shot is
+        // wasted outright — the damage does not land. That is what makes
+        // declaring a decision rather than free money (docs/VISION.md §3.2).
+        val gambit = Gambit.byId(input.gambitId)
+        val kept = gambit.satisfiedBy(result)
+        gambitKept.add(kept)
+        foldHash(if (kept) 1L else 0L)
+        val hits = if (kept) result.stationHits else emptyList()
+
         val type = ProjectileType.byId(input.typeId)
         when (mode) {
             GameMode.CAMPAIGN -> {
-                if (result.stationHits.any { it == 1 }) hp[1] = 0
+                if (hits.any { it == 1 }) hp[1] = 0
             }
             GameMode.DAILY -> {
-                val hits = result.stationHits.count { it == 1 }
-                if (hits > 0) {
-                    dailyHits += hits
-                    score += hits * Tuning.DAILY_HIT_SCORE + result.styleBonus
+                val n = hits.count { it == 1 }
+                if (n > 0) {
+                    dailyHits += n
+                    score += n * Tuning.DAILY_HIT_SCORE + gambit.payout(result.styleBonus)
                     relocateDailyTarget()
                 }
             }
             GameMode.DUEL -> {
-                for (si in result.stationHits) {
-                    hp[si] = (hp[si] - type.damage).coerceAtLeast(0)
+                // Duels are decided by HP, and nothing else, so a declaration
+                // has to pay in HP or it is pure downside — which is what it
+                // was on the first pass: style points that a duel never reads.
+                // A kept declaration multiplies damage; a broken one already
+                // cost the whole turn above.
+                val damage = gambit.payout(type.damage)
+                for (si in hits) {
+                    hp[si] = (hp[si] - damage).coerceAtLeast(0)
                 }
             }
         }
         results.add(result)
+    }
+
+    /** Style points actually banked for a committed shot, after its declaration. */
+    fun awardedStyle(index: Int): Int {
+        val r = results[index]
+        if (!gambitKept[index]) return 0
+        return Gambit.byId(r.input.gambitId).payout(r.styleBonus)
     }
 
     private fun relocateDailyTarget() {
@@ -168,7 +207,9 @@ object MatchReplayer {
         val engine = MatchEngine(spec, mode)
         for (t in turns) {
             if (engine.over) break
-            val shot = engine.beginShot(t.angleDeci, t.power, t.typeId, t.brakeTick, t.anchors)
+            val shot = engine.beginShot(
+                t.angleDeci, t.power, t.typeId, t.brakeTick, t.anchors, t.gambitId,
+            )
             engine.commit(shot.runToCompletion())
         }
         return Rebuilt(engine, engine.combinedHash)

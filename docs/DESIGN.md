@@ -96,6 +96,28 @@ from *both* stations so neither player spawns dead.
 Difficulty is therefore an *empirical measurement* of the level itself, not
 a designer's guess. The fingerprint (`solverHitRate`) is stored in the spec.
 
+## Gambits — calling your shot
+
+Before firing you may **declare** a constraint on the shot you are about to
+take: under 40% power, pass through the pull of two different worlds, end
+faster than you launched, or never cross the line to the target. Keep the
+promise and the shot pays 1.5x-2.2x — style points in campaign and daily,
+**damage** in duels, which is the only thing a duel settles on. Break it and
+the shot is wasted: the hit does not land.
+
+Two constraints on the design, both of which cut features rather than adding
+them:
+
+1. **Only what the physics can see.** A duel travels as a code that the
+   receiving device re-simulates, so a declaration has to be decidable from
+   the flight. "Fire without looking at the aim preview" is a good challenge
+   and is not decidable from anything — it would have to be believed. Cut.
+2. **Only what this arena can pay.** The generator proves, per seat, which
+   declarations have at least one winning shot that honours them, and the game
+   offers only those. Measurement found levels where no route passes two
+   worlds; without the proof the game would have been selling a bet it could
+   not settle.
+
 ## Economy (see docs/MONETIZATION.md for pricing)
 
 Stardust flows in from every mode; flows out to projectile unlocks, aim-trace

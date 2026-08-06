@@ -74,16 +74,29 @@ Why this changes everything:
 Cost: `TurnInput` grows (protocol v3); the solver must account for anchor
 freedom when measuring difficulty; UI needs a placement mode.
 
-### 3.2 The Gambit — betting on yourself *(makes the name true)*
+### 3.2 The Gambit — betting on yourself *(makes the name true)* — **SHIPPED 0.9.0**
 
 Before a shot, optionally **declare** a constraint:
-- *Blind* — no aim preview this shot.
-- *The long way* — must not cross the straight line to the target.
-- *Two-body* — must be deflected by at least two bodies.
-- *Featherweight* — power below 40%.
+- *Featherweight* — power below 40%. ×1.5
+- *Two-body* — pass through the pull of two different worlds. ×1.8
+- *Stolen speed* — end faster than you launched, by a clear margin. ×1.6
+- *The long way* — never cross the line to the target. ×2.2
 
-Declaring multiplies the shot's score (and, in campaign, its star value).
-Failing the declaration wastes the shot entirely.
+Declaring multiplies the shot's payout (style in campaign/daily, **damage** in
+duels — the only currency a duel reads). Failing the declaration wastes the
+shot entirely: the hit does not land.
+
+Two things this section originally got wrong, both corrected by measurement:
+
+- ***Blind* (fire with no aim preview) was cut.** It is the one proposal here
+  the physics cannot see. A peer verifying a share code re-runs the simulation
+  and derives everything else from the flight; nothing in the inputs records
+  whether the sender peeked. A scoring rule taken on trust, in a game built on
+  taking nothing on trust, is a hole — and one that pays a multiplier. (D-23)
+- **The menu is proved per level, per seat, not fixed.** Three of twelve
+  measured levels had *no* winning shot that passes two worlds. Offering that
+  bet there would be the game lying to the player. The generator now proves
+  what each seat can honour and offers only that. (D-24)
 
 Why: self-imposed difficulty is the engine of long-term engagement (chess
 odds, roguelike ascensions, speedrun categories) and costs nothing to
@@ -158,7 +171,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 | Stage | Content | Why this order |
 |---|---|---|
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
-| **B** | Gambits (declare/verify/score) | Cheap once anchors exist; makes the name true; adds stakes immediately. |
+| **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
 | **C** | Objectives (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
 | **D** | Expedition run structure + mutators | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification | Best after Expedition, so it lands as depth rather than noise. |
