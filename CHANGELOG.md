@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.13.2] — 2026-08-06
+- **Release QA script rewritten.** It was six lines written at 0.2.0 and had never been revisited, so it predated anchors, gambits, all three objectives, the season track and duel normalization — a green run of it told you almost nothing about the build you were about to upload. Now ordered by *risk*:
+  - **The minification danger zone first**, because that is why the list exists: save/load survival, corrupted-code rejection, purchase restore, and the season pass behaving as a per-season consumable rather than silently persisting across a rollover.
+  - Every mode to its end state, including that hot-seat pays **neither** stardust nor season XP.
+  - Every mechanic added since 0.2.0, each with the specific thing that would be wrong if it regressed — a broken declaration must waste the shot, striking the wrong body must not complete a Courier, a Capture must issue a RETRO shell whatever the loadout.
+  - **The D-29 invariant as an explicit check**: on a fresh profile with nothing unlocked, a duel must offer all four shells and the longest aim trace. If that regresses, PVP fairness is broken *and the store copy has become false.*
+  - Accessibility, large font, landscape, airplane mode, and the billing-unavailable posture.
+- **Link audit attempted and honestly inconclusive.** Of 13 URLs across the launch docs I could reach 2 (both `developer.android.com`, both 200). The rest — `play.google.com`, `support.google.com`, and even the static `semver.org` — are blocked by this environment's egress policy, which is **not** evidence they are dead. Recorded as a human check rather than marked verified, and flagged so no future agent ticks it off without actually loading them.
+- Privacy policy: the challenge-code description now lists what codes actually carry (anchors and the declared constraint, alongside seed/angle/power/checksum). Still only game moves, still no identifiers — but the list should be complete when it is the paragraph a reviewer reads.
+
 ## [0.13.1] — 2026-08-06
 - **Owner direction recorded as D-32**, and it steers everything after Stage C: alternate feature work with launch prep; **Expedition is additive, not a campaign replacement** (VISION §3.6 amended rather than followed — replacing it would have invalidated the stars, sector gating and unlock ladder the season and shop both reference); difficulty stays **demanding** (do not soften bands or star rules to widen the audience); **presentation gets real investment**.
 - **Impact juice — the first presentation unit, chosen because it serves both halves of the split**: it changes how the game feels *and* it is what a screenshot or a store video has to sell.
