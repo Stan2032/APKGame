@@ -27,7 +27,10 @@ import kotlinx.coroutines.flow.StateFlow
  * Design constraints:
  *  - The game must be 100% functional with billing unavailable (no Play
  *    services, no configured products): the shop then shows earnable items only.
- *  - Purchases are cosmetics/stardust only — no gameplay power. Grants are
+ *  - Purchases cover cosmetics, stardust and the season pass. None of it
+ *    can reach PVP: duels issue every shell and the top aim trace to both
+ *    players regardless of what either owns (Economy.duelLoadout, D-29).
+ *    Grants are
  *    applied through [ProfileRepository] and consumed/acknowledged properly so
  *    Play doesn't auto-refund.
  */

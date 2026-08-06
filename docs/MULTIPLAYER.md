@@ -11,7 +11,7 @@ seed (8 bytes) + per-turn quantized inputs (8 bytes each) + verification hash (8
 
 That's the entire netcode. 26 bytes of frame + 10 bytes per shot + 5 per
 anchor, base64url
-encoded with a CRC — a 20-turn duel is ≈ 230 characters of text.
+encoded with a CRC. Measured: **52 characters opens a duel**; a 20-turn exchange is ~330; the longest match the rules permit (30 turns with every anchor spent) is ~1039. `ShareCodeSizeTest` holds the worst case under a 1200-character budget.
 
 ## Transport: any messenger the players already use
 

@@ -1,4 +1,4 @@
-# Google Play submission checklist (verified 2026-08-04)
+# Google Play submission checklist (verified 2026-08-04; re-audited 2026-08-06)
 
 Facts below were verified against Google's documentation on 2026-08-04;
 snapshots with sources live in `docs/reference/`. Re-verify anything
@@ -48,9 +48,16 @@ marked ⏳ before acting if significant time has passed.
 - [ ] **Content rating questionnaire** — arcade game, no violence against
       realistic humans, no gambling: expect PEGI 3 / Everyone.
 - [ ] **Ads declaration** — "No, my app does not contain ads."
-- [ ] **In-app products** — create the three product IDs from
-      MONETIZATION.md *after* the first AAB upload (Console requires a
-      build with billing before it lets you add products).
+- [ ] **In-app products** — create **six** products from MONETIZATION.md
+      *after* the first AAB upload (Console requires a build with billing
+      before it lets you add products):
+      - 4 one-time: `stardust_small`, `stardust_large`, `cosmic_pack`,
+        `season_pass` (the pass is a **consumable**, because it is bought
+        once per 28-day season rather than owned forever).
+      - 2 subscriptions: `ad_pass_weekly`, `ad_pass_monthly`.
+      The count was stale here at "three" through two product additions —
+      cross-check against `Economy.Iap.ALL_PRODUCT_IDS` + `SUBSCRIPTION_IDS`
+      rather than this list if they ever disagree.
 - [ ] **Store listing**:
   - Title ≤ 30 chars: `Gravity Gambit`
   - Short description ≤ 80 chars, e.g. *"Slingshot artillery in real
@@ -67,8 +74,8 @@ marked ⏳ before acting if significant time has passed.
 |---|---|
 | Broken/placeholder functionality | Every advertised mode works offline; billing UI hides itself when unconfigured. |
 | Data-Safety form contradicts traffic | Our code generates no traffic; billing's library is Google's own and is declared as such. |
-| Background location/SMS/etc. permission abuse | No permissions at all. |
-| Payments outside Play Billing | Only Play Billing, cosmetics only. |
+| Background location/SMS/etc. permission abuse | We declare none ourselves; the merged manifest carries only BILLING plus INTERNET/ACCESS_NETWORK_STATE from Play Billing's own transitive component, allowlisted and CI-guarded. **Do not write "no permissions at all"** — this row used to say exactly that, contradicting the Technical Requirements section above it and repeating the claim D-3 exists to prevent. |
+| Payments outside Play Billing | Only Play Billing. Purchases cover cosmetics, stardust and the season pass; **nothing purchasable can affect PVP** — duels issue every shell and the top aim trace to both players (D-29). |
 | "Designed for families" mismatches | Do NOT opt into the Families program — just answer the target-audience questionnaire honestly (13+ recommended to keep it simple). |
 | Crash on reviewer's device | minSdk 26, no exotic APIs, no native libs; test the release AAB via internal testing first. |
 

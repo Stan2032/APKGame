@@ -6,6 +6,18 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-08-06
+- **Fifth audit pass: the store-facing copy.** This is the one category where being wrong has consequences outside the repo, and it had the worst finding yet:
+  - **PLAY_STORE_CHECKLIST contradicted itself in the same file.** Its Technical Requirements section correctly documents the transitive INTERNET/ACCESS_NETWORK_STATE from Play Billing — and three sections later its rejection-traps table said **"No permissions at all"**, the exact claim D-3 exists to prevent, in the document a submitter reads while filling in the forms.
+  - Its in-app-product count said **"three"**; there are **six** (4 one-time including the new `season_pass`, 2 subscriptions). It had been stale through two product additions.
+  - "Payments outside Play Billing → *cosmetics only*" was false as of the season pass; corrected to the invariant that actually holds — nothing purchasable reaches PVP.
+- **STORE_LISTING described the 0.2.0 game.** No anchors, no gambits, no objectives, no season — the three most distinctive things about it were absent from the copy meant to sell it. Rewritten, plus:
+  - "~230 character" duel codes → **52 characters opens a duel** (the measured figure, and the one a player actually sends first).
+  - *"nothing you can buy wins a duel"* was **false when written**. It is true now, enforced by `Economy.duelLoadout()` and held by a test, so it is stated plainly and made the fourth short-description candidate.
+  - Screenshot list extended to the mechanics that now exist: anchors bending a preview, an open gambit dialog, a part-filled capture ring, the season ladder.
+- Corrected the same stale numbers wherever they had been copied: README, MULTIPLAYER.md, `BillingManager`'s header, and **AI_LOOK_AVOIDANCE.md — whose own worked example of "be concrete" was the wrong 230 figure.** That rule now carries the lesson: a specific wrong number reads more credibly than a vague one, which makes it worse.
+- D-13 amended rather than quietly rewritten: its "cosmetics/convenience only" wording was right in principle and unhonoured in code, so the fix was to normalize duels (D-29), not to soften the claim.
+
 ## [0.12.1] — 2026-08-06
 - **The season track is now visible and playable**, not just computed. A track nobody watches filling is the same failure as the daily streak that nothing read.
   - **Season screen**: tier, XP bar, days remaining, and a 50-tier horizontal ladder showing *both* lanes at every tier — the paid lane is displayed whether or not it is owned, because hiding the offer would make the purchase a guess. The ladder auto-scrolls to the player's own tier, since a 50-tier list opened at tier 1 says nothing about where you are.

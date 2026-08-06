@@ -16,7 +16,7 @@ Voice = a physics nerd who respects you: precise, dry, quietly confident, occasi
 1. BANNED WORDS/SHAPES: Unleash, Elevate, Seamless, Supercharge, Dive into, Embark, journey, "Experience the thrill", "Take X to the next level", "your ultimate companion", triple exclamation, rhetorical-question hooks ("Ready to dominate?").
 2. **Say the mechanism, not the adjective.** Not "amazing realistic physics" → "every shot obeys real N-body gravity". Not "fair play guaranteed" → "your phone re-simulates the replay; forged scores fail the math".
 3. Sentence caps on hype: one superlative per screen, zero per store paragraph unless measured ("machine-proven solvable" is allowed because it is literal).
-4. Numbers concrete, never rounded-marketing ("~230-character codes", "0.1° aim nudges", "5 shots").
+4. Numbers concrete, never rounded-marketing ("52-character duel codes", "0.1° aim nudges", "5 shots"). And **concrete is not the same as correct** — this rule's own example said "~230-character codes" for months, which was wrong at both ends. A specific wrong number reads more credibly than a vague one, which makes it worse. Measure, then quote.
 5. No fake social proof ever: no invented reviews, ratings, player counts, "millions of players".
 6. Update notes: changelog facts, not "We've been listening! 🎉".
 7. British-vs-US spelling: US, consistent.
