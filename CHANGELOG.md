@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-08-06
+- **Fourth audit pass: DETERMINISM.md contained a trap.** It is the document backing the project's single load-bearing claim, and it had drifted in three ways that mattered:
+  - Its list of hashed content stopped at the 0.2.0 protocol — no anchors, no gambit id, no gambit-kept verdict, no objective state, all of which fold in now. That omission is the dangerous kind: this is the doc a contributor reads before adding an input, and **an input that is not hashed is one a sender can edit after the fact without the receiver noticing.** That is precisely how a re-declared gambit would have become free points.
+  - It stated playback runs at "2 ticks/frame" — the exact frame-counted pacing that was *removed* in 0.4.0 for running the game at double speed on 120Hz panels. The doc was describing the bug as the contract.
+  - It said nothing about generation being part of determinism, though both devices regenerate the system from the seed and the difficulty bands go through `StrictMath.pow`.
+- **`DeterminismTest.everyTurnInputFieldChangesTheHash`** now enforces the rule structurally: it asserts `TurnInput`'s exact field list and that changing each one moves the verification hash. Adding a field fails the test with the field list in the message, rather than letting an unhashed input ship quietly.
+- TESTING.md listed one core test file when there are eight, and omitted every suite added since 0.4.0. Rewritten against the tree, and the extension rules now carry the lessons that cost measurement to learn: prove a gambit's threshold against real levels, prove an objective is winnable before shipping it, and A/B any performance claim in the same session.
+- `GambitTest.kt` had quietly become three unrelated classes; split into `GambitTest`, `ObjectiveTest` and `ShareCodeSizeTest` so the filenames mean what they say.
+- Tests: 129 (78 `:core` + 51 `:app`), 1 new.
+
 ## [0.10.0] — 2026-08-06
 - ⚠️ **Protocol v6.** Systems now carry an objective, which changes both what a seed generates and what winning means, so v5 codes are refused.
 - **Capture: hold orbit around the marked world** (VISION Stage C, first objective beyond destruction). Four unbroken seconds inside a ring, and the system is yours.

@@ -1,6 +1,7 @@
 package io.github.stan2032.gravitygambit.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -32,6 +33,75 @@ class RngTest {
 }
 
 class DeterminismTest {
+
+    /**
+     * Structural guard for the rule in docs/DETERMINISM.md: **every field of
+     * [TurnInput] must reach the verification hash.** An input that is not
+     * hashed is one a sender can edit after the fact without the receiver
+     * noticing — which is exactly how a re-declared gambit would have become
+     * free points.
+     *
+     * The field count is asserted too, so adding a field to TurnInput fails
+     * this test rather than silently escaping the contract. If you are here
+     * because of that: fold the new field in `LiveShot.init`, then cover it
+     * below.
+     */
+    @Test
+    fun everyTurnInputFieldChangesTheHash() {
+        // Instance fields only: @Serializable adds static `Companion` and
+        // `$childSerializers` members that are plumbing, not inputs.
+        val fields = TurnInput::class.java.declaredFields
+            .filterNot { java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            .map { it.name }
+        assertEquals(
+            "TurnInput's fields changed ($fields). Fold any new one into the " +
+                "hash (LiveShot.init), then cover it in this test.",
+            listOf("shooter", "angleDeci", "power", "typeId", "brakeTick", "anchors", "gambitId"),
+            fields,
+        )
+
+        val spec = SystemSpec(
+            seed = 909L,
+            difficulty = 3,
+            name = "Contract Range",
+            bodies = listOf(Body(430.0, 820.0, 52.0, 2.4e6, BodyKind.PLANET, 1)),
+            stations = listOf(
+                Station(Tuning.WORLD_W / 2, Tuning.WORLD_H - 150.0, 0),
+                Station(Tuning.WORLD_W / 2, 150.0, 1),
+            ),
+            solverHitRate = 0.1,
+        )
+
+        fun hashOf(t: TurnInput): Long = LiveShot(
+            spec.bodies, spec.stations, t.shooter, t.angleDeci, t.power, t.typeId,
+            presetBrakeTick = t.brakeTick, anchors = t.anchors, gambitId = t.gambitId,
+        ).runToCompletion().hash
+
+        // RETRO baseline so brakeTick is a live field rather than a no-op.
+        val base = TurnInput(
+            shooter = 0, angleDeci = 2650, power = 620,
+            typeId = ProjectileType.RETRO.id, brakeTick = -1,
+        )
+        val baseline = hashOf(base)
+
+        val variants = listOf(
+            "shooter" to base.copy(shooter = 1),
+            "angleDeci" to base.copy(angleDeci = base.angleDeci + 1),
+            "power" to base.copy(power = base.power + 1),
+            "typeId" to base.copy(typeId = ProjectileType.HEAVY.id),
+            "brakeTick" to base.copy(brakeTick = 40),
+            "anchors" to base.copy(anchors = listOf(Anchor(420, 900, true))),
+            "gambitId" to base.copy(gambitId = Gambit.LONG_WAY.id),
+        )
+        for ((field, variant) in variants) {
+            assertNotEquals(
+                "changing TurnInput.$field left the verification hash untouched — " +
+                    "it is an input a sender could edit undetected",
+                baseline, hashOf(variant),
+            )
+        }
+    }
+
     private fun spec(): SystemSpec = SystemGenerator.generate(Seeds.campaign(0, 3), 0, GameMode.CAMPAIGN)
 
     @Test

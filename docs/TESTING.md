@@ -17,21 +17,33 @@ Everything that can corrupt a wallet, a replay, or a save is in :core and unit-t
 - `AccessibilityTest`: renders real screens at 1.8x-2.0x font scale (via a `LocalDensity` override) because fixed-height controls clip their labels at large system font sizes and nothing else catches it; asserts campaign levels expose spoken labels rather than bare star glyphs.
 - `MatchControllerTest`: campaign match drives to summary within its shot cap; **full code-duel round trip** (A fires → code emitted → B imports → verification passes → A's shot replays → seats/HP/hash agree on both devices); forged hash refused; hot-seat handoff alternates and never emits codes; aim nudges wrap/clamp; a feedback report's attached replay code verifies (guards the triage pipeline).
 
-## Current suite (core/src/test — CoreTests.kt)
+## Current suite (core/src/test — 78 tests across 8 files)
+`CoreTests.kt` holds the original five classes; the rest have their own files.
 - `RngTest` — sequence determinism, mix stability, double range.
-- `DeterminismTest` — identical inputs ⇒ identical hash/ticks/hits; 0.1° delta ⇒ different hash; MatchReplayer reproduces live play (hash + HP); preset brake tick deterministic.
-- `ShareCodecTest` — roundtrip; decode-inside-chat-text; single-char corruption rejected (CRC); garbage rejected.
+- `DeterminismTest` — identical inputs ⇒ identical hash/ticks/hits; 0.1° delta ⇒ different hash; MatchReplayer reproduces live play (hash + HP); preset brake tick deterministic; **`everyTurnInputFieldChangesTheHash`** asserts TurnInput's exact field list and that every one of them moves the hash — the structural guard against an input escaping verification.
+- `ShareCodecTest` — roundtrip; decode-inside-chat-text; single-char corruption rejected (CRC); garbage rejected; superseded protocol versions refused.
 - `GeneratorTest` — d∈{0,2,4,6} solvable (rate>0), stations clear of bodies, in-bounds; generation value-deterministic; duel both-sides solvable.
-- `EndToEndPvpTest` — THE load-bearing test: play duel → encode → decodeAndVerify passes ⇒ same HP; forged hash rejected. Code length <400.
+- `EndToEndPvpTest` — THE load-bearing test: play duel → encode → decodeAndVerify passes ⇒ same HP; forged hash rejected.
 - `DailyLogicTest` — relocation deterministic per hit-count, differs across counts.
-- `EconomyTest` — Profile JSON roundtrip incl. totals; corrupt save ⇒ default; reward sanity/bounds.
+- `EconomyTest` — Profile JSON roundtrip incl. totals; corrupt save ⇒ default; reward sanity/bounds; the streak actually pays; hot-seat pays nothing; code duels are the biggest repeatable earn.
+- `MatchRulesTests.kt` — duel damage/winner edges, turn caps, star math, on hand-built specs.
+- `MovingBodyTest.kt` — comets and pulsars stay bit-deterministic as pure functions of the tick.
+- `PurposeTest.kt` — **no generated level falls to a near-straight shot**; the guard on 0.7.0's whole point.
+- `GambitTest.kt` — declarations are decided from the flight, a broken one wastes the shot, an edited one fails verification, and every offered gambit is one the arena can pay.
+- `ObjectiveTest.kt` — **no unbraked shot can hold the ring** (the measurement Capture is built on — if this ever fails, Capture has stopped requiring its burn), a braked one can, capture is won by dwell not by hitting anything, every capture system is provably winnable, and only the campaign asks for one.
+- `ShareCodeSizeTest.kt` — an opening challenge stays short and the longest legal duel still fits a message (1200-char budget).
+- `GeneratorSweepTest.kt` / `GenerationPerfTest.kt` — breadth across sectors/difficulties/dailies, and generation-cost guardrails.
 
 ## Extension rules (add tests WITH the change, same commit)
 - New projectile type ⇒ DeterminismTest case (preset inputs incl. its special mechanic) + damage case in a MatchEngine test + codec roundtrip with its typeId.
 - Any Tuning/sim change ⇒ suite must pass unchanged EXCEPT hash-value assumptions; confirm ShareCodec VERSION bumped (TUNING.md §Versioning) and add old-version-rejection test.
 - Generator changes ⇒ keep GeneratorTest difficulty spread green; if bands move, update band test values in same commit with rationale in DECISIONS.md.
 - New Profile field ⇒ roundtrip case + forward-compat case (decode JSON lacking the field).
-- New share-code field ⇒ roundtrip + corruption + length assertions.
+- New share-code field ⇒ roundtrip + corruption + length assertions (`ShareCodeSizeTest` — the budget is a product constraint, not a nicety).
+- **New `TurnInput` field ⇒ fold it into the hash and extend `everyTurnInputFieldChangesTheHash`.** That test asserts the exact field list, so it fails on any addition rather than letting an unhashed input ship. An input outside the hash is one a sender can edit undetected.
+- **New Gambit ⇒ prove the arena can pay it.** Measure across real generated levels before choosing a threshold: the first "stolen speed" value was satisfied by ~9 winning shots in 10, and "two-body" had *zero* winning shots on 3 of 12 levels. Add the feasibility case to `GambitTest`.
+- **New Objective ⇒ a generator proof, and a test that it holds** (D-27). Capture measured *first*, which is how it turned out that an unbraked shot cannot hold a ring at all. Never ship an objective the arena has not been shown to pay.
+- **Any performance claim ⇒ measure A/B in the same session on the same machine** before attributing a change (PERFORMANCE.md); absolute millisecond figures are machine-relative and have varied 5× between sessions on unchanged code.
 - Economy math (rewards, caps, pass multiplier) ⇒ pure functions in :core with direct cases; ProfileRepository stays a thin applier (not unit-tested; keep it logic-free).
 
 ## Manual QA (pre-release, on release APK)
