@@ -3,36 +3,56 @@
 ## Philosophy
 Everything that can corrupt a wallet, a replay, or a save is in :core and unit-tested on JVM. The :app module adds Robolectric smoke tests so no screen ships having never been rendered, plus direct tests of MatchController (the phase machine + duel-code flow). On-device QA (RELEASE.md) remains the final gate — these tests prove code *runs*, not that it *feels* right.
 
+The sharpest tests here are the ones that pin a **measurement the design rests on**, so that if the world changes underneath the design the build says so: no unbraked shot can hold a capture ring, no generated level falls to a near-straight shot, every gambit offered is one the arena can pay, the loop is a whole number of pulsar periods. Each of those is a sentence in the design docs that would quietly become false without the test.
+
+**Counts in this file are measured, not remembered.** Before the 0.14.0 audit this page claimed "78 tests across 8 files" when there were 104 across 19 classes in 12 files, listed no count at all for `:app`, and omitted 5 of its 11 classes and 4 of `:core`'s. A page that lists coverage goes stale silently, because nothing fails when it does — which is the whole reason the numbers here are now pulled from the JUnit XML rather than from memory.
+
 ## Run
-- `GG_SKIP_ANDROID=1 ./gradlew :core:test` — full engine suite, no SDK needed, ~90s incl. generator/solver work.
-- `./gradlew :app:testDebugUnitTest` — Robolectric screen smoke tests + MatchController tests (~15s, needs SDK).
-- `./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:lintDebug` — the full local gate; run before every push.
-- CI runs all of the above before building artifacts; failures upload test reports.
+- `GG_SKIP_ANDROID=1 ./gradlew :core:test` — full engine suite, no SDK needed. **27s** on a warm daemon, most of it generator/solver work.
+- `./gradlew :app:testDebugUnitTest` — Robolectric screen tests + MatchController tests. **34s**, needs the SDK.
+- `./gradlew :core:test :app:testDebugUnitTest :app:assembleRelease :app:lintDebug` then `python3 tools/verify_release_apk.py` — the full local gate; run before every push. ~2–3 minutes end to end.
+- CI runs that gate before building artifacts; failures upload test reports.
+- `./gradlew :core:ambienceWav` — **not a test**, and not part of any gate: it writes sample ambience pads to `core/build/ambience/*.wav` so the generated audio can be *heard* (docs/AUDIO.md §5).
 
-## :app suite (app/src/test)
-- `DuelFlowUiTest`: drives a real shot through the composed screen and asserts the hand-off moment — code duels surface "Shot locked in" with Share/Copy; hot-seat asks for the phone and **never** offers a code; tapping through hands control to player two. This is where the headline feature happens, so a crash here must not hide behind green unit tests.
-- `AppSmokeTest` (Robolectric, phone-sized viewport): Home renders every mode and routes correctly; Daily launch carries today's seed; Campaign gates locked content; Duel rejects garbage codes without navigating; Help and theme render. Note: use `assertExists()` for below-fold content — `assertIsDisplayed()` additionally requires viewport visibility and will fail on long screens.
-- `GameScreenTest`: the match screen — the game itself, and the hardest thing here to test, because its ambient animation means the composition **never goes idle**, so the default auto-advancing clock hangs. Pattern: `mainClock.autoAdvance = false` plus an `awaitText` pump that advances the clock while polling, since system generation also runs on a background dispatcher. Covers campaign/daily HUDs, the first-launch coaching hint appearing only for fresh profiles, and the corrupt-code refusal screen. **Copy this pattern for any future test touching the match screen.**
-- `ShopScreenTest`: proves the shop degrades gracefully with billing unconnected and ads disabled — earnable content renders, purchase and ad sections self-hide rather than showing stubs or dead buttons, Ad Pass holders see their state. This is what makes the app safe to ship before Console products exist.
-- `AccessibilityTest`: renders real screens at 1.8x-2.0x font scale (via a `LocalDensity` override) because fixed-height controls clip their labels at large system font sizes and nothing else catches it; asserts campaign levels expose spoken labels rather than bare star glyphs.
-- `MatchControllerTest`: campaign match drives to summary within its shot cap; **full code-duel round trip** (A fires → code emitted → B imports → verification passes → A's shot replays → seats/HP/hash agree on both devices); forged hash refused; hot-seat handoff alternates and never emits codes; aim nudges wrap/clamp; a feedback report's attached replay code verifies (guards the triage pipeline).
+The two suite timings were measured 2026-08-06 on this machine with a warm
+daemon. They are machine-relative like every other absolute number in this
+repo (PERFORMANCE.md) — the previous entry claimed ~90s and ~15s, and it is
+not knowable now whether that reflected a slower machine or a smaller suite.
+Treat them as orders of magnitude, and re-measure before quoting.
 
-## Current suite (core/src/test — 78 tests across 8 files)
-`CoreTests.kt` holds the original five classes; the rest have their own files.
-- `RngTest` — sequence determinism, mix stability, double range.
-- `DeterminismTest` — identical inputs ⇒ identical hash/ticks/hits; 0.1° delta ⇒ different hash; MatchReplayer reproduces live play (hash + HP); preset brake tick deterministic; **`everyTurnInputFieldChangesTheHash`** asserts TurnInput's exact field list and that every one of them moves the hash — the structural guard against an input escaping verification.
-- `ShareCodecTest` — roundtrip; decode-inside-chat-text; single-char corruption rejected (CRC); garbage rejected; superseded protocol versions refused.
-- `GeneratorTest` — d∈{0,2,4,6} solvable (rate>0), stations clear of bodies, in-bounds; generation value-deterministic; duel both-sides solvable.
-- `EndToEndPvpTest` — THE load-bearing test: play duel → encode → decodeAndVerify passes ⇒ same HP; forged hash rejected.
-- `DailyLogicTest` — relocation deterministic per hit-count, differs across counts.
-- `EconomyTest` — Profile JSON roundtrip incl. totals; corrupt save ⇒ default; reward sanity/bounds; the streak actually pays; hot-seat pays nothing; code duels are the biggest repeatable earn.
-- `MatchRulesTests.kt` — duel damage/winner edges, turn caps, star math, on hand-built specs.
-- `MovingBodyTest.kt` — comets and pulsars stay bit-deterministic as pure functions of the tick.
-- `PurposeTest.kt` — **no generated level falls to a near-straight shot**; the guard on 0.7.0's whole point.
-- `GambitTest.kt` — declarations are decided from the flight, a broken one wastes the shot, an edited one fails verification, and every offered gambit is one the arena can pay.
-- `ObjectiveTest.kt` — **no unbraked shot can hold the ring** (the measurement Capture is built on — if this ever fails, Capture has stopped requiring its burn), a braked one can, capture is won by dwell not by hitting anything, every capture system is provably winnable, and only the campaign asks for one.
-- `ShareCodeSizeTest.kt` — an opening challenge stays short and the longest legal duel still fits a message (1200-char budget).
-- `GeneratorSweepTest.kt` / `GenerationPerfTest.kt` — breadth across sectors/difficulties/dailies, and generation-cost guardrails.
+## :app suite (app/src/test — 58 tests across 11 classes)
+- `DuelFlowUiTest` (3): drives a real shot through the composed screen and asserts the hand-off moment — code duels surface "Shot locked in" with Share/Copy; hot-seat asks for the phone and **never** offers a code; tapping through hands control to player two. This is where the headline feature happens, so a crash here must not hide behind green unit tests.
+- `AppSmokeTest` (7) (Robolectric, phone-sized viewport): Home renders every mode and routes correctly; Daily launch carries today's seed; Campaign gates locked content; Duel rejects garbage codes without navigating; Help and theme render. Note: use `assertExists()` for below-fold content — `assertIsDisplayed()` additionally requires viewport visibility and will fail on long screens.
+- `GameScreenTest` (5): the match screen — the game itself, and the hardest thing here to test, because its ambient animation means the composition **never goes idle**, so the default auto-advancing clock hangs. Pattern: `mainClock.autoAdvance = false` plus an `awaitText` pump that advances the clock while polling, since system generation also runs on a background dispatcher. Covers campaign/daily HUDs, the first-launch coaching hint appearing only for fresh profiles, and the corrupt-code refusal screen. **Copy this pattern for any future test touching the match screen.**
+- `ShopScreenTest` (4): proves the shop degrades gracefully with billing unconnected and ads disabled — earnable content renders, purchase and ad sections self-hide rather than showing stubs or dead buttons, Ad Pass holders see their state. This is what makes the app safe to ship before Console products exist.
+- `AccessibilityTest` (4): renders real screens at 1.8x-2.0x font scale (via a `LocalDensity` override) because fixed-height controls clip their labels at large system font sizes and nothing else catches it; asserts campaign levels expose spoken labels rather than bare star glyphs, and that ambience is its own settings switch rather than a mode of the sound one.
+- `MatchControllerTest` (12): campaign match drives to summary within its shot cap; **full code-duel round trip** (A fires → code emitted → B imports → verification passes → A's shot replays → seats/HP/hash agree on both devices); forged hash refused; hot-seat handoff alternates and never emits codes; aim nudges wrap/clamp; a feedback report's attached replay code verifies (guards the triage pipeline).
+- `AnchorFlowTest` (6): placing, flipping and removing anchors through the composed screen, and the budget pips tracking it — the Stage A mechanic nothing else in the genre has.
+- `SeasonScreenTest` (4): the ladder scrolls to the player's tier, claiming pays out, a stale `seasonId` rolls over on read, and the pass offer hides itself when billing cannot serve it.
+- `WideScreenTest` (7): the same match at phone-landscape, tablet-landscape and tablet-portrait — the HUD must move into the letterbox bars and never cover the board (D-17).
+- `ShareMessagesTest` (4): the text that leaves the app into a stranger's chat must stand alone, and the store link must not ship as a placeholder before launch.
+- `AmbienceTrackTest` (2): a full session of ambience calls — and a session where the activity is destroyed mid-build — must never throw. Robolectric's audio stack is a hostile device, which is exactly what makes it the right place to check the "losing the drone is acceptable, crashing is not" guarantee.
+
+## :core suite (core/src/test — 104 tests across 19 classes in 12 files)
+`CoreTests.kt` holds the original seven classes; everything since has its own
+file. Counts below are per *class*, so they do not map one-to-one onto files.
+- `RngTest` (3) — sequence determinism, mix stability, double range.
+- `DeterminismTest` (5) — identical inputs ⇒ identical hash/ticks/hits; 0.1° delta ⇒ different hash; MatchReplayer reproduces live play (hash + HP); preset brake tick deterministic; **`everyTurnInputFieldChangesTheHash`** asserts TurnInput's exact field list and that every one of them moves the hash — the structural guard against an input escaping verification.
+- `ShareCodecTest` (6) — roundtrip; decode-inside-chat-text; single-char corruption rejected (CRC); garbage rejected; superseded protocol versions refused.
+- `GeneratorTest` (3) — d∈{0,2,4,6} solvable (rate>0), stations clear of bodies, in-bounds; generation value-deterministic; duel both-sides solvable.
+- `EndToEndPvpTest` (1) — THE load-bearing test: play duel → encode → decodeAndVerify passes ⇒ same HP; forged hash rejected.
+- `DailyLogicTest` (1) — relocation deterministic per hit-count, differs across counts.
+- `EconomyTest` (8) — Profile JSON roundtrip incl. totals; corrupt save ⇒ default; reward sanity/bounds; the streak actually pays; hot-seat pays nothing; code duels are the biggest repeatable earn.
+- `MatchRulesTests` (8) — duel damage/winner edges, turn caps, star math, on hand-built specs.
+- `MovingBodyTest` (11) — comets and pulsars stay bit-deterministic as pure functions of the tick.
+- `PurposeTest` (4) — **no generated level falls to a near-straight shot**; the guard on 0.7.0's whole point.
+- `GambitTest` (11) — declarations are decided from the flight, a broken one wastes the shot, an edited one fails verification, and every offered gambit is one the arena can pay.
+- `ObjectiveTest` (6) + `CourierTest` (3), both in `ObjectiveTest.kt` — **no unbraked shot can hold the ring** (the measurement Capture is built on — if this ever fails, Capture has stopped requiring its burn), a braked one can, capture is won by dwell not by hitting anything, every capture system is provably winnable, only the campaign asks for one; and for Courier, that the marked comet must be the one struck.
+- `ThreadObjectiveTest` (6) — **the order is the objective**: a flight that physically passes all three gates in the wrong sequence has threaded nothing, driven as an explicit case. Plus gate crossing by orientation sign (no tolerance constant), and independent re-proof of feasibility (D-31).
+- `SeasonTest` (9) — the tier curve is reachable inside a 28-day season by a modelled committed player (the first curve needed 69 days, and this test is what caught it), xp sources pay, and a rollover wipes tier/claims/pass.
+- `AmbienceTest` (8) — the audio claims, checked against rendered samples rather than intent: the seam is continuous, every interval is exact with no rounding, a pulsar's tremolo runs at its real gravity period (and the loop is a whole number of those — this fails loudly if `PULSAR_PERIOD` is ever retuned out of divisibility), the mix is normalized and DC-free, different systems differ, and the same system does not drift between visits.
+- `ShareCodeSizeTest` (2) — an opening challenge stays short and the longest legal duel still fits a message (1200-char budget).
+- `GeneratorSweepTest` (6) / `GenerationPerfTest` (3) — breadth across sectors/difficulties/dailies, and generation-cost guardrails.
 
 ## Extension rules (add tests WITH the change, same commit)
 - New projectile type ⇒ DeterminismTest case (preset inputs incl. its special mechanic) + damage case in a MatchEngine test + codec roundtrip with its typeId.
@@ -45,6 +65,8 @@ Everything that can corrupt a wallet, a replay, or a save is in :core and unit-t
 - **New Objective ⇒ a generator proof, and a test that it holds** (D-27). Capture measured *first*, which is how it turned out that an unbraked shot cannot hold a ring at all. Never ship an objective the arena has not been shown to pay.
 - **Any performance claim ⇒ measure A/B in the same session on the same machine** before attributing a change (PERFORMANCE.md); absolute millisecond figures are machine-relative and have varied 5× between sessions on unchanged code.
 - Economy math (rewards, caps, pass multiplier) ⇒ pure functions in :core with direct cases; ProfileRepository stays a thin applier (not unit-tested; keep it logic-free).
+- **Any audio change ⇒ check the samples, not the intent** (docs/AUDIO.md). Three things must survive: the seam stays continuous in the *rendered* buffer, every interval stays a whole cycle count (exact tuning and an exact loop are the same property here), and the loop stays a whole number of pulsar periods. That last one is a cross-module invariant — retuning `Tuning.PULSAR_PERIOD` for *gameplay* reasons silently breaks a *sonification* claim two files away, so `AmbienceTest` asserts the divisibility rather than trusting it. Then run `:core:ambienceWav` and actually listen: no assertion here can tell you the pad is pleasant.
+- **Anything that changes what the game claims ⇒ audit the docs in the same commit.** Every audit pass so far has found something real, and the file map has now gone stale *twice* — a code map decays as fast as the code moves, so re-check it whenever a file is added rather than treating it as cleared.
 
 ## Manual QA (pre-release, on release APK)
 Script lives in RELEASE.md §Release-build QA. Additions when ads/PGS land: reward grant exactly-once per view; cap resets at UTC midnight; Ad Pass purchase→×2 visible in summary; pass expiry deactivates (test card refund path).
