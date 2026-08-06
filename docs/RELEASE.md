@@ -19,7 +19,10 @@ still run the full test suite with `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
 
 `.github/workflows/android.yml` runs the tests and uploads three artifacts
 per push: debug APK, release APK (sideload testing), release AAB (Play
-upload). Grab them from the Actions run page.
+upload). Grab them from the Actions run page — since 0.9.3 that means the
+run attached to the **open pull request** (or a push to `main`), not a run on
+the feature branch: CI follows the PR flow rather than firing on every branch
+push, which was building everything twice (D-20).
 
 ## Signing
 

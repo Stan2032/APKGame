@@ -6,6 +6,11 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.9.3] — 2026-08-06
+- **CI stopped building everything twice.** With `main` now the default and changes arriving by pull request, a push to the feature branch fired both the `push` and the `pull_request` trigger — two identical ~5-minute builds, on different refs, so the concurrency group could not collapse them. CI now follows the flow it is meant to gate: pull requests verify the proposed change, pushes to `main` verify the merged result, and `workflow_dispatch` covers a branch that has no PR yet. The concurrency group keys on `head_ref || ref_name` so both event types resolve to the same plain branch name and a newer run cancels its predecessor.
+- Consequence worth knowing: **the APK/AAB artifacts now come from the run attached to the open PR**, not from a feature-branch push. README, RELEASE.md and the TODO's sideload step updated to say where to click.
+- D-20 rewritten now that the default branch actually moved: the repo has a PR flow for the first time (it was born empty, so its first push became both the default *and* the only branch, and a branch cannot open a PR into itself).
+
 ## [0.9.2] — 2026-08-06
 - **Second audit pass: the share-code size claims were wrong at the top end.** Docs said "~200-byte challenge codes" and "~30 bytes of header + 8 bytes per shot". Measured: the frame is 26 bytes, a turn is 10 (not 8 — v3 added anchors, v5 added the gambit), plus 5 per anchor. A code to *open* a duel is **52 characters**; the longest match the rules allow (30 turns, every anchor spent every turn) is **1039**. The size matters because the code is the netcode — it has to survive a human pasting it into a messenger — so it is now held by `ShareCodeSizeTest` against a 1200-character budget, chosen against the ~1530-character concatenated-SMS ceiling. Every protocol version so far has spent bytes; the headroom is what the next ones may spend.
 - Verified and left alone: all five IAP product ids, their grants (600/2200 stardust) and suggested prices match `Economy.Iap` exactly; all three Ad Pass perks are real in code (×2 on campaign/daily/duel payouts, ✦50/day, and every rewarded-ad surface gated behind `!adPassActive`).

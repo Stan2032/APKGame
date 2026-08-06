@@ -29,7 +29,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] **Feel question from 0.8.0**: `AIM_FULL_PULL` is 300 world units. Because `WorldTransform` is a *fit*, that is already a fixed fraction of the viewport — ~30% of the board's width in portrait, ~19% of its height in landscape — not a fixed pixel count, so it does not need converting to screen units. The only open question is whether that fraction is the right one, which is a thumb question, not a geometry one.
 - [ ] [H] **Re-test 0.7.0 levels**: is the straight shot really gone? Do levels now feel like they have a purpose — is there a visible route to find? Are they now too *hard* (bands were recalibrated from measurement, not feel)?
 - [ ] [H] **Judge the 0.4.0 changes on a device**: does the power meter read better than the old percentage? Are comets fun to lead, or frustrating? Is the Slingshot bonus paying out often enough to teach the whip-around habit? Does Home still feel plain?
-- [ ] [H] Sideload debug APK from latest green CI run → first real playtest. Report feel.
+- [ ] [H] Sideload debug APK → first real playtest. Report feel. Get it from the green CI run linked on the open PR (Actions → the run → Artifacts → `gravity-gambit-debug-apk`); since 0.9.3 CI runs on PRs and `main` rather than every branch push.
 - [ ] [H] Audition the synthesized SFX on-device (they've never been *heard*, only computed); report which need re-voicing → `tools/gen_sfx.py` params.
 - [ ] [A] Physics feel tuning pass after playtest feedback (docs/TUNING.md; likely: speeds, star mass, difficulty band slope).
 - [ ] [H] Create Play Console account ($25, ID verification — days of lead time; start now).

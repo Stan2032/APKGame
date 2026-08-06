@@ -1,15 +1,26 @@
 name: Android CI
 
+# Runs once per change, not twice. When this repo had a single branch that
+# was also its default, `push: ["**"]` was the only way to get any CI at all.
+# Now that changes reach `main` through pull requests (D-20), a push to a
+# feature branch with an open PR fired BOTH events — two identical ~5 minute
+# builds per push, on different refs, so the concurrency group below could not
+# collapse them. PRs verify the proposed change; pushes to main verify the
+# merged result. That is the whole surface.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  # Kept so a branch without a PR yet can still be checked deliberately.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # head_ref on pull_request events, ref_name on push: both resolve to a plain
+  # branch name, so a superseding run cancels its predecessor.
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

@@ -32,8 +32,9 @@ codes — no servers, no accounts, fully playable offline.
 ./gradlew :app:bundleRelease    # Play-ready AAB
 ```
 
-CI (GitHub Actions) runs all of the above on every push and uploads the
-APK/AAB artifacts. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
+CI (GitHub Actions) runs all of the above on every pull request and on
+pushes to `main`, and uploads the APK/AAB artifacts — download them from the
+run linked on the PR. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
 
 ## Publishing
 
