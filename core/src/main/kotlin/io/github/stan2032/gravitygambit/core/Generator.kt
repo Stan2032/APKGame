@@ -70,6 +70,21 @@ object SystemGenerator {
     const val CAPTURE_ANGLE_STEP = 60
     val CAPTURE_POWERS = intArrayOf(200, 350, 500)
     val CAPTURE_BURN_TICKS = intArrayOf(100, 140, 180, 220, 260)
+    /**
+     * Thread: how many gates, and how far apart along the source flight.
+     *
+     * Gates are hung on a trajectory the generator has already flown, rather
+     * than scattered and hoped over — scattering gives no reason to believe a
+     * single shot can take all of them in order, and "in order" is the puzzle.
+     * Spacing is in ticks so the gates sit at genuinely different phases of
+     * the flight instead of bunching where it happens to be slow.
+     */
+    const val THREAD_GATES = 3
+    const val THREAD_FIRST_TICK = 45
+    const val THREAD_TICK_GAP = 60
+    /** Enough flight left after the last gate that it is not the final frame. */
+    const val THREAD_MIN_TICKS = THREAD_FIRST_TICK + THREAD_TICK_GAP * THREAD_GATES
+
     /** Fraction of eligible campaign systems that ask for something else. */
     const val OBJECTIVE_CHANCE = 0.28
     /** Below this the field is too sparse for an objective worth flying. */
@@ -119,12 +134,22 @@ object SystemGenerator {
         // Collect only the objectives this system has been *proved* to pay,
         // then pick among them. Order is fixed so the choice stays a pure
         // function of the seed.
-        val offers = ArrayList<Pair<Objective, Int>>(2)
+        val offers = ArrayList<Pair<Objective, Int>>(3)
         captureCandidate(spec)?.let { if (proveCapture(spec, it)) offers.add(Objective.CAPTURE to it) }
         courierCandidate(spec)?.let { if (proveCourier(spec, it)) offers.add(Objective.COURIER to it) }
+        // Thread carries gates rather than a marked body, so it is offered
+        // with its own payload and rejoined below.
+        val gates = buildGates(spec, Rng(Rng.mix(seed, 0x9A7E5L)))
+            ?.let { g -> spec.copy(gates = g).takeIf { proveThread(it) }?.gates }
+        if (gates != null) offers.add(Objective.THREAD to -1)
+
         if (offers.isEmpty()) return spec
         val (objective, target) = offers[rng.nextInt(offers.size)]
-        return spec.copy(objectiveId = objective.id, markedBody = target)
+        return if (objective == Objective.THREAD) {
+            spec.copy(objectiveId = objective.id, gates = gates!!)
+        } else {
+            spec.copy(objectiveId = objective.id, markedBody = target)
+        }
     }
 
     /**
@@ -141,6 +166,86 @@ object SystemGenerator {
             if (b.mass > bestMass) { bestMass = b.mass; best = i }
         }
         return if (best >= 0) best else null
+    }
+
+    /**
+     * Build gates from a flight that actually happened.
+     *
+     * Sweeps for a shot that survives long enough, samples its position at
+     * spaced ticks, and hangs a gate across the path at each — perpendicular
+     * to the direction of travel, so flying *through* is the natural way to
+     * cross it. Returns null when no flight lasts long enough, which is a
+     * perfectly ordinary outcome on a tight field.
+     */
+    private fun buildGates(spec: SystemSpec, rng: Rng): List<Gate>? {
+        var bestPath: List<Pair<Double, Double>>? = null
+        var angle = 0
+        while (angle < 3600) {
+            for (power in GAMBIT_POWERS) {
+                val shot = LiveShot(
+                    spec.bodies, spec.stations, 0, angle, power,
+                    ProjectileType.STANDARD.id, maxTicks = Tuning.SOLVER_MAX_TICKS,
+                )
+                val path = ArrayList<Pair<Double, Double>>(THREAD_MIN_TICKS + 2)
+                while (!shot.done && path.size <= THREAD_MIN_TICKS + 1) {
+                    shot.step()
+                    var px = 0.0; var py = 0.0; var any = false
+                    shot.visitProjectiles { _, x, y, _ -> if (!any) { px = x; py = y; any = true } }
+                    if (!any) break
+                    path.add(px to py)
+                }
+                if (path.size > THREAD_MIN_TICKS) { bestPath = path; break }
+            }
+            if (bestPath != null) break
+            angle += CAPTURE_ANGLE_STEP
+        }
+        val path = bestPath ?: return null
+
+        val gates = ArrayList<Gate>(THREAD_GATES)
+        for (i in 0 until THREAD_GATES) {
+            val t = THREAD_FIRST_TICK + THREAD_TICK_GAP * i
+            val (cx, cy) = path[t]
+            val (px, py) = path[t - 4]
+            var dx = cx - px
+            var dy = cy - py
+            val len = Math.sqrt(dx * dx + dy * dy)
+            if (len < 1e-6) return null
+            dx /= len; dy /= len
+            // Perpendicular to travel, offset a little so the flight does not
+            // pass dead through the middle of every gate — that would read as
+            // a rail rather than a route.
+            val off = rng.range(-26.0, 26.0)
+            val mx = cx - dy * off
+            val my = cy + dx * off
+            val h = Tuning.GATE_HALF_WIDTH
+            gates.add(Gate(mx - dy * h, my + dx * h, mx + dy * h, my - dx * h))
+        }
+        return gates
+    }
+
+    /**
+     * Independent proof that the gates can be threaded in order.
+     *
+     * Deliberately does *not* trust the flight the gates were built from:
+     * "we derived these from a path" and "a player can find a path" are
+     * different claims, and only the second one matters (D-27).
+     */
+    fun proveThread(spec: SystemSpec): Boolean {
+        if (spec.gates.isEmpty()) return false
+        var angle = 0
+        while (angle < 3600) {
+            for (power in GAMBIT_POWERS) {
+                val res = LiveShot(
+                    spec.bodies, spec.stations, 0, angle, power,
+                    ProjectileType.STANDARD.id,
+                    maxTicks = Tuning.SOLVER_MAX_TICKS,
+                    gates = spec.gates,
+                ).runToCompletion()
+                if (res.gatesPassed >= spec.gates.size) return true
+            }
+            angle += GAMBIT_ANGLE_STEP
+        }
+        return false
     }
 
     /** The comet a Courier must strike; null if the system has none. */

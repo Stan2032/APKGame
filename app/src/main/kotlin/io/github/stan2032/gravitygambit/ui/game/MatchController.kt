@@ -117,6 +117,10 @@ class MatchController private constructor(
             return (run.toFloat() / Tuning.CAPTURE_TICKS).coerceIn(0f, 1f)
         }
 
+    /** Gates crossed so far by the shot in flight (or by the last one). */
+    val gatesPassed: Int
+        get() = liveShot?.gatesPassed ?: lastResult?.gatesPassed ?: 0
+
     /** Did the shot just resolved honour its declaration? Null if none was made. */
     val lastGambitKept: Boolean?
         get() {

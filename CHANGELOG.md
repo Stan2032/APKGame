@@ -6,6 +6,17 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-08-06
+- ⚠️ **Protocol v8.** A third objective adds gates to the spec, changing what a seed generates again, so v7 codes are refused.
+- **Thread: fly through the gates in order** — VISION Stage C is now complete (Capture, Courier, Thread).
+- **The order is the objective**, and it is enforced rather than implied: a flight that physically passes through all three gates in the wrong sequence has threaded nothing. A test drives exactly that case — same shot, same gates, listed in the order it cannot meet them — and requires it to lose.
+- **Gates are derived from a real trajectory, not scattered and hoped over.** Scattering gives no reason to believe one shot can take all three in sequence. The generator flies a path first, samples it at spaced ticks, and hangs each gate perpendicular to travel with a small random offset so the flight does not pass dead through every centre — that would read as a rail rather than a route. Feasibility is then **re-proved independently**, sweeping for any passing shot without reference to the source flight, because "we built these from a path" and "a player can find a path" are different claims. (D-31, D-27)
+- Crossing is decided by segment-vs-segment orientation signs: pure double arithmetic, no trigonometry, no tolerance constant, bit-identical everywhere. Strict inequalities mean a path that merely touches an endpoint does not count — a gate you grazed is not a gate you went through. Each crossing folds into the verification hash, so a replay agrees on gate progress.
+- Gates live in their own `SystemSpec.gates` rather than being forced through `markedBody`: a sequence is not a single target (D-28, as anticipated).
+- The next gate is lit and pulsing, passed gates go green and stay green, the rest are dim — a player who cannot see which gate is next is being asked to guess the puzzle rather than solve it. HUD counts "Gate 2 of 3" mid-flight.
+- Measured: 2 of 36 sampled levels became Thread; the campaign now runs ~17% non-Breach across all three objectives. Worst generation 374ms.
+- Tests: 151 (96 `:core` + 55 `:app`), 6 new.
+
 ## [0.12.2] — 2026-08-06
 - **Fifth audit pass: the store-facing copy.** This is the one category where being wrong has consequences outside the repo, and it had the worst finding yet:
   - **PLAY_STORE_CHECKLIST contradicted itself in the same file.** Its Technical Requirements section correctly documents the transitive INTERNET/ACCESS_NETWORK_STATE from Play Billing — and three sections later its rejection-traps table said **"No permissions at all"**, the exact claim D-3 exists to prevent, in the document a submitter reads while filling in the forms.

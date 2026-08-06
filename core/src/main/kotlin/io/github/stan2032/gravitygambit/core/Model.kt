@@ -69,6 +69,20 @@ data class Body(
     }
 }
 
+/**
+ * A gate the shot must fly through, for [Objective.THREAD].
+ *
+ * Stored as two endpoints rather than centre+angle so the simulation never
+ * needs trigonometry to place it — crossing is decided by pure double
+ * arithmetic, which keeps it inside the determinism contract without a
+ * `StrictMath` call in the hot loop. The generator does the trig once.
+ */
+@Serializable
+data class Gate(val x1: Double, val y1: Double, val x2: Double, val y2: Double) {
+    val midX: Double get() = (x1 + x2) / 2.0
+    val midY: Double get() = (y1 + y2) / 2.0
+}
+
 /** A player station. HP and ownership rules live in [MatchEngine]. */
 @Serializable
 data class Station(val x: Double, val y: Double, val owner: Int)
@@ -118,6 +132,12 @@ data class SystemSpec(
      * objective that needs a target does not add a third field.
      */
     val markedBody: Int = -1,
+    /**
+     * Ordered gates for [Objective.THREAD]. Its own field rather than being
+     * forced through [markedBody], because a sequence is not a single target
+     * (D-28) — and the *order* is the puzzle, so the list is meaningful.
+     */
+    val gates: List<Gate> = emptyList(),
 ) {
     val objective: Objective get() = Objective.byId(objectiveId)
 
@@ -263,6 +283,13 @@ object Tuning {
     const val CAPTURE_RING_INNER = 40.0
     const val CAPTURE_RING_OUTER = 190.0
     const val CAPTURE_TICKS = 240
+
+    /**
+     * Gate width for [Objective.THREAD]. Wide enough that a *family* of paths
+     * works rather than exactly one — gates are derived from a real trajectory,
+     * so a narrow gate would make the level a single-solution guess.
+     */
+    const val GATE_HALF_WIDTH = 78.0
 
     // ---- Gambit thresholds (docs/VISION.md §3.2; see Gambit.kt) ----
     /** "Featherweight": power must be under this, on the 0..1000 scale. */

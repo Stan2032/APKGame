@@ -49,7 +49,7 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
     val campaignWon: Boolean
         get() = when (spec.objective) {
             Objective.BREACH -> hp[1] <= 0
-            Objective.CAPTURE, Objective.COURIER -> objectiveMet
+            Objective.CAPTURE, Objective.COURIER, Objective.THREAD -> objectiveMet
         }
 
     /** DUEL: winning player index, or null (draw / not over). Shooter survives ties. */
@@ -106,6 +106,7 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         Objective.BREACH -> r.stationHits.any { it == 1 }
         Objective.CAPTURE -> r.captureDwell >= Tuning.CAPTURE_TICKS
         Objective.COURIER -> r.markedBodyHit
+        Objective.THREAD -> spec.gates.isNotEmpty() && r.gatesPassed >= spec.gates.size
     }
 
     fun beginShot(
@@ -121,7 +122,7 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         // Capture is impossible without a brake, so the objective issues the
         // shell rather than assuming the player has unlocked it.
         if (spec.objective.forcesRetro) ProjectileType.RETRO.id else typeId,
-        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId, spec.markedBody,
+        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId, spec.markedBody, spec.gates,
     )
 
     /** Apply a finished shot to match state. Must be called exactly once per shot. */

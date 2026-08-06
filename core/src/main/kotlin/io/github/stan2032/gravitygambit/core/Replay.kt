@@ -30,12 +30,13 @@ object ShareCodec {
      * v2 added moving bodies, pulsars and slingshot scoring; v3 added player
      * anchors to TurnInput; v4 changed what a seed generates (curated layouts,
      * longer solver horizon); v5 added the declared gambit, which is hashed as
-     * an input and can nullify a hit; v6 added objectives, and v7 added a second one
-     * (Courier), which again changes what a seed generates. Each changes what a code
+     * an input and can nullify a hit; v6 added objectives, v7 a second one
+     * (Courier) and v8 a third (Thread, which adds gates to the spec) —
+     * each again changing what a seed generates. Each changes what a code
      * means, so superseded versions are refused rather than silently
      * mis-verified (docs/TUNING.md §Versioning).
      */
-    private const val VERSION = 7
+    private const val VERSION = 8
 
     fun encode(record: MatchRecord): String {
         val anchorBytes = record.turns.sumOf { it.anchors.size * 5 }

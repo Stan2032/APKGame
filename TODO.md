@@ -18,10 +18,10 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [x] Stage B: Gambits — shipped 0.9.0 (four verifiable declarations, per-seat generator-proved menus, damage multiplier in duels, protocol v5).
 - [ ] [H] **Play the gambits**: is ×2.2 damage too swingy in a duel against 100 HP? Does "wasted shot" feel like a fair price or a punishment? Are four declarations enough variety, or does the menu go stale?
 - [ ] [A] Consider an unscored *Blind* practice toggle (D-23): the idea is good, only the *scoring* is unverifiable.
-- [◐] Stage C: objectives beyond destruction. **Capture (0.10.0) and Courier (0.11.0) shipped**; Thread still open.
+- [x] Stage C: objectives beyond destruction — **complete**. Capture (0.10.0), Courier (0.11.0), Thread (0.13.0). Every one generator-proved before it is offered.
 - [ ] [H] **Play a Courier system**: is leading a drifting comet satisfying or fiddly? Does the reticle make the target obvious?
 - [ ] [H] **Play a Capture system**: is the insertion burn readable, or does it feel like guesswork? Is 4 seconds the right hold? Does the ring communicate the rule without words?
-- [ ] [A] Stage C cont.: **Thread** (pass gates in order) — the last of the three, and the only one needing a new world entity. Needs its own generator proof (D-27), and its own spec field rather than `markedBody`, since gates are an ordered list (D-28).
+- [ ] [H] **Play a Thread system**: is the order readable from the lit gate alone? Is the 78-unit half-width gate too tight or too forgiving (D-31)?
 - [ ] [A] Stage D: Expedition run structure — replaces the sector checklist.
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
@@ -80,6 +80,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.13.0 **Stage C complete**: Thread (gates in order). Gates derived from a real trajectory rather than scattered, then re-proved independently (D-31); order enforced with a test that fails a flight passing all three out of sequence; crossings folded into the hash. Protocol v8.
 - [x] [A] v0.12.2 Audit pass 5 (store-facing): PLAY_STORE_CHECKLIST contradicted itself on permissions ("No permissions at all" three sections after correctly documenting them) and undercounted IAP products 3→6; STORE_LISTING still described the 0.2.0 game and quoted a duel-code length wrong at both ends; the "nothing you can buy wins a duel" line was false when written and is true now. Same numbers corrected in README, MULTIPLAYER, BillingManager and AI_LOOK_AVOIDANCE (whose own example of "be concrete" was the wrong figure). D-13 amended.
 - [x] [A] v0.12.1 Season track made visible: screen with both-lane 50-tier ladder auto-scrolled to the player's tier, Home entry, XP on the match summary, `season_pass` wired as a per-season consumable (consume-then-grant), offer hidden when billing cannot serve it, rollover applied on display.
 - [x] [A] v0.12.0 **Duels normalized** (D-29) after finding the game already sold PVP advantage — preview tier and Breaker damage both reached duels while the docs claimed fairness. Both players now get every shell and the top preview. **Season track** engine (D-30): 28 days, 50 tiers, XP from verified play, free + per-season paid lane, additive and retroactive, no tier-skip. Curve calibrated after the first attempt needed 69 days to finish a 28-day season.

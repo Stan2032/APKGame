@@ -44,6 +44,18 @@ enum class Objective(val id: Int, val displayName: String, val brief: String) {
      * ever assigned after a proof (D-27).
      */
     COURIER(2, "Courier", "Strike the drifting comet"),
+
+    /**
+     * Fly through every gate, in order. The *order* is the puzzle: a path that
+     * clips all three in the wrong sequence has not threaded anything.
+     *
+     * Gates are not scattered and hoped over. The generator finds a real
+     * trajectory first and hangs the gates on it, so a solution provably
+     * exists before the level is offered — then `proveThread` re-derives one
+     * independently, because "we built it from a path" and "a player can find
+     * a path" are different claims (D-27).
+     */
+    THREAD(3, "Thread", "Fly through the gates in order"),
     ;
 
     /** Capture is impossible without a brake, so it issues one. */

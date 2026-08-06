@@ -380,6 +380,9 @@ private fun MatchUI(
             // Comets drift, so they draw at their live simulation position —
             // exactly where the physics says they are.
             drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
+            if (c.spec.gates.isNotEmpty()) {
+                drawGates(c.spec.gates, c.gatesPassed, time, t, cch)
+            }
             if (c.spec.markedBody >= 0) {
                 val marked = c.spec.bodies[c.spec.markedBody]
                 val tick = c.liveShot?.tick ?: 0
@@ -555,12 +558,14 @@ private fun ColumnScope.HudContent(c: MatchController) {
             Spacer(Modifier.height(6.dp))
             val progress = c.captureProgress ?: 0f
             Text(
-                if (c.phase == Phase.FLYING && progress > 0f) {
-                    "Holding orbit… ${(progress * 100).toInt()}%"
-                } else {
-                    c.objective.brief
+                when {
+                    c.phase == Phase.FLYING && progress > 0f ->
+                        "Holding orbit… ${(progress * 100).toInt()}%"
+                    c.objective == Objective.THREAD && c.gatesPassed > 0 ->
+                        "Gate ${c.gatesPassed} of ${c.spec.gates.size}"
+                    else -> c.objective.brief
                 },
-                color = if (progress > 0f) StarYellow else AccentCyan,
+                color = if (progress > 0f || c.gatesPassed > 0) StarYellow else AccentCyan,
                 fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .background(PanelColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))

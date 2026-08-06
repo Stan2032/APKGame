@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.lerp
 import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.Body
 import io.github.stan2032.gravitygambit.core.BodyKind
+import io.github.stan2032.gravitygambit.core.Gate
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Rng
 import io.github.stan2032.gravitygambit.core.Station
@@ -599,6 +600,47 @@ fun DrawScope.drawCaptureRing(
             Offset(c.x + ca * (inner + (outer - inner) * 0.18f), c.y + sa * (inner + (outer - inner) * 0.18f)),
             strokeWidth = cache.thin,
         )
+    }
+}
+
+/**
+ * Thread gates. The *next* one is lit and the rest are dim, because the order
+ * is the objective — a player who cannot see which gate is next is being asked
+ * to guess the puzzle rather than solve it. Passed gates go green and stay
+ * green, so progress is legible mid-flight.
+ */
+fun DrawScope.drawGates(
+    gates: List<Gate>,
+    passed: Int,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    for (i in gates.indices) {
+        val g = gates[i]
+        val a = tr.o(g.x1, g.y1)
+        val b = tr.o(g.x2, g.y2)
+        val done = i < passed
+        val next = i == passed
+        val color = when {
+            done -> OkGreen
+            next -> StarYellow
+            else -> AccentCyan
+        }
+        val alpha = when {
+            done -> 0.55f
+            next -> 0.85f + 0.15f * sin(t * 3f)
+            else -> 0.30f
+        }
+        // Posts at the ends, opening between them: a gate reads as a gap.
+        drawLine(color.copy(alpha = alpha), a, b, strokeWidth = cache.thin)
+        val post = tr.r(9.0)
+        drawCircle(color.copy(alpha = alpha), post, a)
+        drawCircle(color.copy(alpha = alpha), post, b)
+        if (next) {
+            drawCircle(color.copy(alpha = 0.25f), post * 2.1f, a)
+            drawCircle(color.copy(alpha = 0.25f), post * 2.1f, b)
+        }
     }
 }
 

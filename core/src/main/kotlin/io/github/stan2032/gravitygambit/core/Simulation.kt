@@ -42,6 +42,8 @@ class ShotResult(
     val captureDwell: Int = 0,
     /** Did a projectile die on the marked body ([Objective.COURIER])? */
     val markedBodyHit: Boolean = false,
+    /** How many gates were crossed **in order** ([Objective.THREAD]). */
+    val gatesPassed: Int = 0,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -69,6 +71,11 @@ class LiveShot(
      * different objectives fly identically.
      */
     private val markedBody: Int = -1,
+    /**
+     * Ordered gates this shot is measured against ([Objective.THREAD]).
+     * Measurement only — a gate has no mass and never bends anything.
+     */
+    private val gates: List<Gate> = emptyList(),
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -114,6 +121,8 @@ class LiveShot(
     private var detourSampled = false
     /** Set when a projectile dies on the marked body ([Objective.COURIER]). */
     private var markedHit = false
+    /** Index of the next gate to cross; also the count already crossed. */
+    var gatesPassed = 0; private set
     /** Live, for the HUD: how long the current unbroken ring run has lasted. */
     var captureRun = 0; private set
     private var captureBest = 0
@@ -195,7 +204,10 @@ class LiveShot(
         var anyAlive = false
         for (p in projs) {
             if (!p.alive) continue
+            val fromX = p.px
+            val fromY = p.py
             integrate(p)
+            if (gatesPassed < gates.size) sampleGate(fromX, fromY, p.px, p.py)
             collide(p)
             if (p.alive) anyAlive = true
         }
@@ -310,6 +322,33 @@ class LiveShot(
             captureRun = 0
         }
     }
+
+    /**
+     * Did this tick's movement cross the *next* gate? Strictly in order: a
+     * flight that clips gate 3 before gate 2 has threaded nothing, which is
+     * the entire point of the objective.
+     *
+     * Segment-vs-segment by orientation sign, so it is pure double arithmetic
+     * — no trigonometry, no tolerance constant, and bit-identical everywhere.
+     * Strict inequalities mean a path that merely touches an endpoint does not
+     * count; a gate you grazed is not a gate you went through.
+     */
+    private fun sampleGate(fromX: Double, fromY: Double, toX: Double, toY: Double) {
+        val g = gates[gatesPassed]
+        val d1 = cross(g.x1, g.y1, g.x2, g.y2, fromX, fromY)
+        val d2 = cross(g.x1, g.y1, g.x2, g.y2, toX, toY)
+        if (!((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0))) return
+        val d3 = cross(fromX, fromY, toX, toY, g.x1, g.y1)
+        val d4 = cross(fromX, fromY, toX, toY, g.x2, g.y2)
+        if (!((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))) return
+        gatesPassed++
+        foldHash(6L); foldHash(gatesPassed.toLong()); foldHash(tick.toLong())
+    }
+
+    /** Sign of the cross product (b-a) x (p-a). */
+    private fun cross(
+        ax: Double, ay: Double, bx: Double, by: Double, px: Double, py: Double,
+    ): Double = (bx - ax) * (py - ay) - (by - ay) * (px - ax)
 
     private fun collide(p: Proj) {
         // Bodies (repulsors are intangible anomalies — field only).
@@ -433,6 +472,7 @@ class LiveShot(
             maxDetour = if (!detourSampled) 0.0 else StrictMath.max(-detourMin, detourMax),
             captureDwell = captureBest,
             markedBodyHit = markedHit,
+            gatesPassed = gatesPassed,
         )
     }
 
