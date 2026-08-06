@@ -48,9 +48,37 @@ rejected by Play). For release:
    ./gradlew :app:bundleRelease
    ```
 
-   In GitHub Actions: store the keystore as a base64 secret, decode it in a
-   step, then export the same four variables. (Deliberately not wired into
-   the public workflow until secrets exist.)
+   **In GitHub Actions this is already wired** (`.github/workflows/android.yml`)
+   and switches itself on the moment the secrets exist — there is no flag to
+   remember and no workflow edit to make. Add these four **repository
+   secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Value |
+   |---|---|
+   | `GG_KEYSTORE_BASE64` | `base64 -w0 upload-keystore.jks` (one line, no newlines) |
+   | `GG_KEYSTORE_PASSWORD` | the store password |
+   | `GG_KEY_ALIAS` | `upload` |
+   | `GG_KEY_PASSWORD` | the key password |
+
+   On macOS use `base64 -i upload-keystore.jks | tr -d '\n'` — there is no
+   `-w0` there, and a keystore with embedded newlines decodes to garbage.
+
+   What the workflow does with them: decodes the keystore into `RUNNER_TEMP`
+   (outside the workspace, so it can never be swept into an artifact upload),
+   exports the same four variables the local build reads, shreds the file in
+   a step that runs even when the build fails, and passes
+   `--require-upload-key` to the APK audit so a signed repo can never hand
+   back a debug-key artifact that merely *looks* upload-ready.
+
+   **Until those secrets exist, CI still builds everything** — it just signs
+   with the debug key, and names the bundle artifact
+   `gravity-gambit-release-aab-DEBUGKEY-DO-NOT-UPLOAD`. That name is the
+   point: a debug-signed bundle is indistinguishable from a real one in a
+   downloads folder, and finding out from a Play Console rejection costs an
+   hour spent doubting the build rather than the key.
+
+   To check any local build: `python3 tools/verify_release_apk.py` prints
+   `signed by:` on every run.
 
 3. First upload to Play Console → accept **Play App Signing** (Google holds
    the app signing key; your keystore is the *upload* key — if it leaks or

@@ -90,9 +90,31 @@ The repo already builds a Play-ready `.aab`; it just needs your signing key.
    Output: `app/build/outputs/bundle/release/app-release.aab`
 4. Sanity-check the artifact before uploading:
    ```bash
-   ./gradlew :app:assembleRelease && python3 tools/verify_release_apk.py
+   ./gradlew :app:assembleRelease && python3 tools/verify_release_apk.py --require-upload-key
    ```
-   (Alternatively grab the AAB from any green CI run — see `RELEASE.md`.)
+   The line to read is **`signed by:`**. If it says `DEBUG KEY`, the four
+   variables above did not reach Gradle — the build falls back to the debug
+   key on purpose so release builds stay installable for testing, which is
+   exactly what makes a debug-signed bundle so easy to upload by mistake.
+   With `--require-upload-key` the check fails rather than letting you find
+   out from a Console rejection.
+
+5. **While you have the keystore open, add the CI secrets** — it takes two
+   minutes now and saves repeating steps 3–4 by hand for every future
+   release. Repo → Settings → Secrets and variables → Actions → New
+   repository secret, four of them:
+
+   | Secret | Value |
+   |---|---|
+   | `GG_KEYSTORE_BASE64` | `base64 -w0 upload-keystore.jks` (macOS: `base64 -i upload-keystore.jks \| tr -d '\n'`) |
+   | `GG_KEYSTORE_PASSWORD` | store password |
+   | `GG_KEY_ALIAS` | `upload` |
+   | `GG_KEY_PASSWORD` | key password |
+
+   Nothing else to change: CI detects them and signs from the next run on.
+   Until then it labels the bundle artifact
+   `gravity-gambit-release-aab-DEBUGKEY-DO-NOT-UPLOAD`, so you can always
+   tell from the download which one you are holding.
 
 ---
 

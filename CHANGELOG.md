@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.15.1] — 2026-08-06
+- **CI release signing, wired and self-activating.** It was the last agent-doable item on the launch path, and it was marked "blocked on the keystore existing" — which was true of *using* it and not of *building* it. Add four repository secrets and the next run signs; there is no flag to remember and no workflow edit to make later, which is the failure this shape is designed against.
+- **The real hazard here is not a broken build, it is a plausible one.** `app/build.gradle.kts` deliberately falls back to the debug key so release builds stay installable for testing — which means a debug-signed `.aab` is byte-for-byte as convincing as a real one in a downloads folder, right up until Play refuses it and you spend an hour doubting the build rather than the key. Three defences, all cheap:
+  - `verify_release_apk.py` now prints **`signed by:`** on every run, naming the certificate, and says plainly that a debug key is "installable for testing, rejected by Play".
+  - A new `--require-upload-key` flag turns that into a failure. CI passes it **only when it actually signed**, so an unsigned repo stays green while a signed one can never hand back a debug-key artifact that merely looks upload-ready.
+  - The bundle artifact is named `gravity-gambit-release-aab-DEBUGKEY-DO-NOT-UPLOAD` when unsigned. The *name* carries the warning, because that is the one piece of metadata that survives being downloaded.
+- Keystore handling: decoded into `RUNNER_TEMP` rather than the workspace, so it cannot be swept into an artifact upload; `chmod 600`; shredded in a step that runs even when the build fails.
+- LAUNCH_GUIDE Phase 3 gains the secret-setup step *at the point the keystore is already open* — the two minutes are only cheap there — with the macOS `base64` caveat spelled out, since `-w0` does not exist there and a keystore with embedded newlines decodes to garbage.
+
 ## [0.15.0] — 2026-08-06
 - **Expedition — the run mode. Engine and economy; the UI is the next unit.** VISION Stage D, and the first mode where you can *lose something*. The campaign is a list: you can put it down after any level and lose nothing, which is what makes it a good teacher and a poor reason to open the app again.
 - **Additive, exactly as D-32b directed — and the shape follows from that.** A leg is an ordinary `GameMode.CAMPAIGN` match, so Expedition is the state carried *between* existing matches. Nothing here touches `MatchEngine`, `ShareCodec` or the determinism contract: **a whole new mode cost the replay protocol nothing, and needed no version bump.** It also leaves D-27 ("objectives are campaign-only") true by construction — an Expedition leg *is* a campaign match, so it is entitled to Capture, Courier and Thread without a special case.
