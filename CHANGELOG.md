@@ -6,6 +6,17 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-08-06
+- **Third audit pass: TUNING.md was describing a game two protocol versions old.** This is the file whose entire purpose is to be an accurate map of the knobs, so drift here is worse than drift anywhere else — someone tuning from it would have been tuning constants that no longer exist. Corrected against the code:
+  - **Difficulty bands** still read `max(8e-4, 0.03×0.72^d)` / `min(0.28, 14×minRate)` / 600 solver ticks — all superseded in 0.7.0. (I corrected the same stale band in DESIGN.md in 0.9.1 and missed this copy of it; the "too hard? raise 0.72→0.78" advice pointed at a constant that isn't there.) Now the live `max(6e-4, 0.019×0.80^d)`, `min(0.30, 22×minRate)`, 950 ticks, with the recalibration reason attached.
+  - **Star rule** still read "1/2/≥3 shots = ★★★/★★/★", which has been wrong since 0.7.0 added the worked-the-field requirement and 0.9.0 made a hit inside a broken declaration incapable of being the winning shot.
+  - **Style bonuses** listed three of five: Slingshot and Comet strike (both 0.4.0) were missing, and comet pays whether or not the shot connects, which nothing said.
+  - **Bodies** described a scatter-and-reject generator that 0.7.0 replaced with curated keeper/shepherd placement, and omitted comets and pulsars entirely.
+  - **Daily payout** omitted the streak multiplier added in 0.9.1, and listed a hot-seat duel payout that is 0.
+  - Added the two sections that never existed: **Gambits** (thresholds, why 120 not 70, the per-seat feasibility warning) and **Anchors**.
+- Replaced the quoted solver cost with a pointer to measure, since absolute timings are machine-relative (PERFORMANCE.md).
+- ARCHITECTURE.md's file map checked file-by-file against the source tree: complete, no drift. `MatchController`'s entry gained `selectedGambit`.
+
 ## [0.9.3] — 2026-08-06
 - **CI stopped building everything twice.** With `main` now the default and changes arriving by pull request, a push to the feature branch fired both the `push` and the `pull_request` trigger — two identical ~5-minute builds, on different refs, so the concurrency group could not collapse them. CI now follows the flow it is meant to gate: pull requests verify the proposed change, pushes to `main` verify the merged result, and `workflow_dispatch` covers a branch that has no PR yet. The concurrency group keys on `head_ref || ref_name` so both event types resolve to the same plain branch name and a newer run cancels its predecessor.
 - Consequence worth knowing: **the APK/AAB artifacts now come from the run attached to the open PR**, not from a feature-branch push. README, RELEASE.md and the TODO's sideload step updated to say where to click.
