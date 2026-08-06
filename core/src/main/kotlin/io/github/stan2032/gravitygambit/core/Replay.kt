@@ -24,11 +24,12 @@ object ShareCodec {
 
     /**
      * v2 added moving bodies, pulsars and slingshot scoring; v3 added player
-     * anchors to TurnInput. Both change what a code means, so superseded
+     * anchors to TurnInput; v4 changed what a seed generates (curated layouts,
+     * longer solver horizon). Both change what a code means, so superseded
      * versions are refused rather than silently mis-verified
      * (docs/TUNING.md §Versioning).
      */
-    private const val VERSION = 3
+    private const val VERSION = 4
 
     fun encode(record: MatchRecord): String {
         val anchorBytes = record.turns.sumOf { it.anchors.size * 5 }
