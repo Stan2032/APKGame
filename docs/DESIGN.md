@@ -76,8 +76,11 @@ stardust and teaches advanced play by naming it.
 - **Duels (PVP)** — same generated system, alternating shots, 100 HP
   stations, friendly fire on.
   - *Hot-seat*: two players, one phone. Party mode.
-  - *Code duels*: asynchronous PVP over any messenger via ~200-byte
-    challenge codes. No servers, no accounts (see docs/MULTIPLAYER.md).
+  - *Code duels*: asynchronous PVP over any messenger via challenge codes —
+    **52 characters** to open one, growing with the match because the whole
+    thing is re-encoded every turn (1039 at the 30-turn cap with every anchor
+    spent; measured, and held there by `ShareCodeSizeTest`). No servers, no
+    accounts (see docs/MULTIPLAYER.md).
 
 **Interlocks** (each checked against the code, 2026-08-06 — two of the three
 this section used to claim were not true):

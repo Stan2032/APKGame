@@ -6,6 +6,12 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-08-06
+- **Second audit pass: the share-code size claims were wrong at the top end.** Docs said "~200-byte challenge codes" and "~30 bytes of header + 8 bytes per shot". Measured: the frame is 26 bytes, a turn is 10 (not 8 — v3 added anchors, v5 added the gambit), plus 5 per anchor. A code to *open* a duel is **52 characters**; the longest match the rules allow (30 turns, every anchor spent every turn) is **1039**. The size matters because the code is the netcode — it has to survive a human pasting it into a messenger — so it is now held by `ShareCodeSizeTest` against a 1200-character budget, chosen against the ~1530-character concatenated-SMS ceiling. Every protocol version so far has spent bytes; the headroom is what the next ones may spend.
+- Verified and left alone: all five IAP product ids, their grants (600/2200 stardust) and suggested prices match `Economy.Iap` exactly; all three Ad Pass perks are real in code (×2 on campaign/daily/duel payouts, ✦50/day, and every rewarded-ad surface gated behind `!adPassActive`).
+- `main` created at the tip of the session branch so the repo can finally have a PR flow — the repo was born empty, so its first push became both the default *and* the only branch, and a branch cannot open a PR into itself. D-20 rewritten to record what actually happened and what remains owner-only (the default-branch switch is a repo setting no agent can make).
+- Tests: 121 (71 `:core` + 50 `:app`), 2 new.
+
 ## [0.9.1] — 2026-08-06
 - **Audited DESIGN.md's mode-interlock claims against the code. Two of the three were false.**
   - *"Daily streak → cosmetic economy"* — the streak was rendered on the home screen and **read by nothing**. It now multiplies the daily payout: ×1.2 at three days, ×1.4 at seven, ×1.6 at fourteen, then capped. A streak should reward coming back, not compound until it is the only sane way to earn. It pays the streak the run *establishes*, not the one it started from, so the multiplier matches the number the player is looking at.

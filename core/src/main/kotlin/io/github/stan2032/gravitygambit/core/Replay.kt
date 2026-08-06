@@ -7,8 +7,12 @@ import java.util.zip.CRC32
 /**
  * A complete, self-contained match record: everything needed to reconstruct and
  * VERIFY a match on any device. This is the entire multiplayer "protocol" —
- * ~30 bytes + 8 bytes per turn — small enough to travel through any messenger,
- * which is how PVP works with zero servers (see docs/MULTIPLAYER.md).
+ * 26 bytes of frame + 10 bytes per turn + 5 per anchor, base64url'd. Measured
+ * 2026-08-06: 52 characters for a plain opening challenge, 1039 for the
+ * longest match the rules allow (30 turns, every anchor spent). Small enough
+ * to travel through any messenger, which is how PVP works with zero servers
+ * (docs/MULTIPLAYER.md). `ShareCodeSizeTest` holds it to that budget, because
+ * every protocol version so far has spent bytes.
  */
 data class MatchRecord(
     val mode: Int,
