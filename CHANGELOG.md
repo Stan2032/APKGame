@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-08-06
+- **The season track is now visible and playable**, not just computed. A track nobody watches filling is the same failure as the daily streak that nothing read.
+  - **Season screen**: tier, XP bar, days remaining, and a 50-tier horizontal ladder showing *both* lanes at every tier — the paid lane is displayed whether or not it is owned, because hiding the offer would make the purchase a guess. The ladder auto-scrolls to the player's own tier, since a 50-tier list opened at tier 1 says nothing about where you are.
+  - **Home entry** above the shop, showing tier and days left, because the season is the thing that keeps paying and should be what a returning player sees first.
+  - **Match summary** shows `+N season XP · tier T` beside the stardust, derived from the repository's own write rather than plumbed back through three record methods.
+- `season_pass` wired through `BillingManager` as a **consumable** — deliberately, since it is bought per season and consuming it is what lets the same product be purchased again next season. Consume-then-grant, the same redelivery-safe order as the stardust packs.
+- The pass offer hides entirely when billing cannot serve it, matching the shop's posture: no dead buttons before the Console products exist.
+- Season state rolls over **on display as well as on write**, so a player returning after a boundary never opens the screen to last season's tier.
+- Tests: 145 (90 `:core` + 55 `:app`), 4 new. One of them caught its own bad assumption: it assumed a `seasonId = 0` save was stale, when today's date genuinely falls in season 0 — the test was wrong, not the code.
+
 ## [0.12.0] — 2026-08-06
 - **Duels normalize: both players are issued every shell and the top preview.** An audit of the monetization question found the game was *already* selling PVP advantage while DESIGN.md claimed it was not — the preview upgrade (✦250/✦600) tripled look-ahead **in duels**, and Breaker's 50 damage against Bolt's 34 sat behind ✦900 of purchasable stardust.
   - The deeper reason this had to change: **this game cannot referee loadouts.** A duel travels as `(seed, turns, hash)` and the receiver re-simulates it, so it can verify the *physics* but never the *shopping* — a claimed loadout is taken on trust, which is the hole that got the Blind gambit cut, except this one decides who wins. With no matchmaking there is no ladder to absorb a paid edge either; it just breaks the match your friend sent you.

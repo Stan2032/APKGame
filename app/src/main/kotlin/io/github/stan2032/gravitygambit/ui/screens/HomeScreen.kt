@@ -38,6 +38,7 @@ import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.AccentPurple
 import io.github.stan2032.gravitygambit.ui.GameLaunch
+import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.ui.Nav
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
@@ -101,6 +102,20 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
             accent = Color(0xFFFF8A65),
         ) { onNavigate(Nav.Duel) }
 
+        // The season sits above the shop: it is the thing that keeps paying,
+        // and it should be the thing a returning player sees first.
+        val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+        val season = profile.rolledIntoSeason(today)
+        Entry(
+            glyph = Glyph.TRACK,
+            title = "Season ${season.seasonId + 1}",
+            detail = "Tier ${season.seasonTier} of ${Season.TIERS} · " +
+                "${Season.daysLeft(today)} days left",
+            accent = StarYellow,
+        ) { onNavigate(Nav.Season) }
+
+        Spacer(Modifier.height(10.dp))
+
         Entry(
             glyph = Glyph.SPARK,
             title = "Outfitter",
@@ -118,7 +133,7 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
     }
 }
 
-private enum class Glyph { ORBIT, COMET, DUEL, SPARK }
+private enum class Glyph { ORBIT, COMET, DUEL, SPARK, TRACK }
 
 @Composable
 private fun Entry(
@@ -196,6 +211,20 @@ private fun GlyphMark(glyph: Glyph, accent: Color) {
                     drawLine(accent.copy(alpha = 0.7f), c - Offset(dx, dy), c + Offset(dx, dy), 1.5f)
                 }
                 drawCircle(Color.White, r * 0.22f, c)
+            }
+            // A ladder climbing away: rungs that shorten with distance, which
+            // is what a track of 50 tiers looks like from tier one.
+            Glyph.TRACK -> {
+                for (i in 0 until 4) {
+                    val t = i / 3f
+                    val y = c.y + r * (0.75f - 1.5f * t)
+                    val half = r * (0.85f - 0.45f * t)
+                    drawLine(
+                        accent.copy(alpha = 0.35f + 0.55f * t),
+                        Offset(c.x - half, y), Offset(c.x + half, y), 2f,
+                    )
+                }
+                drawCircle(Color.White, r * 0.16f, Offset(c.x, c.y - r * 0.75f))
             }
         }
     }

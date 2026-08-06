@@ -162,6 +162,24 @@ class BillingManager(
                 repo.setAdPassActive(true)
                 continue
             }
+            if (productId == Iap.SEASON_PASS) {
+                // Consumable, deliberately: the pass is bought per season, so
+                // consuming it is what lets the same product be bought again
+                // when the next one starts. Consume first, grant after — a
+                // failed consume means Play redelivers rather than us
+                // double-granting, same rule as the stardust packs.
+                val consume = ConsumeParams.newBuilder()
+                    .setPurchaseToken(purchase.purchaseToken)
+                    .build()
+                client.consumeAsync(consume) { r, _ ->
+                    if (r.responseCode == BillingClient.BillingResponseCode.OK) {
+                        repo.grantSeasonPass(
+                            java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+                        )
+                    }
+                }
+                continue
+            }
             val grant = Iap.CONSUMABLE_GRANTS[productId]
             if (grant != null) {
                 // Consumable: consume first, then grant — a failed consume means

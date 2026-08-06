@@ -191,6 +191,8 @@ class MatchController private constructor(
 
     var rewardsApplied = false
     var dustEarned by mutableStateOf(0)
+    /** Season XP this match added, for the summary to show. */
+    var seasonXpEarned by mutableStateOf(0)
 
     private val replayQueue = ArrayDeque(pendingReplays)
 

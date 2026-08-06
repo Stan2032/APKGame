@@ -26,10 +26,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
 
-## SEASON TRACK (0.12.0 — engine landed, UI outstanding)
-- [ ] [A] **Season screen**: tier ladder with both lanes, XP bar, days-left, claim-all button, pass purchase entry. The rules and rewards are done and tested in `:core`; this is presentation.
-- [ ] [A] Wire `season_pass` through `BillingManager` (consumable; on purchase call `repo.grantSeasonPass(epochDay)`; it is consumed so it can be re-bought next season).
-- [ ] [A] Surface XP earned on the match summary, next to stardust — a track nobody sees filling is a track nobody plays for.
+## SEASON TRACK (shipped 0.12.0 engine / 0.12.1 UI)
+- [x] [A] Season screen, Home entry, XP on the match summary, `season_pass` billing wiring. v0.12.1.
 - [ ] [H] Create the `season_pass` product in Play Console alongside the others (docs/MONETIZATION.md).
 - [ ] [H] **Judge the season pace on a device** once the screen exists: does tier 1→5 land fast enough to feel real? The curve is calibrated against a *modelled* play rate, which is the best I can do without hands.
 - [ ] [A] Consider a second premium lane theme per season (VISION Stage D's Expedition would be the natural source of season-specific rewards).
@@ -82,6 +80,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 
 ## ARCHIVE (completed — grows forever)
 ### 2026-08-06
+- [x] [A] v0.12.1 Season track made visible: screen with both-lane 50-tier ladder auto-scrolled to the player's tier, Home entry, XP on the match summary, `season_pass` wired as a per-season consumable (consume-then-grant), offer hidden when billing cannot serve it, rollover applied on display.
 - [x] [A] v0.12.0 **Duels normalized** (D-29) after finding the game already sold PVP advantage — preview tier and Breaker damage both reached duels while the docs claimed fairness. Both players now get every shell and the top preview. **Season track** engine (D-30): 28 days, 50 tiers, XP from verified play, free + per-season paid lane, additive and retroactive, no tier-skip. Curve calibrated after the first attempt needed 69 days to finish a 28-day season.
 - [x] [A] v0.11.0 Stage C second objective: **Courier** (strike the marked drifting comet). Measured first again — only 11 of 36 levels carry a comet and two of those cannot be hit, so `proveCourier` gates it. Generalised `captureBody` → `markedBody` and made objective assignment pick among all proved-payable objectives (D-28), so the next objective costs an enum entry rather than three new branches. Protocol v7.
 - [x] [A] v0.10.1 Audit pass 4: DETERMINISM.md's hashed-content list was four protocol versions stale and described the removed frame-counted pacing as the contract; now enforced structurally by `everyTurnInputFieldChangesTheHash` (asserts TurnInput's exact field list). TESTING.md rewritten against the real tree (1 of 8 files listed) with the measured lessons as extension rules. Test file split three ways so names mean what they say.

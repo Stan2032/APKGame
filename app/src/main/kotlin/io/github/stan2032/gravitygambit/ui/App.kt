@@ -22,6 +22,7 @@ import io.github.stan2032.gravitygambit.ui.screens.CampaignScreen
 import io.github.stan2032.gravitygambit.ui.screens.DuelScreen
 import io.github.stan2032.gravitygambit.ui.screens.HelpScreen
 import io.github.stan2032.gravitygambit.ui.screens.HomeScreen
+import io.github.stan2032.gravitygambit.ui.screens.SeasonScreen
 import io.github.stan2032.gravitygambit.ui.screens.SettingsScreen
 import io.github.stan2032.gravitygambit.ui.screens.ShopScreen
 
@@ -44,6 +45,7 @@ sealed interface Nav {
     data object Home : Nav
     data object Campaign : Nav
     data object Duel : Nav
+    data object Season : Nav
     data object Shop : Nav
     data object Settings : Nav
     data object Help : Nav
@@ -77,6 +79,10 @@ fun App(
             is Nav.Home -> HomeScreen(profile = profile, onNavigate = { nav = it })
             is Nav.Campaign -> CampaignScreen(profile = profile, onNavigate = { nav = it })
             is Nav.Duel -> DuelScreen(profile = profile, onNavigate = { nav = it })
+            is Nav.Season -> SeasonScreen(
+                profile = profile, repo = repo, billing = billing,
+                onNavigate = { nav = it },
+            )
             is Nav.Shop -> ShopScreen(
                 profile = profile, repo = repo, billing = billing, ads = ads,
                 onNavigate = { nav = it },

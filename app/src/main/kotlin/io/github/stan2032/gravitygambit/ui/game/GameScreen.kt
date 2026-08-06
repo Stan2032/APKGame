@@ -231,6 +231,9 @@ private fun MatchUI(
             // Season XP rides on the same handshake as stardust, so a match
             // can never pay one and not the other.
             val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+            // Baseline through the rollover: the first match of a new season
+            // starts from that season's zero, not from last season's total.
+            val xpBefore = profile.rolledIntoSeason(today).seasonXp
             c.dustEarned = when (c.launch.mode) {
                 GameMode.CAMPAIGN -> repo.recordCampaign(
                     c.launch.sector, c.launch.level, c.launch.difficulty, s.stars,
@@ -251,6 +254,9 @@ private fun MatchUI(
                     } else 0
                 }
             }
+            // Derived rather than plumbed back through three record methods:
+            // the repository already wrote it, so read the difference.
+            c.seasonXpEarned = (repo.profile.value.seasonXp - xpBefore).coerceAtLeast(0)
         }
     }
 
@@ -1040,6 +1046,17 @@ private fun SummaryOverlay(
                 "+${c.dustEarned} ✦ stardust" +
                     if (profile.adPassActive) "  (Ad Pass ×2)" else "",
                 color = StarYellow, fontSize = 14.sp,
+            )
+        }
+        // A track nobody watches filling is a track nobody plays for, so the
+        // season moves in the same breath as the stardust does.
+        if (c.seasonXpEarned > 0) {
+            val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+            val season = profile.rolledIntoSeason(today)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "+${c.seasonXpEarned} season XP · tier ${season.seasonTier}",
+                color = AccentCyan, fontSize = 13.sp,
             )
         }
         // Opt-in reward doubling: appears only when an ad is actually loaded,
