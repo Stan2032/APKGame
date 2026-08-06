@@ -28,7 +28,11 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] **Play a Courier system**: is leading a drifting comet satisfying or fiddly? Does the reticle make the target obvious?
 - [ ] [H] **Play a Capture system**: is the insertion burn readable, or does it feel like guesswork? Is 4 seconds the right hold? Does the ring communicate the rule without words?
 - [ ] [H] **Play a Thread system**: is the order readable from the lit gate alone? Is the 78-unit half-width gate too tight or too forgiving (D-31)?
-- [ ] [A] Stage D: Expedition run structure — **additive, alongside the campaign** (D-32b), not a replacement. Chained systems, route choice, mutators, a meta-currency that unlocks starting options.
+- [x] [A] Stage D **engine**: Expedition run structure — additive per D-32b. Fuel economy, three routes, run-rule mutators, provable termination. A leg is an ordinary campaign match, so the mode cost the replay protocol nothing. v0.15.0, D-34.
+- [ ] [A] **Stage D UI: the Expedition screen** — junction (three route cards with route/condition/difficulty and what each pays), the fuel readout as the run's heartbeat, the run summary, and the Home entry. The engine is done and tested; nothing is playable until this exists.
+- [ ] [H] **Judge the run length**: modelled at expert 27 legs / steady 22 / rough 15, which is a *model*, not a measurement (D-34). At ~90s a leg that is 20–40 minutes. If it is a chore, `travelCost`'s slope is the one constant to turn.
+- [ ] [A] Field-shaping mutators (*binary star ahead*, *anchors doubled*, *dense field*) — deferred deliberately: each must ask the generator for a layout it may not produce in band, so each needs a **proof that the mutator actually took**, or the run claims a condition that never applied (D-24/D-27's failure mode). Only worth building alongside that proof.
+- [ ] [A] Expedition meta-currency + the starting options it buys — **as one unit, never separately**. Paying out an unspendable token first is a number that goes up and means nothing (D-34).
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
 

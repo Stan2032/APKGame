@@ -107,6 +107,20 @@ object Season {
         else -> 25
     }
 
+    /**
+     * XP for a finished Expedition run, paid **once at the end** rather than
+     * per leg.
+     *
+     * Per-leg payment would make the run strictly worse than playing the same
+     * systems in the campaign, since a run also risks them: you would be paid
+     * the same and could lose the rest. Paying on the run makes depth the
+     * unit, which is what the mode is about. A run that ended at leg one
+     * still pays something — a mode that can pay nothing is a mode people
+     * stop opening.
+     */
+    fun expeditionXp(depth: Int, wrecks: Int): Int =
+        18 + 9 * depth - 3 * wrecks.coerceAtMost(depth)
+
     /** A little extra for the things the game is actually about. */
     fun flourishXp(gambitsKept: Int, objectiveMet: Boolean): Int =
         12 * gambitsKept + (if (objectiveMet) 15 else 0)

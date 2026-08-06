@@ -25,6 +25,20 @@ data class Profile(
     val lastDailyDay: Long = 0,
     val duelWins: Int = 0,
     val duelLosses: Int = 0,
+    // ---- Expedition (Expedition.kt) ----
+    /**
+     * Best run so far. Depth is the headline because it is the thing a player
+     * says out loud ("I got to seventeen"); score breaks ties between runs
+     * that reached the same depth by different routes.
+     *
+     * No in-progress run is stored, deliberately and for the same reason as
+     * D-9: a run is a sitting. Persisting one would mean persisting the
+     * generated leg, the fuel, the mutator and the match inside it, and would
+     * invite quitting out of a bad system to reroll it.
+     */
+    val expeditionBestDepth: Int = 0,
+    val expeditionBestScore: Int = 0,
+    val expeditionRuns: Int = 0,
     val hapticsEnabled: Boolean = true,
     val soundEnabled: Boolean = true,
     /**

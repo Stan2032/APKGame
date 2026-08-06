@@ -865,6 +865,18 @@ object Seeds {
 
     fun duelRandom(entropy: Long): Long = Rng.mix(MASTER xor 0x00D0E11EL, entropy)
 
+    /**
+     * The system behind one route offer in an Expedition run. Keyed on the
+     * route as well as the depth so all three offers at a junction are
+     * different systems — otherwise "choose your route" would be choosing a
+     * difficulty label on the same board.
+     */
+    fun expedition(runSeed: Long, leg: Int, routeId: Int): Long =
+        Rng.mix(MASTER xor 0x00E89ED17L, Rng.mix(runSeed, leg * 8L + routeId))
+
+    /** A fresh run. Entropy is the caller's (clock, or a chosen seed for a shared run). */
+    fun expeditionRun(entropy: Long): Long = Rng.mix(MASTER xor 0x00E89EDL, entropy)
+
     fun campaignDifficulty(sector: Int, level: Int): Int = minOf(11, sector * 2 + level / 6)
 
     const val LEVELS_PER_SECTOR = 12

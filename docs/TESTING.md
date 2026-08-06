@@ -5,7 +5,7 @@ Everything that can corrupt a wallet, a replay, or a save is in :core and unit-t
 
 The sharpest tests here are the ones that pin a **measurement the design rests on**, so that if the world changes underneath the design the build says so: no unbraked shot can hold a capture ring, no generated level falls to a near-straight shot, every gambit offered is one the arena can pay, the loop is a whole number of pulsar periods. Each of those is a sentence in the design docs that would quietly become false without the test.
 
-**Counts in this file are measured, not remembered.** Before the 0.14.0 audit this page claimed "78 tests across 8 files" when there were 104 across 19 classes in 12 files, listed no count at all for `:app`, and omitted 5 of its 11 classes and 4 of `:core`'s. A page that lists coverage goes stale silently, because nothing fails when it does — which is the whole reason the numbers here are now pulled from the JUnit XML rather than from memory.
+**Counts in this file are measured, not remembered.** Before the 0.14.0 audit this page claimed "78 tests across 8 files" when there were 104 across 19 classes in 12 files (121 across 20 as of 0.15.0), listed no count at all for `:app`, and omitted 5 of its 11 classes and 4 of `:core`'s. A page that lists coverage goes stale silently, because nothing fails when it does — which is the whole reason the numbers here are now pulled from the JUnit XML rather than from memory.
 
 ## Run
 - `GG_SKIP_ANDROID=1 ./gradlew :core:test` — full engine suite, no SDK needed. **27s** on a warm daemon, most of it generator/solver work.
@@ -33,7 +33,7 @@ Treat them as orders of magnitude, and re-measure before quoting.
 - `ShareMessagesTest` (4): the text that leaves the app into a stranger's chat must stand alone, and the store link must not ship as a placeholder before launch.
 - `AmbienceTrackTest` (2): a full session of ambience calls — and a session where the activity is destroyed mid-build — must never throw. Robolectric's audio stack is a hostile device, which is exactly what makes it the right place to check the "losing the drone is acceptable, crashing is not" guarantee.
 
-## :core suite (core/src/test — 104 tests across 19 classes in 12 files)
+## :core suite (core/src/test — 121 tests across 20 classes in 13 files)
 `CoreTests.kt` holds the original seven classes; everything since has its own
 file. Counts below are per *class*, so they do not map one-to-one onto files.
 - `RngTest` (3) — sequence determinism, mix stability, double range.
@@ -50,6 +50,7 @@ file. Counts below are per *class*, so they do not map one-to-one onto files.
 - `ObjectiveTest` (6) + `CourierTest` (3), both in `ObjectiveTest.kt` — **no unbraked shot can hold the ring** (the measurement Capture is built on — if this ever fails, Capture has stopped requiring its burn), a braked one can, capture is won by dwell not by hitting anything, every capture system is provably winnable, only the campaign asks for one; and for Courier, that the marked comet must be the one struck.
 - `ThreadObjectiveTest` (6) — **the order is the objective**: a flight that physically passes all three gates in the wrong sequence has threaded nothing, driven as an explicit case. Plus gate crossing by orientation sign (no tolerance constant), and independent re-proof of feasibility (D-31).
 - `SeasonTest` (9) — the tier curve is reachable inside a 28-day season by a modelled committed player (the first curve needed 69 days, and this test is what caught it), xp sources pay, and a rollover wipes tier/claims/pass.
+- `ExpeditionTest` (17) — the run economy, which is a claim about arithmetic and so is checked rather than felt for later. The load-bearing one is **`runsAlwaysEnd`**: it plays the best player the rules permit (one shot, three stars, always the richest route) and requires the tank to run dry — if a perfect player can go forever, Expedition is an idle game with extra steps. It failed on the first design and rewrote it (D-34). Plus: `MAX_REFUND` is re-derived by sweeping every route/mutator/star combination rather than trusted; every junction offers three *different* systems; Uncharted always carries a real condition; every mutator is reachable; and modelled play at three skill archetypes lands in a stated band.
 - `AmbienceTest` (8) — the audio claims, checked against rendered samples rather than intent: the seam is continuous, every interval is exact with no rounding, a pulsar's tremolo runs at its real gravity period (and the loop is a whole number of those — this fails loudly if `PULSAR_PERIOD` is ever retuned out of divisibility), the mix is normalized and DC-free, different systems differ, and the same system does not drift between visits.
 - `ShareCodeSizeTest` (2) — an opening challenge stays short and the longest legal duel still fits a message (1200-char budget).
 - `GeneratorSweepTest` (6) / `GenerationPerfTest` (3) — breadth across sectors/difficulties/dailies, and generation-cost guardrails.

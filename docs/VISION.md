@@ -166,13 +166,44 @@ Why: this is the multi-faceted variety the project always intended;
 procgen supplies layouts, objectives supply *reasons*, and the combination
 multiplies rather than adds.
 
-### 3.6 Expedition — the compulsive spine *(replaces the sector grind)*
+### 3.6 Expedition — the compulsive spine — **engine shipped 0.15.0**
 
 A **run** is a chain of systems. You carry hull, fuel, and anchors between
 them. Between systems you choose your route (safe/rich/unknown) and take a
 mutator (*binary star ahead*, *anchors doubled*, *debris persists across
 systems*). Death ends the run; a meta-currency persists and unlocks
 starting options.
+
+**What shipped, and where it departs from the paragraph above** (D-34):
+
+- **Fuel only, not hull-and-fuel-and-anchors.** Three resources need three
+  sets of rules, three readouts and three failure states to earn their place,
+  and a player cannot hold three trend lines in their head between shots.
+- **Travel cost is the clock.** The first draft escalated the *shot* cost;
+  the test for it failed at once and taught the design — a per-shot cost
+  cannot clock a player who fires one shot, so a perfect run reached the leg
+  cap with a full tank. Travel cost rises without bound against refunds that
+  are bounded, so past a computed depth every leg is a net loss however
+  perfectly it is played. Runs end by arithmetic, not by hoping the
+  difficulty curve outruns the player.
+- **Death does not end the run; the tank does.** A wreck costs fuel and
+  advances you. Ending on one bad system would make the opening minute the
+  whole game and would punish precisely the player who took the hard route.
+- **Mutators are run rules, not generator requests** — for now. A *binary
+  star ahead* has to ask the generator for a layout it may not be able to
+  produce in band, and the fallback would leave the run claiming a condition
+  that never applied: the exact failure D-24 and D-27 exist to prevent.
+  Field-shaping mutators are deferred until the generator can *prove* one
+  took.
+- **The meta-currency is stardust**, the one the game already has. Minting an
+  unspendable token before the thing it buys exists would be a number that
+  goes up and means nothing.
+
+One thing the spec did not anticipate: Expedition is where **Blind** finally
+becomes legal. D-23 cut it from Gambits because no peer can verify that a
+sender did not look at their preview — an objection entirely about
+verification by a stranger, which does not apply to a solo run that sends
+nothing. It ships as the *Dark run* mutator.
 
 Why: "one more run" is the strongest known retention loop, and it makes
 generated content feel like a journey instead of a list.
@@ -190,8 +221,15 @@ generated content feel like a journey instead of a list.
 ## 4. What we kill or demote
 
 Being honest about subtraction:
-- **Sector/level checklist campaign** → becomes Expedition. Levels as a grid
-  of numbered tiles is the most generic possible framing.
+- ~~**Sector/level checklist campaign** → becomes Expedition.~~ **Reversed by
+  D-32b**, and this line survived the amendment to §3.6 by two versions — the
+  kind of leftover that makes a doc argue with itself. The campaign stays: it
+  is the teaching spine, and the stars, sector gating and unlock ladder it
+  produces are referenced by the season track and the shop. Expedition is a
+  third PVE mode alongside it (shipped 0.15.0). The original complaint — that
+  a grid of numbered tiles is the most generic possible framing — is still
+  fair, and is now answered by *having somewhere else to be* rather than by
+  deleting the grid.
 - **"Style bonuses" as passive trivia** → folded into Gambits, where the
   player *chooses* them in advance instead of being told afterwards.
 - **Projectile types as shop unlocks** → become run-time choices inside an
@@ -210,7 +248,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
 | **C** ✅ | Objectives — Capture, Courier and Thread all shipped | Multiplies existing procgen without new art. |
-| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b) | Needs B and C to have something to string together. |
+| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b). **Engine shipped 0.15.0**; UI is the next unit. | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification — **sonification half shipped 0.14.0**, resonance *mechanic* still open | Taken early against the plan, because the game had no music at all and the pulsar pad answers both problems at once (D-33). The gameplay half still wants Expedition first. |
 | **F** | Debris/consequence | Tune last; it interacts with every other system. |
 
