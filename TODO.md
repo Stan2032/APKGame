@@ -115,7 +115,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] Tablet/landscape check during playtest: does the side-bar HUD feel reachable one-handed in landscape, and is the board big enough on a tablet? (Implemented + tested at three size classes; only real hands can judge it.)
 - [ ] [A] Baseline Profile + Macrobenchmark once a device lab exists (docs/PERFORMANCE.md).
 - [ ] [A] In-app "what's new" + rate prompt (post-retention only, never nagging).
-- [ ] [A] Consider first-use coaching for the duel-code flow (mirror of the aim hint added 0.2.0).
+- [x] [A] First-use coaching for the duel-code flow — shipped v0.19.8. The differentiator had no onboarding: every card explained its own button while nothing explained the *shape* (a turn-by-turn exchange, not a single sent shot). States the loop, the ending including the **draw**, that each code carries the whole match, and that both players get every shell. Derived from profile state like the aim hint, so no new `Profile` field; retires on a win, a loss, or a code of one's own.
 
 ## V2 HORIZON
 - [ ] Realtime P2P duels: WebRTC lockstep over existing deterministic engine (docs/MULTIPLAYER.md §Phase 2; needs INTERNET + tiny signaling svc).

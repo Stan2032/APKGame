@@ -1,15 +1,19 @@
 package io.github.stan2032.gravitygambit
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.Seeds
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.ui.GameLaunch
 import io.github.stan2032.gravitygambit.ui.GravityGambitTheme
 import io.github.stan2032.gravitygambit.ui.Nav
@@ -96,6 +100,57 @@ class AppSmokeTest {
         // Empty/garbage input must surface the error and never navigate.
         compose.onNode(hasText("That doesn't look like a valid duel code.")).assertExists()
         assertEquals(null, navigated)
+    }
+
+    /**
+     * The code exchange is this game's differentiator and, until 0.19.8, the
+     * one flow with no first-use guidance — every card explained its own
+     * button while nothing explained the *shape*: that a code duel is a
+     * turn-by-turn exchange, not a single sent shot.
+     *
+     * Asserted the way the other player-facing copy is (D-37, D-43): the
+     * numbers must be interpolated from `Tuning` rather than typed, and the
+     * **draw** must be stated, because a duel really can end with both
+     * stations alive at the turn cap and the screen used to omit that.
+     */
+    @Test
+    fun aFirstTimerIsToldHowTheCodeExchangeWorks() {
+        compose.setContent {
+            GravityGambitTheme { DuelScreen(profile = Profile(), onNavigate = {}) }
+        }
+        compose.onNodeWithText("How a code duel works").assertExists()
+
+        fun mentions(text: String): Boolean =
+            compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+
+        assertTrue("must state the HP from Tuning", mentions("${Tuning.STATION_HP} damage"))
+        assertTrue("must state the turn cap from Tuning", mentions("${Tuning.DUEL_MAX_TURNS} turns"))
+        assertTrue("a duel can end in a draw and the screen must say so", mentions("draw"))
+        assertTrue(
+            "must say the code carries the whole match, or a returned code looks like a reset",
+            mentions("whole match"),
+        )
+    }
+
+    @Test
+    fun theCodeDuelHintDisappearsOnceThePlayerHasDoneOne() {
+        // Derived from profile state rather than a stored "seen" flag, so any
+        // evidence of a code duel retires it — a win, a loss, or a code of
+        // one's own.
+        //
+        // All three compose in ONE pass: `setContent` may only be called once
+        // per test, and looping over it fails with "Cannot call setContent
+        // twice per test" rather than anything about the assertion.
+        compose.setContent {
+            GravityGambitTheme {
+                Column {
+                    DuelScreen(profile = Profile(duelWins = 1), onNavigate = {})
+                    DuelScreen(profile = Profile(duelLosses = 1), onNavigate = {})
+                    DuelScreen(profile = Profile(lastDuelCode = "GG1.something"), onNavigate = {})
+                }
+            }
+        }
+        compose.onAllNodesWithText("How a code duel works").assertCountEquals(0)
     }
 
     @Test

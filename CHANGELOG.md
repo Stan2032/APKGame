@@ -6,6 +6,14 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.8] — 2026-08-07
+- **The game's differentiator had no first-use guidance.** A code duel is the one thing this game does that nothing else does — serverless PVP that fits in a text message — and the Duel screen explained every *button* while never explaining the **shape** of the thing: that it is a turn-by-turn exchange, not a single sent shot. A player who fires, texts a code, and then receives one back had no way to know that is normal, or that it goes in the box further down the same screen.
+- **Added a first-use card that states the loop in three steps**, then what ends it: stations take `STATION_HP` damage, first one down loses, **or it is a draw if both survive `DUEL_MAX_TURNS` turns**. Also states the two facts a newcomer would otherwise have to infer — each code carries the whole match so far (so a returned code is not a reset), and both players get every shell (D-29).
+- **Shown from profile state, not a stored "seen" flag** — the same approach as the aim hint on the first campaign level, and it costs no new `Profile` field. It retires on any evidence of a code duel: a win, a loss, or a code of one's own.
+- **Asserted the way the other player-facing copy is** (D-37, D-43): the numbers are interpolated from `Tuning` rather than typed, the draw is stated because a duel really can end that way, and a separate test proves the card disappears for a player who has done one.
+- Caught while writing the tests: `setContent` may only be called once per test, so looping profiles over it fails with "Cannot call setContent twice per test" rather than anything about the assertion — the same Compose constraint that bit `StarBurstTest` at 0.16.2. All three profiles now compose in one pass.
+- 241 tests green (167 `:core` + 74 `:app`). Lint clean.
+
 ## [0.19.7] — 2026-08-07
 - **Verified what the generation fingerprint actually covers, instead of assuming it.** 0.19.5 pinned generation output across 24 specs and 0.19.6 proved it catches a real change — but "it would catch *a* generator change" is not "it would catch *the* change you are about to make". A sample size is part of a claim (0.18.2), and 24 specs is a sample.
 - ✅ **Eight distinct generator paths perturbed one at a time; no blind spot found.** Caught: keeper radius, repulsor mass, pulsar radius, duel station placement, campaign station placement, Thread gate spacing, gambit proof grid. That spans layout, every non-planet body kind, both station paths, and two proof grids.
