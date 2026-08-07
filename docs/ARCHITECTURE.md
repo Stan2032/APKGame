@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — code map + data flow (dense, agent-oriented)
 
 ## Supporting trees (not code)
-`tools/` — `gen_sfx.py` (synthesized SFX), `store_assets.py` (icon + feature graphic), `verify_release_apk.py` (CI: permission allowlist, R8 keep-rule survival, size budget). `store/` — generated listing graphics. `feedback/` — player-report inbox/archive + triage protocol.
+`tools/` — `gen_sfx.py` (synthesized SFX), `store_assets.py` (icon + feature graphic), `verify_release_apk.py` (CI: permission allowlist, R8 keep-rule survival, size budget, signer), `audio_report.py` (measures the shipped SFX and mixes them over a generated pad at the game's own volumes — the only way to judge the balance). `store/` — generated listing graphics. `feedback/` — player-report inbox/archive + triage protocol.
 
 ## Module rule
 `:core` = every rule, deterministic, JVM-only, unit-tested. `:app` = presentation/IO only. If a change involves "who wins / what's earned / where things move" it belongs in :core.

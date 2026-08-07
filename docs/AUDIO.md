@@ -136,12 +136,53 @@ at 48 kHz resamples a signal with no high-frequency content to alias.
 
 ---
 
+## 4b. Measured levels (2026-08-07, `tools/audio_report.py`)
+
+The two systems have to share a mix, so their levels are stated together
+rather than each being "fine" alone.
+
+| | peak |
+|---|---|
+| Ambience pad | **−10.5 dBFS** (`TARGET_PEAK` 0.30) |
+| SFX, six of seven | −5.2 to −6.1 dBFS |
+| `sfx_brake` | **−10.2 dBFS** |
+| Pad + six cues, mixed at the volumes `GameScreen` passes | −1.8 dBFS, no clipping |
+
+The five-decibel gap between the pad and the cues was chosen for the pad and
+is confirmed here against the SFX that already existed: a floor, not a
+competitor. The combined mix has ~2 dB of headroom left, so nothing has to be
+turned down to fit.
+
+**One finding worth a human ear.** `sfx_brake` sits 5 dB below every other
+cue — level with the *pad*, not with its siblings. It is also the cue that
+confirms the most timing-critical action in the game: the Capture insertion
+burn, where *when* you fire the brake is the entire skill (D-26). A
+confirmation you might not hear, for the one input whose timing decides the
+objective, is the wrong thing to have quiet. Not changed yet, because whether
+it is actually inaudible is an ear question and the fix is one parameter in
+`tools/gen_sfx.py`.
+
+Every other measurement is clean: no clipping anywhere, no trailing silence,
+all seven at 22.05 kHz — the same rate as the pad, so nothing resamples.
+
 ## 5. Listening to it without a device
 
-    ./gradlew :core:ambienceWav
+    ./gradlew :core:ambienceWav          # the pads
+    python3 tools/audio_report.py        # measure the SFX + build a balance mix
 
-Writes one `.wav` per objective plus a guaranteed-pulsar system to
+The first writes one `.wav` per objective plus a guaranteed-pulsar system to
 `core/build/ambience/`, and prints each voice with the body that produced it.
+
+The second measures every shipped cue and — more usefully — lays real SFX over
+a pad **at the volumes `GameScreen` actually passes**, writing
+`build/audio/balance-check-pad-plus-sfx.wav`. Two files played separately
+cannot answer "is the pad too loud under the effects"; one file mixed the way
+the game mixes it can.
+
+The seven SFX turned out never to have needed a tool at all: they are already
+`.wav` files in `res/raw/`, listenable by anyone who opens the repo. They went
+un-auditioned from 0.2.0 to 0.16.4 because everyone assumed a device was
+required. It was not. Neither was a build step.
 
 This exists because sound is the one generated thing here that measurement
 cannot sign off. A loop can pass every assertion in `AmbienceTest` and still
