@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.stan2032.gravitygambit"
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.16.2"
+        versionCode = 30
+        versionName = "0.16.3"
     }
 
     signingConfigs {

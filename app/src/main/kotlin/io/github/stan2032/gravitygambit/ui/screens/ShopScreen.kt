@@ -26,6 +26,7 @@ import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.billing.BillingManager
 import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Iap
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.ProjectileType
 import io.github.stan2032.gravitygambit.data.ProfileRepository
@@ -116,7 +117,15 @@ fun ShopScreen(
         SectionCard {
             Column {
                 CardTitle("Projectile trails")
-                Subtitle("Your rival sees these in the replay.")
+                // Was "Your rival sees these in the replay." That is false:
+                // GameScreen draws an opponent's replay with the *classic*
+                // trail, because a share code carries (seed, turns, hash) and
+                // nothing else — the same limit that killed Blind (D-23) and
+                // forced duel normalization (D-29). The code carries moves,
+                // not the shopping. Selling a cosmetic on a promise the
+                // protocol cannot keep is the worst place in the app to be
+                // wrong (D-36).
+                Subtitle("Yours, on your screen — every shot you fly.")
                 Spacer(Modifier.height(8.dp))
                 for (trail in Economy.TRAILS) {
                     val owned = profile.ownedTrails.contains(trail.id)
@@ -229,7 +238,14 @@ fun ShopScreen(
                     CardTitle("Support the game")
                     Subtitle("Everything above is earnable by playing. These just skip the grind.")
                     Spacer(Modifier.height(8.dp))
-                    for (pd in products) {
+                    // The season pass is deliberately NOT sold here. It is the
+                    // one product that grants content rather than accelerating
+                    // it — the premium lane cannot be earned at any amount of
+                    // play — so listing it under "just skip the grind" would
+                    // make that sentence false the moment Console products
+                    // exist. It has its own screen, where the offer is shown
+                    // in full before it is bought (D-36).
+                    for (pd in products.filter { it.productId != Iap.SEASON_PASS }) {
                         val price = pd.oneTimePurchaseOfferDetails?.formattedPrice ?: continue
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 6.dp),

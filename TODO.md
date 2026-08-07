@@ -68,6 +68,7 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] Recruit 12+ closed-test testers (14 consecutive days — longest pole in the tent).
 
 ## NEXT (pre-submission)
+- [ ] [H/A] **Decide whether trails should travel.** The shop used to claim a rival sees your trail; they do not, because a code carries only (seed, turns, hash) — fixed in 0.16.3 by correcting the copy (D-36). Making it *true* means putting a trail id in the payload: a protocol version bump that invalidates every code in the wild, plus cosmetic data taken on trust (harmless — nothing is decided by it). **Cheap now, expensive after launch**, so it is worth deciding before submission rather than after. Owner's call: it materially changes how well cosmetics sell.
 - [ ] [H] Feedback relay habit: when testers send GGFB1 blobs, paste each verbatim into `feedback/inbox/YYYY-MM-DD-n.md` (GitHub mobile app works) — agents triage from there (feedback/README.md).
 - [ ] [H] 4–8 phone screenshots from real gameplay (shot list in docs/STORE_LISTING.md).
 - [ ] [H] Host docs/PRIVACY_POLICY.md publicly (GitHub Pages ok) → URL into Play Console.

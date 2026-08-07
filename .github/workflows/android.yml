@@ -12,6 +12,15 @@ on:
     branches: [main]
   pull_request:
   # Kept so a branch without a PR yet can still be checked deliberately.
+  #
+  # ⚠️ Do NOT dispatch manually while the branch has an open PR. The dispatch
+  # and the automatic `pull_request` run land in the same concurrency group
+  # below, so one of the pair is cancelled — which looks exactly like a
+  # failure and costs a run to diagnose. This happened on 2026-08-07 after a
+  # spell where GitHub stopped delivering `pull_request` events for this
+  # branch: manual dispatch was the right workaround then, and became the
+  # problem the moment delivery resumed. Check for an automatic run before
+  # reaching for this.
   workflow_dispatch:
 
 permissions:
