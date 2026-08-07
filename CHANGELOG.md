@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.2] — 2026-08-07
+- **Field-shaping mutators: decided against, and the arithmetic says why.** 0.19.1 proved the obvious implementation impossible and identified a sound one (seed selection). This closes the question rather than leaving it open forever, because a viable route whose price never closes is a decision, not a backlog item.
+- **Availability was never the problem** — I had framed it as one, and the framing was wrong. An Uncharted leg's difficulty is `min(11, 2 + depth/2)`, so it reaches 6 at **depth 8** and 8 at **depth 12**: 3 of 15 junctions eligible in a rough run, 10 of 22 steady, 15 of 27 expert. Roughly half of every run archetype qualifies.
+- **The price is the problem, and the two honest implementations land on opposite sides of usable:**
+  - **Generate once, label only if the system genuinely is dense.** Costs one generation (~110ms) and can never lie. But the measured hit rate at difficulty ≥8 is 13/60, and Uncharted carries one of four conditions, so it would appear **0.16–0.81 times per run** — once every two to six runs. That is an easter egg, not a mechanic.
+  - **Search seeds until one is dense.** Real availability at **0.75–3.75 offers per run**, but ~390ms desktop (1–2s on a phone) at a junction — and `Expedition.routesFor` is called *directly in composition*, twice per junction, so it would need memoising just to avoid repeating per frame.
+- **The structural reason is worth keeping: knowing what a field looks like requires building it.** That is exactly why the shipped conditions are cheap — *Thin reserves* is fuel arithmetic and *Dark run* is a UI flag, both free to evaluate — and why a field condition is not. A condition a player meets twice a year does not justify a second of stall at every junction.
+- Reopen only if generation gets substantially faster; the route is proved sound, only its price fails.
+- 235 tests green (163 `:core` + 72 `:app`). Lint clean. **No code change**: this release is a decision.
+
 ## [0.19.1] — 2026-08-07
 - **Field-shaping mutators: the obvious implementation is impossible, and a viable one exists.** D-34 deferred *binary star ahead*, *anchors doubled* and *dense field* on honesty grounds — each asks the generator for a layout it may not produce, so each needs a proof the mutator took. That reason was real but it was the weaker one.
 - ⚠️ **The binding constraint is architectural, and it is now proved rather than argued** (`MutatorReachTest`, four cases). A share code carries `(mode, difficulty, seed, turns, hash)` and nothing else; `decodeAndVerify` regenerates the board from the seed; and **every match can emit a code** — an Expedition leg included, via the feedback report, which is how agents triage bug reports. So a mutator that changes *what the board is* produces a leg whose own replay code **cannot verify**: the receiver rebuilds the unmutated board and rejects it as forged. Measured directly — a leg played with one extra body fails `decodeAndVerify` while an unmutated control passes.
