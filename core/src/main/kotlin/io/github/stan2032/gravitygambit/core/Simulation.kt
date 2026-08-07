@@ -44,6 +44,13 @@ class ShotResult(
     val markedBodyHit: Boolean = false,
     /** How many gates were crossed **in order** ([Objective.THREAD]). */
     val gatesPassed: Int = 0,
+    /**
+     * Where this shot's wreck settles, or null if it left none. Derived from
+     * the flight rather than carried on the wire: a replay re-simulates the
+     * same turns and arrives at the same point, so debris costs the share code
+     * zero bytes (VISION §3.3, D-39).
+     */
+    val wreckAt: Vec2? = null,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -134,6 +141,20 @@ class LiveShot(
     /** Set when a projectile dies, for the renderer to draw an explosion. */
     var lastImpact: Vec2? = null; private set
     var lastImpactWasStation = false; private set
+
+    /**
+     * Where this shot's wreck settles, or null if it left no wreck (VISION §3.3).
+     *
+     * First body impact only, and deliberately so on both counts. **Body**,
+     * because a station kill is an outcome rather than a crash and a lump on
+     * your own launch point would be a self-inflicted dead end — measured at 1
+     * own-station death in 18,000 samples, rare but pathological (D-39).
+     * **First**, because a Triad splits into three shards and one turn should
+     * leave one wreck: per-shard litter would triple a duel's accumulation and
+     * carry it past the 30 lumps `DebrisMeasurementTest` actually measured.
+     * Hitting existing debris leaves nothing, so litter cannot breed litter.
+     */
+    var wreckAt: Vec2? = null; private set
 
     init {
         val st = stations[shooter]
@@ -231,6 +252,15 @@ class LiveShot(
         // game (bodies x projectiles x ticks x thousands of solver sims).
         for (i in bodies.indices) {
             val b = bodies[i]
+            // Debris is skipped whole, before the arithmetic. It is massless,
+            // so it adds nothing to the acceleration anyway — and this is the
+            // single hottest loop in the game, so a duel carrying 30 wrecks
+            // would otherwise pay 30 needless square roots per projectile per
+            // tick to add zero. Skipping also keeps a wreck out of the
+            // deflector count and the graze bonus, which matters for more than
+            // speed: a declaration must never be honoured by something that
+            // cannot deflect (D-39).
+            if (b.kind == BodyKind.DEBRIS) continue
             // Positions and pulsar mass are functions of the tick, so moving
             // bodies stay bit-deterministic (docs/DETERMINISM.md).
             val dx = b.xAt(tick) - p.px
@@ -363,6 +393,10 @@ class LiveShot(
                 if (bi == markedBody) markedHit = true
                 if (b.kind == BodyKind.COMET) cometHits++
                 lastImpact = Vec2(p.px, p.py); lastImpactWasStation = false
+                // A wreck settles against a world, never against another wreck.
+                if (wreckAt == null && b.kind != BodyKind.DEBRIS) {
+                    wreckAt = Vec2(p.px, p.py)
+                }
                 foldHash(1L); foldHash(bi.toLong()); foldHash(tick.toLong())
                 return
             }
@@ -473,6 +507,7 @@ class LiveShot(
             captureDwell = captureBest,
             markedBodyHit = markedHit,
             gatesPassed = gatesPassed,
+            wreckAt = wreckAt,
         )
     }
 

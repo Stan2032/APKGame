@@ -61,7 +61,17 @@ samples every 8th tick with positions quantized to 1e-3; and each
 split / brake / body-collision / station-hit / out-of-bounds / timeout event
 with its tick. **What the match hash adds** (`MatchEngine`): each shot's
 hash, whether its declaration was kept, whether the objective has been met,
-and any daily target relocation.
+any daily target relocation, and **the position of any wreck the shot left**
+(quantized to 1e-3, like trajectory samples).
+
+> Debris is the one piece of board state that is **derived rather than sent**.
+> A wreck is a pure function of turns the share code already carries, so a
+> verifier re-simulates and arrives at the same lumps without a byte crossing
+> the wire — which is why v9 cost zero bytes (docs/TUNING.md §Versioning). It
+> is folded into the match hash anyway, because it changes what happens next:
+> two devices that somehow derived different wrecks must not be able to agree
+> on the outcome by accident. `DebrisTest.aReplayDerivesTheSameDebris…` is the
+> test that would catch it.
 
 > **If you add a field to `TurnInput`, it must be folded in.** An input that
 > is not hashed is an input a sender can edit after the fact without the

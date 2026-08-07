@@ -323,10 +323,19 @@ private fun MatchUI(
         }
     )
     val anchorSig = c.anchors.joinToString { "${'$'}{it.x},${'$'}{it.y},${'$'}{it.attract}" }
-    val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig) {
+    // Wrecks are part of the board the preview must fly, or the line drawn on
+    // screen is a trajectory through a field the shot will not meet — the
+    // preview would be quietly lying about the one thing the player is using
+    // it to judge (VISION §3.3).
+    val previewBodies = remember(c.spec, c.engine.debris.size) {
+        if (c.engine.debris.isEmpty()) c.spec.bodies else c.spec.bodies + c.engine.debris
+    }
+    val previewPaths = remember(
+        c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig, previewBodies,
+    ) {
         if (c.phase == Phase.AIMING && c.isMyTurn) {
             Preview.trajectories(
-                c.spec.bodies, c.engine.stations, c.engine.currentShooter,
+                previewBodies, c.engine.stations, c.engine.currentShooter,
                 c.aimAngleDeci, c.aimPower, c.selectedType, previewTicks, c.anchors.toList(),
             )
         } else emptyList()
@@ -434,6 +443,9 @@ private fun MatchUI(
             // Comets drift, so they draw at their live simulation position —
             // exactly where the physics says they are.
             drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
+            // Wrecks from this match's own misses. Not in the cache: the seed
+            // did not author them, the match did (VISION §3.3).
+            if (c.engine.debris.isNotEmpty()) drawDebris(c.engine.debris, t, cch)
             if (c.spec.gates.isNotEmpty()) {
                 drawGates(c.spec.gates, c.gatesPassed, time, t, cch)
             }

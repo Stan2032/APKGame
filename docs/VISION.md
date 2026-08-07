@@ -103,7 +103,7 @@ odds, roguelike ascensions, speedrun categories) and costs nothing to
 produce. It converts mastery into *stakes*, which is what "gambit" means.
 Verification is free — the simulation already knows what happened.
 
-### 3.3 Consequence — misses reshape the field — **measured 0.17.2, rule revised**
+### 3.3 Consequence — misses reshape the field — **shipped 0.18.0** (measured 0.17.2)
 
 A shot that dies leaves **debris**: a small permanent body at its death
 point. Miss twice and you have complicated your own board.
@@ -140,6 +140,30 @@ Sizing, measured against solvability: at radius 12 a level keeps 50–100% of
 its winning shots after 30 lumps; at radius 20, 33–67%. **Nothing stranded
 the player** in 27 configurations, including litter worse than the 30-turn
 cap can produce. Recommended: **radius ~12, mass 0**.
+
+**What shipped (0.18.0).** A wreck at the impact point — radius 12, massless,
+on body impact only. Four rules the measurement did not settle, decided here:
+
+- **A station kill leaves nothing.** That is an outcome, not a crash — and it
+  keeps the pathological case out, since a lump on your own launch point
+  would be a self-inflicted dead end.
+- **One wreck per turn**, even from a Triad's three shards. Per-shard litter
+  would triple a duel's accumulation and carry it past the 30 lumps actually
+  measured.
+- **Litter cannot breed litter**: a wreck settles against a world, never
+  against another wreck, so accumulation stays linear in turns.
+- **Debris is inert for scoring.** It is skipped in the deflector count and
+  the graze bonus, because a massless lump cannot bend anything and a
+  declaration must never be honoured by a deflection that never happened.
+
+It cost the share code **zero bytes**: a wreck is a pure function of turns the
+code already carries, so a verifier re-derives it. It still cost a protocol
+version (v9) — the same (seed, turns) now produces a different match.
+
+Objectives were re-proved under litter before this shipped, since three of the
+four are not won by hitting a station and a wreck could fence a capture ring
+or block a gate. 29 objective systems (13 Capture, 12 Thread, 4 Courier)
+littered at the reachable campaign envelope: **none became unwinnable** (D-27).
 
 ### 3.4 Resonance — the system has a rhythm — **half shipped 0.14.0**
 
@@ -279,7 +303,7 @@ Each stage is independently shippable and playable; none blocks a playtest.
 | **C** ✅ | Objectives — Capture, Courier and Thread all shipped | Multiplies existing procgen without new art. |
 | **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b). **Shipped 0.15.0 (engine) + 0.16.0 (junction UI).** | Needs B and C to have something to string together. |
 | **E** | Resonance + audio sonification — **sonification half shipped 0.14.0**, resonance *mechanic* still open | Taken early against the plan, because the game had no music at all and the pulsar pad answers both problems at once (D-33). The gameplay half still wants Expedition first. |
-| **F** | Debris/consequence | Tune last; it interacts with every other system. |
+| **F** ✅ | Debris/consequence — **shipped 0.18.0** (protocol v9) | Tuned last exactly as planned, and the interaction with every other system is what the work turned out to be: objectives re-proved under litter, debris excluded from gambit and graze scoring, the aim preview taught to fly the littered board. |
 
 Protocol note: A changes `TurnInput`; C and F change simulation outcomes.
 Both are replay-protocol bumps, which is free *now* (nothing has shipped)

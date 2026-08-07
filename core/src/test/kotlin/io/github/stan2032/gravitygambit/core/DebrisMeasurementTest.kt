@@ -344,6 +344,87 @@ class DebrisMeasurementTest {
         )
     }
 
+    /**
+     * The gap M4 left. M4 measured whether a littered board still has a shot
+     * that *hits the enemy station* — but three of the four objectives are not
+     * won that way, and they are the fragile ones: a wreck can fence a capture
+     * ring or sit across a thread gate. D-27 forbids setting a task the arena
+     * cannot pay, and an objective proved winnable on a clean board is not
+     * proved winnable on a littered one.
+     *
+     * Objectives are campaign-only, and a campaign match is
+     * [Tuning.CAMPAIGN_SHOTS] shots, so at most 3 wrecks can exist before the
+     * last shot. That is the real envelope; the higher counts are stress.
+     */
+    @Test
+    fun measureObjectiveSurvivalUnderLitter() {
+        println("=== M5: can a littered board still pay its objective? ===")
+        println("campaign is ${Tuning.CAMPAIGN_SHOTS} shots, so <=${Tuning.CAMPAIGN_SHOTS - 1} wrecks are reachable in play")
+        val found = HashMap<Objective, Int>()
+        var checked = 0
+        var lost = 0
+        for (difficulty in intArrayOf(2, 4, 6, 8, 11)) {
+            for (level in 0 until 24) {
+                val spec = SystemGenerator.generate(
+                    Seeds.campaign(difficulty, level), difficulty, GameMode.CAMPAIGN,
+                )
+                if (spec.objective == Objective.BREACH) continue
+                found[spec.objective] = (found[spec.objective] ?: 0) + 1
+
+                // Litter the board the way play would: wrecks at the impact
+                // points of real missed shots, not at convenient places.
+                var littered = spec
+                var applied = 0
+                val target = spec.stations[1]
+                val from = spec.stations[0]
+                val direct = StrictMath.toDegrees(
+                    StrictMath.atan2(target.y - from.y, target.x - from.x),
+                )
+                val centre = (((direct * 10).toInt() % 3600) + 3600) % 3600
+                val rng = Rng(Seeds.campaign(difficulty, level))
+                var guard = 0
+                while (applied < Tuning.CAMPAIGN_SHOTS - 1 && guard++ < 300) {
+                    val angle = ((centre + rng.nextInt(601) - 300) % 3600 + 3600) % 3600
+                    val power = SystemGenerator.SOLVER_POWERS[
+                        rng.nextInt(SystemGenerator.SOLVER_POWERS.size),
+                    ]
+                    val at = impactPoint(littered, 0, angle, power) ?: continue
+                    littered = littered.copy(
+                        bodies = littered.bodies + Body(
+                            x = at.x, y = at.y, radius = Tuning.DEBRIS_RADIUS, mass = 0.0,
+                            kind = BodyKind.DEBRIS, palette = 0,
+                        ),
+                    )
+                    applied++
+                }
+                if (applied == 0) continue
+                checked++
+
+                val stillPayable = when (spec.objective) {
+                    Objective.THREAD -> SystemGenerator.proveThread(littered)
+                    Objective.COURIER -> SystemGenerator.proveCourier(littered, littered.markedBody)
+                    Objective.CAPTURE -> SystemGenerator.proveCapture(littered, littered.markedBody)
+                    Objective.BREACH -> true
+                }
+                if (!stillPayable) {
+                    lost++
+                    println(
+                        "  LOST: ${spec.objective} d=$difficulty level=$level " +
+                            "became unprovable after $applied wrecks",
+                    )
+                }
+            }
+        }
+        println("objectives sampled: $found")
+        println("littered and re-proved: $checked   became unwinnable: $lost")
+        // D-27's bar, applied to Stage F. An objective that a few wrecks can
+        // make impossible is a dead end the player walked into by missing.
+        assertEquals(
+            "litter made an objective unwinnable; debris cannot ship into objective systems as-is",
+            0, lost,
+        )
+    }
+
     @Test
     fun measureWhereMissesDie() {
         println("=== M1: fate of every sample shot, by difficulty ===")

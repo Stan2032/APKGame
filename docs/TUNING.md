@@ -3,7 +3,11 @@
 All knobs in `core/Model.kt → Tuning` (+ bands in `SystemGenerator`, rewards in `Economy`). Tune → `GG_SKIP_ANDROID=1 ./gradlew :core:test` → playtest.
 
 ## ⚠️ Versioning invariant (read first)
-Sim-affecting constants (anything LiveShot/MatchEngine/Generator reads: DT, speeds, masses, radii, softening, split/brake, damage, bands, world size, relocation logic) are part of the **replay protocol**. Changing any of them makes old share codes fail hash verification (correct behavior — but must be intentional): bump `ShareCodec.VERSION`, keep decode of older versions returning a clean "outdated code" rejection. UI-only values (colors, anim durations, trail lengths) are free. **Gambit thresholds count as sim-affecting**: they decide whether a declaration held, which decides whether a hit landed. Protocol history: v2 moving bodies/slingshot · v3 anchors · v4 curated layouts · v5 gambits.
+Sim-affecting constants (anything LiveShot/MatchEngine/Generator reads: DT, speeds, masses, radii, softening, split/brake, damage, bands, world size, relocation logic) are part of the **replay protocol**. Changing any of them makes old share codes fail hash verification (correct behavior — but must be intentional): bump `ShareCodec.VERSION`, keep decode of older versions returning a clean "outdated code" rejection. UI-only values (colors, anim durations, trail lengths) are free. **Gambit thresholds count as sim-affecting**: they decide whether a declaration held, which decides whether a hit landed. Protocol history: v2 moving bodies/slingshot · v3 anchors · v4 curated layouts · v5 gambits · v6 Capture · v7 Courier · v8 Thread (gates in the spec) · **v9 debris**.
+
+**v9 is the first bump that spends no bytes.** Every earlier version changed what a code *carries* or what a seed *generates*; debris changes neither. A wreck is derived by re-simulating turns the code already holds, so a verifier reconstructs it without being told — what changed is the **meaning** of a code, not its shape. That is still a full bump: the same (seed, turns) now produces a different match, so a pre-v9 code would verify against a board that no longer exists.
+
+**`DEBRIS_RADIUS` is sim-affecting and bounded from below by a test, not by taste.** It decides how much of a level a run of misses can wall off, and `DebrisMeasurementTest.measureStrandingAtFullMatchLength` fails if any littered board stops having a winning shot. Raising it is a design change that must be re-measured, not a knob.
 
 ## Physics core
 | Knob | Now | Effect / safe range | Coupled to |

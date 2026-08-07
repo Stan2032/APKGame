@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.Body
@@ -20,9 +21,12 @@ import io.github.stan2032.gravitygambit.core.Vec2
 import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.BodyPalettes
 import io.github.stan2032.gravitygambit.ui.DangerRed
+import io.github.stan2032.gravitygambit.ui.DebrisCore
+import io.github.stan2032.gravitygambit.ui.DebrisRim
 import io.github.stan2032.gravitygambit.ui.OkGreen
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -185,6 +189,17 @@ class RenderCache(spec: SystemSpec, tr: WorldTransform) {
                     rimColor = DangerRed,
                     hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
                 )
+                // Debris is never generated, so it never reaches this cache —
+                // it accumulates during the match and is drawn by drawDebris
+                // from live match state. The branch exists because the compiler
+                // is right to insist every kind is accounted for.
+                BodyKind.DEBRIS -> BodyVisual(
+                    kind = b.kind, center = center, radius = radius,
+                    glowBrush = null,
+                    surfaceBrush = SolidColor(DebrisCore),
+                    rimColor = DebrisRim,
+                    hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
+                )
             }
         }
 
@@ -266,10 +281,44 @@ fun DrawScope.drawMovingBodies(
     }
 }
 
+/**
+ * Wrecks left by shots that died on a world (VISION §3.3). Drawn from live
+ * match state rather than from [RenderCache], because debris is the one thing
+ * on the board the seed did not author — it appears as the match is played, so
+ * there is nothing to cache at system load.
+ *
+ * It has to read as *spent*: no glow, no rim light, a cold silhouette against
+ * bodies that all emit something. A player must be able to tell at a glance
+ * that this lump blocks but does not pull, because that is exactly what it
+ * does — debris is massless (D-39).
+ */
+fun DrawScope.drawDebris(debris: List<Body>, tr: WorldTransform, cache: RenderCache) {
+    for (b in debris) {
+        val c = tr.o(b.x, b.y)
+        val r = tr.r(b.radius)
+        drawCircle(DebrisCore, r, c)
+        // Chips break the silhouette so a wreck never reads as a small planet.
+        // Angles are derived from its own position, so a given wreck looks the
+        // same every frame and every replay without storing anything.
+        val seed = (b.x * 7.0 + b.y * 13.0).toFloat()
+        for (k in 0..2) {
+            val a = seed + k * 2.0944f
+            drawCircle(
+                DebrisCore,
+                r * 0.42f,
+                c + Offset(cos(a) * r * 0.82f, sin(a) * r * 0.82f),
+            )
+        }
+        drawCircle(DebrisRim, r * 1.04f, c, style = Stroke(cache.thin))
+    }
+}
+
 fun DrawScope.drawBodies(cache: RenderCache, t: Float) {
     for (b in cache.bodyVisuals) when (b.kind) {
         // Drawn per-frame at their live positions by drawMovingBodies.
         BodyKind.COMET -> Unit
+        // Never present in this cache; drawn by drawDebris from match state.
+        BodyKind.DEBRIS -> Unit
         BodyKind.PULSAR -> {
             // Gravity you can see breathing: the halo swells on the same
             // period as the mass, so timing a shot is a visual read.

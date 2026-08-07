@@ -32,11 +32,17 @@ object ShareCodec {
      * longer solver horizon); v5 added the declared gambit, which is hashed as
      * an input and can nullify a hit; v6 added objectives, v7 a second one
      * (Courier) and v8 a third (Thread, which adds gates to the spec) —
-     * each again changing what a seed generates. Each changes what a code
-     * means, so superseded versions are refused rather than silently
-     * mis-verified (docs/TUNING.md §Versioning).
+     * each again changing what a seed generates. **v9 added debris**: a shot
+     * that dies on a world leaves a wreck that later shots must fly around,
+     * so the same (seed, turns) now produces a different match. Note the
+     * difference from its predecessors — v9 spends **zero bytes**, because
+     * debris is derived by re-simulating turns the code already carries rather
+     * than transmitted; what changed is the *meaning* of a code, not its
+     * shape. Each version changes what a code means, so superseded versions
+     * are refused rather than silently mis-verified (docs/TUNING.md
+     * §Versioning).
      */
-    private const val VERSION = 8
+    private const val VERSION = 9
 
     fun encode(record: MatchRecord): String {
         val anchorBytes = record.turns.sumOf { it.anchors.size * 5 }

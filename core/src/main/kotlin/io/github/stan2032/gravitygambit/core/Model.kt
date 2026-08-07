@@ -22,6 +22,22 @@ enum class BodyKind {
     COMET,
     /** Gravity pulses between weak and strong on a fixed period. */
     PULSAR,
+
+    /**
+     * The wreck of a shot that died here. Solid but **massless**: it blocks,
+     * it never pulls (VISION §3.3, D-39).
+     *
+     * Debris is never generated — it only accumulates during a match, from the
+     * impact points of the player's own misses, and it is the one body kind
+     * that is not a fact about the system. Two consequences follow from being
+     * massless and being a wreck rather than a world:
+     * - it contributes no acceleration, so it cannot bend a shot, which is why
+     *   it is excluded from deflector counting and the graze bonus — a
+     *   declaration must not be honoured by something that cannot deflect;
+     * - hitting debris leaves no further debris, so litter cannot breed litter
+     *   and a match stays inside the envelope measured in `DebrisMeasurementTest`.
+     */
+    DEBRIS,
 }
 
 /**
@@ -230,6 +246,18 @@ object Tuning {
     const val SPLIT_TICK = 72
     const val SPLIT_ANGLE_DEG = 8.0
     const val BRAKE_FACTOR = 0.45
+
+    /**
+     * Wreck size, and it is a legibility number rather than a physical one.
+     * Conserving the shell's actual cross-section was measured and is
+     * *invisible*: it grows a radius-100 planet to 100.12 and moves the solve
+     * rate by nothing across 16 hits (D-39). At 12 — about 2.4 Bolt radii — a
+     * lump reads on screen and erodes a level gradually: measured across 30
+     * lumps a level keeps 50–100% of its winning shots, and no configuration
+     * ever left one unwinnable. Raising this is not a free knob; it is bounded
+     * above by `measureStrandingAtFullMatchLength`.
+     */
+    const val DEBRIS_RADIUS = 12.0
 
     const val GRAZE_DIST = 15.0
     const val GRAZE_BONUS = 15

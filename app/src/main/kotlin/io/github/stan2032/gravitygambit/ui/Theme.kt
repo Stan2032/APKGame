@@ -20,6 +20,16 @@ val OkGreen = Color(0xFF69F0AE)
 val TextPrimary = Color(0xFFE8EAF6)
 val TextDim = Color(0xFF8E9AC6)
 
+/**
+ * Wreckage left by a shot that died on a world (VISION §3.3). Deliberately the
+ * only thing on the board that emits nothing: every other body glows, pulses or
+ * catches a rim light, so a cold grey silhouette reads instantly as spent
+ * matter. That is the honest picture — debris blocks but is massless, so it
+ * must not look like a gravity source (D-39).
+ */
+val DebrisCore = Color(0xFF3A4058)
+val DebrisRim = Color(0xFF5C6488)
+
 /** Planet render palettes indexed by Body.palette: (surface, shadow). */
 val BodyPalettes = listOf(
     Pair(Color(0xFFFFD54F), Color(0xFFFF8F00)),  // 0 star warm
