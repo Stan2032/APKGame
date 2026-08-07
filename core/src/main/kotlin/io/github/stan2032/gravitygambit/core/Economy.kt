@@ -39,6 +39,16 @@ data class Profile(
     val expeditionBestDepth: Int = 0,
     val expeditionBestScore: Int = 0,
     val expeditionRuns: Int = 0,
+    /**
+     * Salvage, and the permanent fittings it has bought (`Outfitting`).
+     *
+     * A currency of its own rather than stardust, because stardust is buyable
+     * with real money and Expedition depth is a personal best — a score money
+     * can top up is a weak score. Earned only by running, spent only on
+     * running.
+     */
+    val expeditionSalvage: Int = 0,
+    val expeditionOutfits: Map<String, Int> = emptyMap(),
     val hapticsEnabled: Boolean = true,
     val soundEnabled: Boolean = true,
     /**

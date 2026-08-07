@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.Expedition
+import io.github.stan2032.gravitygambit.core.Outfitting
 import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.core.Profile
 import kotlinx.coroutines.CoroutineScope
@@ -145,15 +146,35 @@ class ProfileRepository(private val context: Context) {
     fun recordExpedition(run: Expedition.Run, epochDay: Long): Int {
         val earned = withPassMultiplier(Expedition.payout(run))
         val xp = Season.expeditionXp(run.depth, run.wrecks)
+        // Salvage is deliberately NOT multiplied by the Ad Pass. It buys run
+        // upgrades, and Expedition depth is a personal best — letting a
+        // subscription accelerate it would make the number partly bought
+        // (Outfitting).
+        val salvage = Outfitting.salvageFor(run)
         update { p ->
             p.plusSeasonXp(epochDay, xp).copy(
                 stardust = p.stardust + earned,
+                expeditionSalvage = p.expeditionSalvage + salvage,
                 expeditionRuns = p.expeditionRuns + 1,
                 expeditionBestDepth = maxOf(p.expeditionBestDepth, run.depth),
                 expeditionBestScore = maxOf(p.expeditionBestScore, run.score),
             )
         }
         return earned
+    }
+
+    /** Buy the next tier of an outfit, if salvage allows. Returns true when it happened. */
+    fun buyOutfit(outfit: Outfitting.Outfit): Boolean {
+        val snapshot = profile.value
+        val result = Outfitting.buy(snapshot.expeditionSalvage, snapshot.expeditionOutfits, outfit)
+            ?: return false
+        update { p ->
+            // Re-checked inside the atomic update rather than trusting the
+            // snapshot, so two rapid taps cannot both spend the same salvage.
+            val fresh = Outfitting.buy(p.expeditionSalvage, p.expeditionOutfits, outfit) ?: return@update p
+            p.copy(expeditionSalvage = fresh.first, expeditionOutfits = fresh.second)
+        }
+        return result.let { true }
     }
 
     // ---- Season track ----

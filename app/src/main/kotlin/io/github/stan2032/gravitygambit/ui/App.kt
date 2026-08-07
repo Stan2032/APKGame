@@ -18,6 +18,7 @@ import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.billing.BillingManager
 import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.GameMode
+import io.github.stan2032.gravitygambit.core.Outfitting
 import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.data.ProfileRepository
 import io.github.stan2032.gravitygambit.ui.game.GameScreen
@@ -127,8 +128,11 @@ fun App(
                 profile = profile,
                 run = expedition,
                 onStart = {
+                    // Starting fuel is whatever the player has fitted — the
+                    // one place an outfit changes a run before it begins.
                     expedition = Expedition.Run(
-                        seed = Seeds.expeditionRun(System.currentTimeMillis())
+                        seed = Seeds.expeditionRun(System.currentTimeMillis()),
+                        fuel = Outfitting.startFuel(profile.expeditionOutfits),
                     )
                 },
                 onAbandon = { expedition = null; nav = Nav.Home },
@@ -137,6 +141,7 @@ fun App(
                     nav = Nav.Game(expeditionLaunch(leg, runNonce))
                 },
                 onNavigate = { nav = it },
+                onBuyOutfit = { repo.buyOutfit(it) },
             )
             is Nav.Season -> SeasonScreen(
                 profile = profile, repo = repo, billing = billing,
@@ -165,7 +170,7 @@ fun App(
                         expedition = if (cleared) {
                             Expedition.afterClear(current, leg, shots, stars)
                         } else {
-                            Expedition.afterWreck(current, leg, shots)
+                            Expedition.afterWreck(current, leg, shots, profile.expeditionOutfits)
                         }
                     }
                 },

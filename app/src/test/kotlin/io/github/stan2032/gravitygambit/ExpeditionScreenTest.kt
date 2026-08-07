@@ -6,10 +6,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stan2032.gravitygambit.core.Expedition
+import io.github.stan2032.gravitygambit.core.Outfitting
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.ui.GravityGambitTheme
 import io.github.stan2032.gravitygambit.ui.screens.ExpeditionScreen
@@ -50,8 +52,10 @@ class ExpeditionScreenTest {
                 )
             }
         }
-        compose.onNodeWithText("Launch").assertIsDisplayed()
-        compose.onNodeWithText("Launch").performClick()
+        // Substring: the button now states the fuel you will leave with,
+        // which depends on fitted outfits.
+        compose.onNodeWithText("Launch", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Launch", substring = true).performClick()
 
         // One card per flavour, each naming what it is.
         for (route in Expedition.Route.entries) {
@@ -119,6 +123,58 @@ class ExpeditionScreenTest {
         compose.onNodeWithText("Systems cleared").assertExists()
         compose.onNodeWithText("${Expedition.payout(over)}").assertExists()
         compose.onNodeWithText("Run again").assertExists()
+    }
+
+    @Test
+    fun theOutfittingBayAppearsOnlyAfterAFirstRun() {
+        // A first-time player has no salvage and no idea what it is, so the
+        // bay would be noise before their first launch — and the launch
+        // button states the fuel they will actually leave with.
+        compose.setContent {
+            GravityGambitTheme {
+                ExpeditionScreen(
+                    profile = Profile(), run = null,
+                    onStart = {}, onAbandon = {}, onTake = {}, onNavigate = {},
+                )
+            }
+        }
+        compose.onAllNodesWithText("Outfitting").fetchSemanticsNodes().let {
+            assertTrue("a fresh player must not see the outfitting bay", it.isEmpty())
+        }
+        compose.onNodeWithText("Launch with ${Expedition.START_FUEL} fuel").assertExists()
+    }
+
+    @Test
+    fun anOutfittedPlayerSeesTheirSalvageAndLaunchesWithMoreFuel() {
+        val fitted = Profile(
+            expeditionRuns = 3,
+            expeditionSalvage = 40,
+            expeditionOutfits = mapOf(Outfitting.Outfit.RESERVE_TANK.id to 2),
+        )
+        var bought: Outfitting.Outfit? = null
+        compose.setContent {
+            GravityGambitTheme {
+                ExpeditionScreen(
+                    profile = fitted, run = null,
+                    onStart = {}, onAbandon = {}, onTake = {}, onNavigate = {},
+                    onBuyOutfit = { bought = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Outfitting").assertExists()
+        compose.onNodeWithText("40").assertExists()
+        // Fitted tiers really change the run that is about to start.
+        compose.onNodeWithText(
+            "Launch with ${Outfitting.startFuel(fitted.expeditionOutfits)} fuel",
+        ).assertExists()
+        assertTrue(
+            "the fixture must actually raise starting fuel",
+            Outfitting.startFuel(fitted.expeditionOutfits) > Expedition.START_FUEL,
+        )
+        // An affordable tier is buyable; the callback carries which one.
+        val cost = Outfitting.Outfit.RESERVE_TANK.costOfNextTier(2)!!
+        compose.onNodeWithText("$cost").performClick()
+        assertEquals(Outfitting.Outfit.RESERVE_TANK, bought)
     }
 
     @Test

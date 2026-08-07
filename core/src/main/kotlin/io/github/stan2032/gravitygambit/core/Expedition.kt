@@ -280,8 +280,9 @@ object Expedition {
      * would punish exactly the player who took the hard route — which is the
      * choice this mode wants to encourage.
      */
-    fun afterWreck(run: Run, leg: Leg, shots: Int): Run {
-        val spent = legCost(run.depth, leg.mutator, shots)
+    fun afterWreck(run: Run, leg: Leg, shots: Int, outfits: Map<String, Int> = emptyMap()): Run {
+        val spent = legCost(run.depth, leg.mutator, shots) -
+            Outfitting.wreckRefund(outfits, shots, leg.mutator)
         return run.copy(
             depth = run.depth + 1,
             fuel = (run.fuel - spent).coerceAtLeast(0),

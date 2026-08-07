@@ -34,7 +34,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] **Play a run.** Does the junction decision feel like a decision, or is the deep way always right? Does the fuel gauge read as a clock? Is a 20+ leg run a sitting or a chore (D-34's numbers are modelled, not measured)? Does losing a run sting the right amount, given nothing is saved?
 - [ ] [H] **Judge the run length**: modelled at expert 27 legs / steady 22 / rough 15, which is a *model*, not a measurement (D-34). At ~90s a leg that is 20–40 minutes. If it is a chore, `travelCost`'s slope is the one constant to turn.
 - [ ] [A] Field-shaping mutators (*binary star ahead*, *anchors doubled*, *dense field*) — deferred deliberately: each must ask the generator for a layout it may not produce in band, so each needs a **proof that the mutator actually took**, or the run claims a condition that never applied (D-24/D-27's failure mode). Only worth building alongside that proof.
-- [ ] [A] Expedition meta-currency + the starting options it buys — **as one unit, never separately**. Paying out an unspendable token first is a number that goes up and means nothing (D-34).
+- [x] [A] Expedition meta-currency + the starting options it buys — shipped as one unit per D-34. **Salvage** (run-only, deliberately not stardust and not Ad-Pass-multiplied, so depth cannot be bought) buys reserve tank / salvage rig / survey array. Every option checked against the termination proof; cheaper travel and junction rerolls were cut for it. v0.17.0, D-38.
+- [ ] [H] **Judge the outfitting ladder.** Modelled at ~8.3 good runs to buy everything, which is a *model*. Does the first fitting arrive soon enough to feel like progress? Is the survey array worth its price, or is information less compelling than fuel?
 - [ ] [A] Stage E: resonance + audio sonification of pulsar phase.
 - [ ] [A] Stage F: debris from misses.
 

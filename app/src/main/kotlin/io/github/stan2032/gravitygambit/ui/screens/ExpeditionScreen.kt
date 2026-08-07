@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.GameMode
+import io.github.stan2032.gravitygambit.core.Outfitting
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.ui.AccentCyan
@@ -62,18 +63,75 @@ fun ExpeditionScreen(
     onAbandon: () -> Unit,
     onTake: (Expedition.Leg) -> Unit,
     onNavigate: (Nav) -> Unit,
+    onBuyOutfit: (Outfitting.Outfit) -> Unit = {},
 ) {
     ScreenFrame(title = "Expedition", onBack = { onNavigate(Nav.Home) }) {
         when {
-            run == null -> Briefing(profile, onStart)
-            run.over -> RunOver(run, onStart, onAbandon)
-            else -> Junction(run, onTake)
+            run == null -> Briefing(profile, onStart, onBuyOutfit)
+            run.over -> RunOver(run, profile, onStart, onAbandon)
+            else -> Junction(run, profile, onTake)
+        }
+    }
+}
+
+/**
+ * The outfitting bay — permanent fittings bought with salvage.
+ *
+ * Lives on the briefing rather than in the Outfitter shop on purpose: salvage
+ * is a run-only currency (`Outfitting`), and putting it in the stardust shop
+ * would invite exactly the confusion the separate currency exists to prevent.
+ * You spend it where you earn it.
+ */
+@Composable
+private fun OutfittingBay(profile: Profile, onBuy: (Outfitting.Outfit) -> Unit) {
+    SectionCard {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    CardTitle("Outfitting")
+                    Subtitle("Salvage comes back from runs, and only buys more run.")
+                }
+                Text(
+                    "${profile.expeditionSalvage}",
+                    color = FuelGreen, fontSize = 24.sp, fontWeight = FontWeight.Black,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            for (outfit in Outfitting.Outfit.entries) {
+                val tier = Outfitting.tierOf(profile.expeditionOutfits, outfit)
+                val cost = outfit.costOfNextTier(tier)
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                outfit.displayName,
+                                color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                            )
+                            if (outfit.tiers > 1) {
+                                Spacer(Modifier.width(6.dp))
+                                Text("$tier/${outfit.tiers}", color = TextDim, fontSize = 12.sp)
+                            }
+                        }
+                        Subtitle(outfit.brief)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    when {
+                        cost == null -> Text("Fitted", color = OkGreen, fontSize = 13.sp)
+                        profile.expeditionSalvage >= cost ->
+                            Button(onClick = { onBuy(outfit) }) { Text("$cost", fontSize = 13.sp) }
+                        else -> Text("$cost", color = TextDim, fontSize = 13.sp)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun Briefing(profile: Profile, onStart: () -> Unit) {
+private fun Briefing(profile: Profile, onStart: () -> Unit, onBuyOutfit: (Outfitting.Outfit) -> Unit) {
     SectionCard {
         Column {
             CardTitle("One run, until the fuel runs out")
@@ -102,11 +160,20 @@ private fun Briefing(profile: Profile, onStart: () -> Unit) {
         }
         Spacer(Modifier.height(12.dp))
     }
-    Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("Launch") }
+    // Only once a run has been finished: a first-time player has no salvage
+    // and no idea what it is, so an empty shop would just be noise before
+    // their first launch.
+    if (profile.expeditionRuns > 0) {
+        OutfittingBay(profile, onBuyOutfit)
+        Spacer(Modifier.height(12.dp))
+    }
+    Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+        Text("Launch with ${Outfitting.startFuel(profile.expeditionOutfits)} fuel")
+    }
 }
 
 @Composable
-private fun Junction(run: Expedition.Run, onTake: (Expedition.Leg) -> Unit) {
+private fun Junction(run: Expedition.Run, profile: Profile, onTake: (Expedition.Leg) -> Unit) {
     FuelGauge(run)
     Spacer(Modifier.height(14.dp))
     Text(
@@ -118,6 +185,22 @@ private fun Junction(run: Expedition.Run, onTake: (Expedition.Leg) -> Unit) {
     Spacer(Modifier.height(10.dp))
     for (leg in Expedition.routesFor(run)) {
         RouteCard(run, leg, onTake)
+        Spacer(Modifier.height(10.dp))
+    }
+    // The survey array is pure information, which is why it can be the
+    // expensive fitting without unbalancing anything: it moves no number in
+    // the economy, it just stops the next junction being a surprise.
+    if (Outfitting.canSurveyAhead(profile.expeditionOutfits) && run.depth + 1 < Expedition.MAX_LEGS) {
+        val ahead = Expedition.routesFor(run.copy(depth = run.depth + 1))
+        SectionCard {
+            Column {
+                CardTitle("Survey: one junction ahead")
+                Subtitle(
+                    ahead.joinToString("  ·  ") { "${it.route.label} d${it.difficulty}" } +
+                        "  ·  travel ${Expedition.travelCost(run.depth + 1)}"
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
     }
 }
@@ -246,7 +329,7 @@ private fun DifficultyPips(difficulty: Int, accent: Color) {
 }
 
 @Composable
-private fun RunOver(run: Expedition.Run, onStart: () -> Unit, onAbandon: () -> Unit) {
+private fun RunOver(run: Expedition.Run, profile: Profile, onStart: () -> Unit, onAbandon: () -> Unit) {
     SectionCard {
         Column {
             Text(
@@ -266,6 +349,7 @@ private fun RunOver(run: Expedition.Run, onStart: () -> Unit, onAbandon: () -> U
             Spacer(Modifier.height(10.dp))
             Stat("Stardust earned", "${Expedition.payout(run)}", OkGreen)
             Stat("Season XP", "${Season.expeditionXp(run.depth, run.wrecks)}", OkGreen)
+            Stat("Salvage recovered", "${Outfitting.salvageFor(run)}", FuelGreen)
         }
     }
     Spacer(Modifier.height(14.dp))

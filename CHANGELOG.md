@@ -6,6 +6,19 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-08-07
+- **Expedition has progression: salvage, and three permanent fittings to spend it on.** D-34 deliberately shipped the run mode paying stardust and nothing else, because minting an unspendable token before the thing it buys exists is a number that goes up and means nothing. This is the other half, built as one unit exactly as that decision required.
+- **Salvage is its own currency, and the reason is monetization rather than flavour.** Stardust is buyable with real money, so pricing run upgrades in stardust would let money buy Expedition *depth*. That breaches no PVP invariant — D-13/D-29 is about duels and Expedition is solo — but **a personal best that can be topped up at the till is a weak personal best**, and "how far did you get" is the mode's whole pull. Salvage is earned only by running and spent only on running. It is also **not** multiplied by the Ad Pass, for the same reason.
+- **Every upgrade had to survive D-34's proof that runs provably end**, and two obvious ones did not:
+  - *Cheaper travel* attacks the clock itself. Even a constant discount leaves termination intact, but it makes the proof depend on a purchase — a bad thing to owe a receipt.
+  - *Junction rerolls* break the rule that a junction is a pure function of (seed, depth), which exists so leaving and returning cannot fish for a better offer.
+- What shipped changes only the **tank** and the **refunds**, both bounded, so travel still outgrows everything: **Reserve tank** (+5 starting fuel per tier, 3 tiers), **Salvage rig** (recovers part of a wrecked leg's *shot* cost — never its travel, because travel is the clock), and **Survey array** (read the next junction before committing; pure information, moves no number in the economy, which is precisely why it can be the expensive one).
+- `runsAlwaysEndEvenFullyOutfitted` re-runs the best-possible-player argument with everything maxed: depth **32** against 29 bare, still ending by an empty tank rather than by the leg cap. The proof holds; upgrades buy about three more legs.
+- Ladder calibrated at **~8.3 good runs** to buy everything, asserted inside a 4–20 band — modelled and labelled as such, the same standing as D-30's tier curve and D-34's run depths.
+- Guards worth having: buying is a pure function so the UI cannot invent a purchase the rules disallow, the spend is re-checked *inside* the atomic profile update so two rapid taps cannot spend the same salvage twice, and tiers are clamped on read so a hand-edited save cannot multiply into unbounded starting fuel.
+- The outfitting bay lives on the Expedition briefing, not in the stardust shop — you spend it where you earn it — and stays hidden until a first run has finished, since an empty shop for a currency you have never seen is just noise.
+- Tests: 205 (134 `:core` + 71 `:app`), 10 new.
+
 ## [0.16.6] — 2026-08-07
 - **Re-measured generation, and both standing performance claims turned out to be inverted.**
   - PERFORMANCE.md said the worst case was **difficulty 0** at 100–200ms. It is **difficulty 11 at ~684ms** (d0 101, d3 102, d6 77, d9 164). The old reasoning was sound when written — easy levels need a *rare* high-hit-rate layout, so the generator burns attempts — and has simply been overtaken: the acceptance band narrows as difficulty climbs, so hard levels burn the attempts now.
