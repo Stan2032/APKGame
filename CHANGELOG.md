@@ -6,6 +6,16 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.7] — 2026-08-07
+- **Verified what the generation fingerprint actually covers, instead of assuming it.** 0.19.5 pinned generation output across 24 specs and 0.19.6 proved it catches a real change — but "it would catch *a* generator change" is not "it would catch *the* change you are about to make". A sample size is part of a claim (0.18.2), and 24 specs is a sample.
+- ✅ **Eight distinct generator paths perturbed one at a time; no blind spot found.** Caught: keeper radius, repulsor mass, pulsar radius, duel station placement, campaign station placement, Thread gate spacing, gambit proof grid. That spans layout, every non-planet body kind, both station paths, and two proof grids.
+- ⚠️ **The measurement lied to me three times first, and that is the part worth keeping.**
+  - **A broken harness reported every path as uncovered.** Running gradle with `-q` and `2>/dev/null` swallows the failure line, so every probe came back "NOT CAUGHT" — including paths that are certainly covered. The **uniformity** is what gave it away, and a **known-positive control** through the same harness proved it broken in one step. Reporting that result would have claimed the guard covers nothing.
+  - **One probe was a compile error.** It added a duplicate constructor argument, so the module never built — and in a harness that greps for `FAILED`, a build error is indistinguishable from a passing test.
+  - **Two genuine "not caught" results were no-ops, not gaps.** `OBJECTIVE_CHANCE` 0.28→0.281 and `CAPTURE_BURN_TICKS` 260→261 produce **byte-identical output across 120 specs** — five times the fingerprint's spread. No seed's draw falls in that window and no capture proof turns on that tick, so not catching them is correct behaviour.
+- **The reusable rule, now an extension rule**: a negative result from a perturbation test is meaningless until you confirm the perturbation does something. Pair every probe with a known-positive control, and check the build compiled.
+- 239 tests green (167 `:core` + 72 `:app`). Lint clean. **No code change**: `Generator.kt` is byte-identical, and the fingerprint proves it.
+
 ## [0.19.6] — 2026-08-07
 - **Attempted the difficulty-11 generation optimisation. The one promising change is forbidden, and the guard added *one version ago* caught it on the first run.**
 - **The change**: `SystemGenerator.scan` checks its early-exit bound after every *angle* (5 sample shots), so checking after every *sample* abandons a hopeless candidate up to four full flights sooner. The safety argument was careful and specific — an early-exited scan returns a *bound* not a rate; `minPossible` only rises and `maxPossible` only falls, so a tighter check fires earlier with the same verdict; and `solverHitRate` is stored only when a scan *completes* in band.
