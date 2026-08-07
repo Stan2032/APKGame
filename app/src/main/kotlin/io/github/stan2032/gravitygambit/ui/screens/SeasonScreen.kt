@@ -112,7 +112,15 @@ fun SeasonScreen(
                 Spacer(Modifier.height(6.dp))
                 Subtitle(
                     if (tier >= Season.TIERS) "Track complete — every tier earned."
-                    else "Play anything: campaign, the daily, or a duel. Everything counts."
+                    // Was "campaign, the daily, or a duel. Everything counts."
+                    // Two ways wrong: it omitted Expedition, which does count
+                    // (Season.expeditionXp), and it counted "a duel" flat when
+                    // Season.duelXp pays **zero** for hot-seat — the same
+                    // self-farm guard that makes hot-seat pay no stardust. A
+                    // player grinding hot-seat for tiers would have earned
+                    // nothing while the screen said everything counts (D-37).
+                    else "Campaign, the daily, an expedition, or a duel by code. " +
+                        "Hot-seat pays nothing — one player holding both phones is not a match."
                 )
             }
         }

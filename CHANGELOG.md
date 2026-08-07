@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.16.5] — 2026-08-07
+- **Tenth audit pass, finishing the player-facing screens** (Help 0.16.1, Shop 0.16.3, Season and Duel here). Two more wrong claims, and both were about what the player *gets* or how a match *ends*.
+- **"Play anything: campaign, the daily, or a duel. Everything counts."** Wrong twice over. It omitted Expedition, which does pay season XP. And it counted "a duel" flat when `Season.duelXp` pays **zero** for hot-seat — the same self-farm guard that makes hot-seat pay no stardust. A player grinding hot-seat duels for tiers would have earned nothing at all while the screen told them everything counts.
+- **"First station down loses."** True as a win condition, incomplete as an ending: a duel is also over at `DUEL_MAX_TURNS` with both stations alive, and `duelWinner()` returns null there — **a draw the screen never mentioned**. It is reachable by two players who keep missing each other, who are precisely the players in their first duel and least equipped to explain the result to themselves.
+- Hot-seat's zero payout is now stated on the card where a player *decides* to play it, rather than discovered after the fact.
+- **The pattern across all four screens is worth naming**: every false claim found was about a number, a reward or an outcome. None was about flavour. Flavour cannot be wrong; a promise can. So the new guard is `RewardReachTest` (3), living in `:core` rather than in a screen test — it states which activities pay and how a duel can end, so a screen is checked against the rules instead of the rules being inferred from a screen. (D-37)
+- One claim was checked and **found true**: "adds the second reward at every tier" — `premiumReward` has an `else` branch, so the premium lane really has no holes, while the free lane deliberately does. Recorded as verified, because a claim checked and a claim assumed are different states.
+- Tests: 195 (126 `:core` + 69 `:app`), 3 new.
+
 ## [0.16.4] — 2026-08-07
 - **The seven SFX have been heard.** They had gone un-auditioned since 0.2.0 — and it turns out they never needed a tool, a task or a device: they are already `.wav` files sitting in `res/raw/`, listenable by anyone who opens the repo. My own TODO item proposed building a dump task for them, which was the overcomplicated answer to a problem that did not exist. The gap lasted fourteen versions because everyone, me included, assumed a device was required.
 - **`tools/audio_report.py`** measures every cue — duration, peak, RMS, clipping, trailing silence — and then does the thing separate files cannot: **lays real SFX over a real pad at the exact volumes `GameScreen` passes to `SoundPool`**. That mix is the actual answer to AUDIO.md §7's open question about whether the pad sits right under the effects; two files played one after another cannot answer it.

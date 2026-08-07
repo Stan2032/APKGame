@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.Seeds
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.core.ShareCodec
 import io.github.stan2032.gravitygambit.ui.DangerRed
 import io.github.stan2032.gravitygambit.ui.GameLaunch
@@ -33,7 +34,16 @@ fun DuelScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
         SectionCard {
             Column {
                 CardTitle("Hot-seat duel")
-                Subtitle("Two players, one phone. First station down loses.")
+                // "First station down loses" was true and incomplete: a duel
+                // also ends at Tuning.DUEL_MAX_TURNS with both alive, and
+                // MatchEngine.duelWinner() returns null there — a draw the
+                // screen never mentioned. Reachable by two players who keep
+                // missing, which is exactly who is playing their first duel.
+                Subtitle(
+                    "Two players, one phone. First station down loses; " +
+                        "${Tuning.DUEL_MAX_TURNS} shots with both still standing is a draw. " +
+                        "Pays no stardust or season XP — one player holding both seats is not a match."
+                )
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {
                     onNavigate(
