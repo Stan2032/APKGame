@@ -43,7 +43,9 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [ ] [H] **Listen to the pads and say whether the character is right** — five samples were sent to you as .wav, or regenerate any time with `./gradlew :core:ambienceWav`. Specifically: does a 7-second loop reveal itself as a loop over a five-minute match? Is the pulsar swell legible as *information* or does it read as wobble? Are the four objective colourings distinguishable by ear or only on paper? Is it too quiet / too loud under the SFX? Full list in docs/AUDIO.md §7.
 - [ ] [A] **Multi-pulsar polyrhythm** (VISION §3.4's remaining half): the pad already gives each pulsar its own tremolo, but the generator never makes two with different periods. Constraint discovered in D-33 — a second period only stays phase-locked across loop repeats if it also divides the loop, so periods must come from divisors of 7s rather than being chosen freely.
 - [ ] [A] The 7 SFX are still un-auditioned, but no longer *un-auditionable*: `AmbienceWav.write()` is a general WAV writer, so a companion task could dump `res/raw/*.wav` alongside the pads for one listening pass.
-- [ ] [A] Win/star flourish on the summary — the moment a level falls is currently understated.
+- [x] [A] Win/star flourish on the summary — stars land one at a time with an overshoot and a ray burst, staggered. v0.16.2.
+- [x] [A] **Reduced-motion support** — found while adding the flourish: the camera shake had ignored the system animation setting since 0.13.1. Both obey it now (D-35), and information-bearing motion deliberately does not.
+- [ ] [H] **Check the flourish on a device with animations turned off** (Developer options → Animator duration scale → Off). Stars should appear instantly and complete, the board should not shake, and everything else should behave normally.
 - [ ] [A] Screenshot-moment polish specifically (the shots listed in STORE_LISTING): slingshot arc, capture ring, anchors bending a preview, gambit dialog, season ladder.
 
 ## SEASON TRACK (shipped 0.12.0 engine / 0.12.1 UI)

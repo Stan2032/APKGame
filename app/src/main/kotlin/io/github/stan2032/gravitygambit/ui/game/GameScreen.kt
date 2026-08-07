@@ -91,6 +91,7 @@ import io.github.stan2032.gravitygambit.ui.PanelColor
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
+import io.github.stan2032.gravitygambit.ui.animationsEnabled
 import io.github.stan2032.gravitygambit.ui.ShareMessages
 import io.github.stan2032.gravitygambit.ui.screens.FeedbackDialog
 import io.github.stan2032.gravitygambit.ui.shareText
@@ -174,6 +175,7 @@ private fun MatchUI(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
+    val motionOk = animationsEnabled()
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var showQuit by remember { mutableStateOf(false) }
@@ -419,7 +421,11 @@ private fun MatchUI(
             val time = timeSec
             // The board shakes; the HUD does not. Shaking the readouts would
             // make the numbers unreadable at exactly the moment they matter.
-            val ex = c.explosion
+            // Shake is decoration, so it obeys the system's animation setting
+            // (ui/Motion.kt). A player who has turned animations off for
+            // motion sensitivity still sees the explosion, the trail and every
+            // number — they just do not get the board thrown around.
+            val ex = if (motionOk) c.explosion else null
             val sx = if (ex == null) 0f else t.r(ex.shakeX(c.explosionProgress))
             val sy = if (ex == null) 0f else t.r(ex.shakeY(c.explosionProgress))
             translate(sx, sy) {
@@ -1088,11 +1094,12 @@ private fun SummaryOverlay(
         Spacer(Modifier.height(4.dp))
         Text(s.subtitle, color = TextPrimary, fontSize = 14.sp)
         if (c.launch.mode == GameMode.CAMPAIGN && s.stars > 0) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "★".repeat(s.stars) + "☆".repeat(3 - s.stars),
-                color = StarYellow, fontSize = 30.sp, letterSpacing = 6.sp,
-            )
+            Spacer(Modifier.height(10.dp))
+            // Stars land one at a time rather than appearing as text: this is
+            // the one screen where the game says well done, and it is a
+            // listed store screenshot (StarBurst).
+            StarBurst(stars = s.stars)
+            Spacer(Modifier.height(2.dp))
         }
         if (c.dustEarned > 0) {
             Spacer(Modifier.height(6.dp))
