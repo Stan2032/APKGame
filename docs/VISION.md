@@ -137,9 +137,18 @@ the real content of "the arena degrades into something neither player
 designed". Growing a radius instead would be isotropic and say nothing.
 
 Sizing, measured against solvability: at radius 12 a level keeps 50–100% of
-its winning shots after 30 lumps; at radius 20, 33–67%. **Nothing stranded
-the player** in 27 configurations, including litter worse than the 30-turn
-cap can produce. Recommended: **radius ~12, mass 0**.
+its winning shots after 30 lumps; at radius 20, 33–67%. Recommended:
+**radius ~12, mass 0**.
+
+> **Correction (0.18.2).** This paragraph used to end "**nothing stranded the
+> player** in 27 configurations". That was true of the nine levels sampled and
+> false in general — widening to 30 levels found two that a littered board
+> makes unwinnable, the earliest at **13 wrecks** (D-42). The severity is
+> bounded and worth stating precisely rather than softening: campaign caps at
+> 4 shots (≤3 wrecks) and daily at 5 (≤4), so **neither can reach it**, and
+> objectives are campaign-only (D-27) so no objective can be stranded. Only a
+> duel reaches 13+, and there an unwinnable board is a **draw at the turn cap**
+> — a defined outcome — not a dead end. A sample size is part of a claim.
 
 **What shipped (0.18.0).** A wreck at the impact point — radius 12, massless,
 on body impact only. Four rules the measurement did not settle, decided here:
@@ -164,6 +173,18 @@ Objectives were re-proved under litter before this shipped, since three of the
 four are not won by hitting a station and a wreck could fence a capture ring
 or block a gate. 29 objective systems (13 Capture, 12 Thread, 4 Courier)
 littered at the reachable campaign envelope: **none became unwinnable** (D-27).
+That result survives the 0.18.2 correction above, and is in fact what makes the
+correction tolerable — the campaign envelope is 3 wrecks against an earliest
+stranding of 13.
+
+**Should a wreck also pull? No — measured, not assumed** (D-42). Giving debris
+mass would make misses genuinely *reshape* the field rather than merely
+obstruct it, which is closer to this section's original ambition. It was
+measured across 30 levels at five masses and it strands, **non-monotonically**:
+1e4 → 3/30, 2.5e4 → 2/30, 5e4 → 0/30, 1e5 → 1/30, 2e5 → 2/30. There is no
+"safe if small" threshold to tune toward, because small is not safer — the
+signature of a compounding mechanic, where each wreck steers where the next one
+lands. A mechanic whose safety cannot be tuned is not worth having for a nudge.
 
 ### 3.4 Resonance — the system has a rhythm — **half shipped 0.14.0**
 

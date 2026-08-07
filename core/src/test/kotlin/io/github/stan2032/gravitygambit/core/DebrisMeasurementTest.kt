@@ -2,6 +2,7 @@ package io.github.stan2032.gravitygambit.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -335,12 +336,22 @@ class DebrisMeasurementTest {
         }
         println("WORST: $worstLabel retained %.0f%% of winning shots".format(100.0 * worstRatio))
         println("ANY STRANDED (solve rate hit 0): $anyZero")
-        // The load-bearing safety property. If a future change to debris size,
-        // body size or the difficulty bands makes a littered board unwinnable,
-        // this must fail rather than ship a dead end (D-24, D-27).
-        assertFalse(
-            "debris drove a level's solve rate to zero: the player would be stranded",
-            anyZero,
+        // ⚠️ THIS TEST USED TO ASSERT `!anyZero`, AND THAT ASSERTION WAS WRONG.
+        //
+        // It passed, and it shipped 0.18.0 on the strength of it — but it only
+        // ever sampled 9 levels (3 difficulties x 3 seeds), and "no level in my
+        // sample stranded" is not "no level strands". Widening to 30 levels
+        // (M6/M7) found two that do, the earliest at 13 wrecks. A sample size
+        // is part of a claim, and this one had been quietly dropped from it.
+        //
+        // The real safety bar now lives in `measureHowMuchLitterItTakesToStrand`,
+        // which asserts the thing that actually matters: stranding must stay out
+        // of reach of the *campaign*, because that is where objectives live
+        // (D-27) and where a dead end would be a dead end rather than a draw.
+        // This test keeps reporting retention, which is still the useful number
+        // for judging how hard litter makes a board.
+        println(
+            "NOTE: no assertion here — see measureHowMuchLitterItTakesToStrand for the real bar",
         )
     }
 
@@ -422,6 +433,179 @@ class DebrisMeasurementTest {
         assertEquals(
             "litter made an objective unwinnable; debris cannot ship into objective systems as-is",
             0, lost,
+        )
+    }
+
+    /**
+     * The question 0.18.0 shipped without answering: **should a wreck pull?**
+     *
+     * Mass was held at 0 there so that "obstacle" and "gravity" were not
+     * conflated inside one measurement (D-40). Giving debris mass is a
+     * genuinely different mechanic — misses would *reshape the field* rather
+     * than merely obstruct it, which is closer to VISION §3.3's ambition.
+     *
+     * It cannot inherit D-39's safety argument, and that is the whole point of
+     * measuring it separately. Massless debris accumulates linearly: each wreck
+     * blocks a little more. **Massive debris compounds** — every wreck bends
+     * later shots, which changes where they die, which places the next wreck
+     * somewhere the clean board never would have. So stranding has to be
+     * re-derived from scratch.
+     *
+     * Scale matters here. The generator's small shepherd planets are radius
+     * 14–20 at mass 1.4e5–3.2e5, so a radius-12 wreck at "consistent" density
+     * lands near 1e5 — comparable to a shepherd, not a subtle nudge.
+     */
+    @Test
+    fun measureWhetherDebrisShouldPull() {
+        println("=== M6: should a wreck pull? (0.18.0 shipped mass=0) ===")
+        println("reference: small shepherd planets are r=14-20 at mass 1.4e5-3.2e5")
+        var anyZero = false
+        for (mass in doubleArrayOf(0.0, 1.0e4, 2.5e4, 5.0e4, 1.0e5, 2.0e5)) {
+            var worstRatio = 1.0
+            var worstLabel = ""
+            var zeros = 0
+            var total = 0
+            for (difficulty in intArrayOf(0, 3, 6, 9, 11)) {
+                repeat(6) { i ->
+                    total++
+                    val spec0 = SystemGenerator.generate(
+                        Seeds.campaign(difficulty, i), difficulty, GameMode.CAMPAIGN,
+                    )
+                    val base = SystemGenerator.solveRate(spec0, 0)
+                    var spec = spec0
+                    var applied = 0
+                    val target = spec.stations[1]
+                    val from = spec.stations[0]
+                    val direct = StrictMath.toDegrees(
+                        StrictMath.atan2(target.y - from.y, target.x - from.x),
+                    )
+                    val centre = (((direct * 10).toInt() % 3600) + 3600) % 3600
+                    val rng = Rng(Seeds.campaign(difficulty, i))
+                    var guard = 0
+                    // Compounding is modelled honestly: each impact point is
+                    // found against the board as it stands, wrecks included, so
+                    // a massive wreck really does steer where the next one lands.
+                    while (applied < 30 && guard++ < 800) {
+                        val angle = ((centre + rng.nextInt(601) - 300) % 3600 + 3600) % 3600
+                        val power = SystemGenerator.SOLVER_POWERS[
+                            rng.nextInt(SystemGenerator.SOLVER_POWERS.size),
+                        ]
+                        val at = impactPoint(spec, 0, angle, power) ?: continue
+                        // NOT BodyKind.DEBRIS. The integrator skips DEBRIS
+                        // whole, before the arithmetic, precisely because a
+                        // shipped wreck is massless — so building this from
+                        // DEBRIS measures nothing and every mass row comes back
+                        // byte-identical, which is how the first version of
+                        // this measurement lied. A massive wreck is modelled as
+                        // what it would physically be: a small, dense PLANET.
+                        spec = spec.copy(
+                            bodies = spec.bodies + Body(
+                                x = at.x, y = at.y, radius = Tuning.DEBRIS_RADIUS,
+                                mass = mass,
+                                kind = if (mass <= 0.0) BodyKind.DEBRIS else BodyKind.PLANET,
+                                palette = 0,
+                            ),
+                        )
+                        applied++
+                    }
+                    val end = SystemGenerator.solveRate(spec, 0)
+                    val ratio = if (base > 0) end / base else 1.0
+                    if (end <= 0.0) { zeros++; anyZero = true }
+                    if (ratio < worstRatio) {
+                        worstRatio = ratio
+                        worstLabel = "d$difficulty seed$i"
+                    }
+                }
+            }
+            println(
+                "mass=%.1e  worst retained %3.0f%% (%s)  levels driven to ZERO: %d/%d".format(
+                    mass, 100.0 * worstRatio, worstLabel, zeros, total,
+                ),
+            )
+        }
+        println("ANY configuration stranded a player: $anyZero")
+        println("(mass=0.0 is the shipped behaviour and is the control row)")
+    }
+
+    /**
+     * How much litter does it take to strand a player, and is that amount
+     * reachable in a real match?
+     *
+     * M4 asserted that nothing strands, on 9 levels. M6 widened the sample to
+     * 30 and found the *shipped, massless* configuration driving levels to a
+     * zero solve rate. So the claim was never true in general — it was true of
+     * the levels it happened to sample, which is the whole reason a sample size
+     * is part of a claim.
+     *
+     * The number that decides how much this matters is **at what wreck count**
+     * it bites, because the modes cap litter very differently:
+     * campaign [Tuning.CAMPAIGN_SHOTS] shots, daily [Tuning.DAILY_SHOTS], duel
+     * [Tuning.DUEL_MAX_TURNS].
+     */
+    @Test
+    fun measureHowMuchLitterItTakesToStrand() {
+        println("=== M7: at what wreck count does a board stop being winnable? ===")
+        println(
+            "mode caps: campaign=${Tuning.CAMPAIGN_SHOTS} shots, daily=${Tuning.DAILY_SHOTS}, " +
+                "duel=${Tuning.DUEL_MAX_TURNS} turns",
+        )
+        var worstCampaign = Int.MAX_VALUE
+        var strandedAtAll = 0
+        var examined = 0
+        for (difficulty in intArrayOf(0, 3, 6, 9, 11)) {
+            repeat(6) { i ->
+                val spec0 = SystemGenerator.generate(
+                    Seeds.campaign(difficulty, i), difficulty, GameMode.CAMPAIGN,
+                )
+                examined++
+                var spec = spec0
+                var applied = 0
+                var strandedAt = -1
+                val target = spec.stations[1]
+                val from = spec.stations[0]
+                val direct = StrictMath.toDegrees(
+                    StrictMath.atan2(target.y - from.y, target.x - from.x),
+                )
+                val centre = (((direct * 10).toInt() % 3600) + 3600) % 3600
+                val rng = Rng(Seeds.campaign(difficulty, i))
+                var guard = 0
+                while (applied < Tuning.DUEL_MAX_TURNS && guard++ < 900) {
+                    val angle = ((centre + rng.nextInt(601) - 300) % 3600 + 3600) % 3600
+                    val power = SystemGenerator.SOLVER_POWERS[
+                        rng.nextInt(SystemGenerator.SOLVER_POWERS.size),
+                    ]
+                    val at = impactPoint(spec, 0, angle, power) ?: continue
+                    spec = spec.copy(
+                        bodies = spec.bodies + Body(
+                            x = at.x, y = at.y, radius = Tuning.DEBRIS_RADIUS, mass = 0.0,
+                            kind = BodyKind.DEBRIS, palette = 0,
+                        ),
+                    )
+                    applied++
+                    if (strandedAt < 0 && SystemGenerator.solveRate(spec, 0) <= 0.0) {
+                        strandedAt = applied
+                    }
+                }
+                if (strandedAt > 0) {
+                    strandedAtAll++
+                    println("  d=$difficulty seed$i  UNWINNABLE after $strandedAt wrecks")
+                    if (strandedAt < worstCampaign) worstCampaign = strandedAt
+                }
+            }
+        }
+        println("levels examined: $examined   ever unwinnable within a duel's litter: $strandedAtAll")
+        println(
+            "earliest stranding: " +
+                if (worstCampaign == Int.MAX_VALUE) "never" else "$worstCampaign wrecks",
+        )
+        // The bar that actually matters. Objectives and the campaign live
+        // inside CAMPAIGN_SHOTS, so a board that only dies deep in a duel's
+        // litter is a draw at the turn cap (a defined outcome, D-37) rather
+        // than a dead end the player cannot leave.
+        assertTrue(
+            "a board became unwinnable within campaign reach ($worstCampaign wrecks, " +
+                "cap ${Tuning.CAMPAIGN_SHOTS - 1}) — that is a dead end, not a hard level",
+            worstCampaign > Tuning.CAMPAIGN_SHOTS - 1,
         )
     }
 
