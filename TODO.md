@@ -20,7 +20,8 @@ work is added the moment it's discovered. Owner key: [H]=human-only,
 - [x] Stage A engine: anchors in TurnInput + simulation + codec v3 + tests.
 - [x] Stage A UI: anchor placement mode — tap to place, tap to flip, tap to remove; live preview; pips show budget. v0.5.0.
 - [x] Stage A solver awareness: `anchorLeverage` measures what fraction of missing shots one anchor can rescue; levels that let anchors trivialize aiming are rejected. v0.6.0.
-- [ ] [A] Optimise duel generation (~330ms; both-sides solve × more bodies since 0.4.0). Not urgent — behind a loading screen — but it is the slowest path in the game.
+- [ ] [A] Optimise **difficulty-11 campaign** generation (~684ms worst case), which re-measurement at 0.16.6 showed is the real hot path — **not** duel generation (~343ms), which this item used to call "the slowest path in the game". Layout/solver search is ~83% of it; all three objective proofs together are ~17%, so the candidate loop is the target and the proofs are not.
+  **Constraint that makes this delicate**: anything changing what a seed *generates* is a protocol break, because a campaign replay code regenerates the spec. So only optimisations that provably preserve output are allowed — faster simulation, earlier abandonment of candidates already out of band, cheaper bookkeeping — never a different search order or a different acceptance rule.
 - [x] Stage B: Gambits — shipped 0.9.0 (four verifiable declarations, per-seat generator-proved menus, damage multiplier in duels, protocol v5).
 - [ ] [H] **Play the gambits**: is ×2.2 damage too swingy in a duel against 100 HP? Does "wasted shot" feel like a fair price or a punishment? Are four declarations enough variety, or does the menu go stale?
 - [ ] [A] Consider an unscored *Blind* practice toggle (D-23): the idea is good, only the *scoring* is unverifiable.
