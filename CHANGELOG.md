@@ -6,6 +6,13 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.4] — 2026-08-07
+- **Applied 0.18.2's lesson to the guards most likely to carry the same defect — the termination proofs — and they had it.** `ExpeditionTest.runsAlwaysEnd` claimed *runs always end* while playing exactly **one** run from seed `1234L`; `OutfittingTest.runsAlwaysEndEvenFullyOutfitted` claimed upgrades never void that proof from seed `5L`. Both are unbounded claims about an economy whose route and mutator offers vary by seed — WINDFALL doubles a route's fuel reward, so the deepest possible run is a seed question — and neither sample could support its claim.
+- ✅ **Widened to 500 seeds, both hold**: zero unbounded runs, zero hitting the leg cap. Recorded as a claim *checked and found true*, because a claim verified and a claim assumed are different states. Unlike the debris case, this one survived.
+- ⚠️ **What did change is the recorded margin.** D-38 wrote "depth 32 against 29 bare" from those single seeds. The real worst cases are **35 bare and 36 fully outfitted against a leg cap of 40** — 5 and 4 legs of headroom, not the 8 the old figures implied. The proof is sound but less roomy than documented, which matters because the next person to loosen `travelCost`'s slope or raise a refund would have been reasoning from the wrong slack. D-38 corrected in place.
+- The sweeps are pure arithmetic with no generation, so 500 seeds costs about two seconds. **Breadth was always nearly free here** — the narrow sample bought nothing, which is the uncomfortable part.
+- 238 tests green (166 `:core` + 72 `:app`). Lint clean. **No engine change**: the guards got stricter and a documented number got corrected.
+
 ## [0.19.3] — 2026-08-07
 - **Stage E's resonance mechanic has no subject: a player cannot fire "in phase", because every shot resets the pulsar.** VISION §3.4 says *"fire in phase and the assist amplifies; fire out of phase and it fights you"* — a choice that does not exist in this game. `massAt(tick)` reads `LiveShot`'s own counter, which starts at **0 for every shot**, so every shot ever fired meets a pulsar at `cos(0)`, its heaviest.
 - **Demonstrated at match level rather than argued from the constant**: an identical aim fired as turn one and as turn two is **bit-identical** — same hash, same tick count (`ResonanceReachTest`). Phase varies *within* a flight, which is what makes a pulsar worth flying past, but never *between* shots. There is no timing to get right, so there is nothing to reward.

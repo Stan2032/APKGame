@@ -17,6 +17,15 @@ class ExpeditionTest {
     private fun run(depth: Int = 0, fuel: Int = Expedition.START_FUEL) =
         Expedition.Run(seed = 1234L, depth = depth, fuel = fuel)
 
+    /**
+     * How many seeds the termination proofs sweep. A universal claim needs a
+     * sample that supports it: "runs always end" was asserted from ONE seed
+     * until 0.19.4, which is the same defect that shipped a false
+     * no-stranding claim in 0.18.0 (D-42). These sweeps are pure arithmetic —
+     * no generation — so breadth is nearly free.
+     */
+    private companion object { const val SEED_SWEEP = 500 }
+
     // ---- the economy ----
 
     @Test
@@ -24,25 +33,43 @@ class ExpeditionTest {
         // The best player the rules permit: clears every system in one shot,
         // three stars, always taking the route that pays most. If *this* run
         // is unbounded, no real run ever ends.
-        var r = run()
-        var legs = 0
-        while (!r.over && legs < Expedition.MAX_LEGS * 2) {
-            val best = Expedition.routesFor(r).maxBy { Expedition.refundFor(it, 3) }
-            r = Expedition.afterClear(r, best, shots = 1, stars = 3)
-            legs++
+        //
+        // Swept across many seeds, not one. This test used to run a single
+        // seed (1234L) while claiming "runs always end" — a universal asserted
+        // from one sample, which is the defect that let a false no-stranding
+        // claim ship in 0.18.0 (D-42). Route and mutator offers vary by seed,
+        // and WINDFALL doubles a route's fuel reward, so the deepest run is a
+        // seed question. The sweep is pure arithmetic and costs ~2s.
+        var worstDepth = 0
+        var worstSeed = 0L
+        var minDepth = Int.MAX_VALUE
+        for (i in 0 until SEED_SWEEP) {
+            val seed = Rng.mix(0xBEEFL, i.toLong())
+            var r = Expedition.Run(seed = seed, depth = 0, fuel = Expedition.START_FUEL)
+            var legs = 0
+            while (!r.over && legs < Expedition.MAX_LEGS * 3) {
+                val best = Expedition.routesFor(r).maxBy { Expedition.refundFor(it, 3) }
+                r = Expedition.afterClear(r, best, shots = 1, stars = 3)
+                legs++
+            }
+            assertTrue(
+                "a perfect player never ran out on seed $seed — the fuel economy has no clock in it",
+                r.over,
+            )
+            // MAX_LEGS is a bound on state, not the intended ending. If the
+            // perfect run is stopped by the cap rather than by fuel, the cost
+            // curve is too shallow to be doing any work.
+            assertTrue(
+                "the perfect run on seed $seed hit the leg cap (${r.depth}) rather than " +
+                    "running dry — travel cost is not actually ending runs",
+                r.depth < Expedition.MAX_LEGS,
+            )
+            if (r.depth > worstDepth) { worstDepth = r.depth; worstSeed = seed }
+            if (r.depth < minDepth) minDepth = r.depth
         }
-        println("perfect run ended at depth ${r.depth} with ${r.fuel} fuel, score ${r.score}")
-        assertTrue(
-            "a perfect player never ran out — the fuel economy has no clock in it",
-            r.over,
-        )
-        // MAX_LEGS is a bound on state, not the intended ending. If the
-        // perfect run is stopped by the cap rather than by fuel, the cost
-        // curve is too shallow to be doing any work.
-        assertTrue(
-            "the perfect run hit the leg cap (${r.depth}) rather than running dry — " +
-                "travel cost is not actually ending runs",
-            r.depth < Expedition.MAX_LEGS,
+        println(
+            "perfect run over $SEED_SWEEP seeds: depth $minDepth..$worstDepth " +
+                "(deepest on $worstSeed), headroom to cap ${Expedition.MAX_LEGS - worstDepth}",
         )
     }
 

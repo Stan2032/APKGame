@@ -20,24 +20,50 @@ class OutfittingTest {
     private val maxed: Map<String, Int> =
         Outfitting.Outfit.entries.associate { it.id to it.tiers }
 
+    /** Seeds swept by the termination proof; see ExpeditionTest.SEED_SWEEP (D-42). */
+    private companion object { const val SEED_SWEEP = 500 }
+
     // ---- the proof, re-checked under upgrades ----
 
     @Test
     fun runsAlwaysEndEvenFullyOutfitted() {
         // Best player the rules permit — one shot, three stars, richest route
         // every time — now carrying every fitting at max tier.
-        var r = Expedition.Run(seed = 5L, fuel = Outfitting.startFuel(maxed))
-        var legs = 0
-        while (!r.over && legs < Expedition.MAX_LEGS * 2) {
-            val best = Expedition.routesFor(r).maxBy { Expedition.refundFor(it, 3) }
-            r = Expedition.afterClear(r, best, shots = 1, stars = 3)
-            legs++
+        //
+        // Swept across seeds rather than run once. This asserted an unbounded
+        // claim ("upgrades never void the proof") from a single seed until
+        // 0.19.4, the defect that shipped a false no-stranding claim in 0.18.0
+        // (D-42). It matters more here than in the bare case, because the
+        // margin is thinner: the reserve tank buys ~15 extra fuel, and the
+        // deepest outfitted run across 500 seeds reaches 36 against a leg cap
+        // of 40. The single seed this used suggested far more headroom.
+        var worstDepth = 0
+        var worstSeed = 0L
+        var minDepth = Int.MAX_VALUE
+        for (i in 0 until SEED_SWEEP) {
+            val seed = Rng.mix(0xBEEFL, i.toLong())
+            var r = Expedition.Run(seed = seed, fuel = Outfitting.startFuel(maxed))
+            var legs = 0
+            while (!r.over && legs < Expedition.MAX_LEGS * 3) {
+                val best = Expedition.routesFor(r).maxBy { Expedition.refundFor(it, 3) }
+                r = Expedition.afterClear(r, best, shots = 1, stars = 3)
+                legs++
+            }
+            assertTrue(
+                "upgrades made a perfect run unbounded on seed $seed — D-34's proof is void",
+                r.over,
+            )
+            assertTrue(
+                "the outfitted perfect run on seed $seed hit the leg cap (${r.depth}) " +
+                    "rather than running dry",
+                r.depth < Expedition.MAX_LEGS,
+            )
+            if (r.depth > worstDepth) { worstDepth = r.depth; worstSeed = seed }
+            if (r.depth < minDepth) minDepth = r.depth
         }
-        println("fully outfitted perfect run ended at depth ${r.depth}, fuel ${r.fuel}")
-        assertTrue("upgrades made a perfect run unbounded — D-34's proof is void", r.over)
-        assertTrue(
-            "the outfitted perfect run hit the leg cap (${r.depth}) rather than running dry",
-            r.depth < Expedition.MAX_LEGS,
+        println(
+            "fully outfitted perfect run over $SEED_SWEEP seeds: depth $minDepth..$worstDepth " +
+                "(deepest on $worstSeed), headroom to cap ${Expedition.MAX_LEGS - worstDepth}",
         )
     }
 
