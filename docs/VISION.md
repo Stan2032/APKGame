@@ -103,7 +103,7 @@ odds, roguelike ascensions, speedrun categories) and costs nothing to
 produce. It converts mastery into *stakes*, which is what "gambit" means.
 Verification is free — the simulation already knows what happened.
 
-### 3.3 Consequence — misses reshape the field
+### 3.3 Consequence — misses reshape the field — **measured 0.17.2, rule revised**
 
 A shot that dies leaves **debris**: a small permanent body at its death
 point. Miss twice and you have complicated your own board.
@@ -111,6 +111,35 @@ point. Miss twice and you have complicated your own board.
 Why: every shot now matters even when it fails, tension escalates within a
 match instead of resetting, and in duels the arena visibly degrades into
 something neither player designed — a shared story.
+
+**What measurement changed** (`DebrisMeasurementTest`, D-39). The paragraph
+above is kept because the *intent* survives, but three of its assumptions did
+not, and the rule has to be written from the numbers instead:
+
+- **"Miss twice" is far off.** Inside a realistic aim cone, **57–80% of
+  misses die on a body**, so a match litters constantly rather than
+  occasionally. (The uniform solver grid says the opposite — 86% leave the
+  field — because it includes firing away from the target. That sample is not
+  the player, and taking it at face value would have killed the mechanic on a
+  false negative.)
+- **Debris can never appear in open space.** A shot has essentially one way
+  to die on the board: hitting a body (18,000 samples → 2,625 body deaths, 1
+  own-station death, 0 timeouts). So debris always lands against something
+  already solid. It cannot block an empty lane, and no wording of "at its
+  death point" changes that.
+- **It cannot be conserved matter.** Adding the shell's cross-section to the
+  body it struck grows a radius-100 planet to 100.12 and moves the solve rate
+  by *nothing* across 16 hits. Debris has to be sized for legibility.
+
+What makes it work is that a lump is **directional** — it sits on the side
+the shot came from, so it obstructs the approach you keep taking, which is
+the real content of "the arena degrades into something neither player
+designed". Growing a radius instead would be isotropic and say nothing.
+
+Sizing, measured against solvability: at radius 12 a level keeps 50–100% of
+its winning shots after 30 lumps; at radius 20, 33–67%. **Nothing stranded
+the player** in 27 configurations, including litter worse than the 30-turn
+cap can produce. Recommended: **radius ~12, mass 0**.
 
 ### 3.4 Resonance — the system has a rhythm — **half shipped 0.14.0**
 
