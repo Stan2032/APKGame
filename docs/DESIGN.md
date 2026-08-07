@@ -156,11 +156,21 @@ Hot-seat earns nothing, same as it earns no stardust.
 
 ## The generator (the "cutting edge" part, honestly)
 
-`SystemGenerator` composes a system (star or binary, 2–6 planets, optional
-negative-mass repulsor anomaly), then **solves it**: it simulates a 180×5
+`SystemGenerator` composes a system — **one keeper** (a star, or at higher
+difficulties sometimes a large planet instead), 2–6 shepherd planets, and an
+optional negative-mass repulsor anomaly — then **solves it**: it simulates a 180×5
 grid of candidate shots and measures the hit-rate of the aim space — the
 size of the solution basin. A layout ships only if that rate falls in the
 difficulty band `[max(0.0006, 0.019·0.80^d), ×22 capped at 0.30]`
+
+> There is **no such thing as a binary star** in this game, and this sentence
+> used to say there was. The generator emits at most one `STAR`; its
+> `doubleKeeper` path adds a second large **planet**, never a second star.
+> Measured across 720 generated systems the star-count histogram is
+> `{0: 93, 1: 627}`. D-34 already said as much — it cites "a *binary star
+> ahead* the generator cannot produce in band" as the reason field-shaping
+> mutators need a proof — so two docs contradicted each other and the store
+> listing had built a screenshot requirement on the wrong one (D-41).
 (recalibrated in 0.7.0 when curated layouts made honest hit-rates much lower;
 the old `0.03·0.72^d` floor sat *above* what difficulty 0 actually measured,
 which silently pushed every early level onto the fallback path). Too easy →

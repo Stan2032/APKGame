@@ -61,14 +61,33 @@ Keyword notes: gravity, slingshot, artillery, orbit, pvp, duel, offline game, ph
   their own.
 
 ## Screenshots (phone, min 4; capture from real gameplay, portrait, no device frames, no fake-quote overlays)
-1. Mid-flight slingshot around a planet, trail glowing (the money shot — retake until beautiful).
-2. Aim mode: the floating stick mid-pull, preview dots bending through a binary-star field.
-3. Anchors placed and the preview visibly curving through them (this is the mechanic nothing else has).
-4. The gambit dialog open, showing a declaration and its payout.
-5. A Capture system: the ring around the marked world, part-filled mid-orbit.
-6. Duel HANDOFF "Shot locked in 🔒" code card (the differentiator — show the code).
-7. Season ladder with both lanes visible and a tier or two collected.
-8. Campaign sector map with mixed star ratings.
+
+**Go straight to these levels — do not grind for the moments.** The
+coordinates below are computed by `ScreenshotSeedsTest`, which searches real
+campaign levels for each shot and prints the aim where one is needed. Levels
+are given as a player navigates them (sector, level), not as raw seeds.
+Regenerate any time with
+`./gradlew :core:test --tests "*ScreenshotSeedsTest*"` — and **re-run it after
+any generator change**, because these coordinates are only true for the
+generation the code produces today.
+
+| # | Shot | Go to | Aim |
+|---|---|---|---|
+| 1 | Mid-flight slingshot around a world, trail glowing (**the money shot** — retake until beautiful) | **sector 4, level 11** | angle `3060`, power `300` → gain 230, passes 25u from a surface, 279 ticks |
+| 2 | Aim mode: floating stick mid-pull, preview dots bending through a heavy two-keeper field | **sector 4, level 4** | — (4 bodies of radius ≥45: a r=75 star and three large planets) |
+| 3 | Anchors placed, preview visibly curving through them (*the mechanic nothing else has*) | **sector 3, level 6** | — (highest measured anchor leverage in range, 0.20) |
+| 4 | The gambit dialog open, showing a declaration and its payout | **sector 0, level 1** | — (all four declarations offered: Featherweight, Two-body, Stolen speed, Long way) |
+| 5 | A Capture system: the ring around the marked world, part-filled mid-orbit | **sector 1, level 2** | angle `2360`, power `1000`, brake at tick `40` → dwell 334 (needs 240) |
+| 6 | **Debris**: a board wearing the history of your own misses (new in 0.18.0) | **sector 0, level 1** | — (reaches 3 wrecks within the 4-shot campaign limit) |
+| 7 | Duel HANDOFF "Shot locked in 🔒" code card (the differentiator — show the code) | any duel | not seed-dependent |
+| 8 | Season ladder with both lanes visible and a tier or two collected | Season screen | not seed-dependent |
+| 9 | Campaign sector map with mixed star ratings | Campaign screen | not seed-dependent |
+
+> ⚠️ **Shot 2 used to say "binary-star field".** There is no such thing in this
+> game — the generator emits at most one star, and its double-keeper path adds
+> a second large *planet*. Measured across 720 systems the star count is never
+> above 1. Anyone hunting for a binary would have hunted forever (D-41).
+
 Caption style: mechanism statements ("Real N-body gravity", "PVP that fits in a text"), no exclamation marks.
 
 ## Feature graphic (1024×500)

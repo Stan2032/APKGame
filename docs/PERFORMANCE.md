@@ -127,6 +127,11 @@ the anchor-leverage probe in 0.6.0.)
 - Quick look: Developer options → Profile HWUI rendering → bars under green line.
 - Numbers: `adb shell dumpsys gfxinfo io.github.stan2032.gravitygambit framestats`.
 - Jank hunting: Android Studio Profiler → System Trace during a Triad shot over
-  a binary-star field (worst case: 3 projectiles + max trail + max bodies).
+  a **double-keeper** field late in a duel (worst case: 3 projectiles + max
+  trail + max bodies + accumulated debris). This used to say "binary-star
+  field", which named a scenario that cannot be reached — the generator emits
+  at most one star (D-41). Sector 4 level 4 is a real double-keeper board;
+  debris makes the worst case worse than it was, since a 30-turn duel can
+  carry 30 wrecks.
 - Regression gate (roadmap with CI device lab): Macrobenchmark
   `frameOverrunMs` P95 < 0 on the same scenario.
