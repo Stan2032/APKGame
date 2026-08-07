@@ -200,8 +200,26 @@ identity — "the level has a beat" is something no competitor has.
 swells at its real gravity period, phase-locked to the shot (docs/AUDIO.md
 §2). The field can now be learned by ear before it is a rule.
 
-**Still open:** the *mechanic* — phase currently changes the pull, as it
-always has, but nothing rewards firing in phase beyond the physics itself.
+**Still open — and further away than this section implies.** The *mechanic*
+is not merely unrewarded, it is **unreachable**: a player cannot fire "in
+phase", because every shot resets the pulsar. `massAt(tick)` reads
+`LiveShot`'s own counter, which starts at 0 for every shot, so every shot ever
+fired meets a pulsar at its heaviest. Phase varies *within* a flight — which
+is what makes a pulsar worth flying past — but never *between* shots.
+Demonstrated at match level: an identical aim fired as turn one and as turn
+two is bit-identical, same hash and tick count (`ResonanceReachTest`, D-45).
+
+Making it real means pulsar phase must depend on match time rather than shot
+time. That changes what every existing pulsar level does — a **protocol
+break**, not a tuning change — and it touches **27% of systems** (98/360
+measured, none below difficulty 4). Making it a *choice* rather than an
+artefact of turn order needs a timing input in `TurnInput`, folded into the
+hash, since a phase the sender picks but never transmits is unverifiable in
+exactly the way D-23 cut Blind for.
+
+**The polyrhythm half has no subject at all.** Two pulsars with different
+periods requires two pulsars, and the generator makes **0 in 360** systems
+with more than one. Periods are the second problem.
 Polyrhythm needs multiple pulsars with different periods, which the pad
 already supports (each gets its own tremolo) but the generator does not yet
 produce. Note the constraint D-33 exposes: a second period only stays
