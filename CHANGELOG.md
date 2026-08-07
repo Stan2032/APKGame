@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.16.1] — 2026-08-06
+- **Eighth audit pass, and the first one to find a lie told to *players* rather than to agents.** The in-app "How to play" screen was written at 0.2.0 and never revisited.
+- **It stated a rule that is false: *"One shot = ★★★."*** Three stars requires one shot **and** that the winning shot did something — a kept declaration, a slingshot gain of at least `THREE_STAR_MIN_GAIN`, or a style bonus (`MatchEngine.starsEarned`). A plain one-shot kill with no flourish scores **two**. So the game was telling players to optimise for the wrong thing, in the one place they go when confused, about the reward the whole campaign is built on.
+- **And it described a game that no longer exists.** Missing: anchors (shipped 0.5.0 — the mechanic the store listing calls the one nothing else has), gambits (0.9.0), all three objectives (0.10.0–0.13.0), the season track (0.12.x) and Expedition (0.15.0–0.16.0). A player landing on a Capture system — handed a RETRO shell they never chose, with a ring drawn around a world — had no explanation available anywhere in the app.
+- Rewritten with a card per mechanic, and **every number now interpolated from `Tuning` and `Season` rather than typed**: shot caps, anchor budget, station HP, the capture hold, tier count, season length. A typed number drifts silently; an interpolated one cannot.
+- The duel fairness promise (D-29 — every shell and the longest aim trace issued to both players, always) is now stated *inside the app*. It was only ever told to strangers reading the store listing, which is the wrong way round: the person who most needs to hear it is the one who just lost.
+- New `HelpAccuracyTest` (4): every shipped mechanic and all four objectives are mentioned somewhere; the three-star caveat is on screen and the engine really does require more than speed; the numbers come from `Tuning`; the fairness promise is present. The mechanic list is the point — it grows when the game does, so a future feature cannot ship with no explanation anywhere.
+- Caught one of my own inventions mid-edit: a closing line claiming a typical run depth and that "nobody has finished one yet". Both fabricated. Deleted — writing an unverifiable number into the fix for unverified numbers would have been the joke telling itself.
+
 ## [0.16.0] — 2026-08-06
 - **Expedition is playable.** The junction screen, the run's home between systems, and a Home entry to reach it. VISION Stage D is complete.
 - **The screen answers one question — which way, and can I afford it?** So every number a route card shows is in the same unit as the gauge above it: travel is stated *before* the leg is taken, and each card gives the fuel a clear returns at one star and at three. A run mode where the price appears after committing feels arbitrary rather than tense, and tension is the entire product here.
