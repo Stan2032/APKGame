@@ -41,6 +41,72 @@ class ScreenshotSeedsTest {
     private fun coords(): List<Coord> =
         (0..4).flatMap { s -> (0 until 12).map { l -> Coord(s, l) } }
 
+    /**
+     * Sector 0 only — what a fresh install can reach without grinding.
+     *
+     * The catalogue published at 0.18.1 named sector 4 for the money shot,
+     * which is **correct and practically unreachable**: sectors unlock at
+     * [Economy.SECTOR_UNLOCK_STARS]★ each, so reaching sector 4 costs 20★ in
+     * every one of sectors 0–3 — 80 stars, roughly 30–40 levels of play before
+     * the single most important marketing asset can be photographed. Naming a
+     * coordinate is not the same as making it reachable.
+     */
+    private fun earlyCoords(): List<Coord> = (0 until 12).map { l -> Coord(0, l) }
+
+    @Test
+    fun theEarlyGameOffersItsOwnScreenshotMoments() {
+        println("=== what a fresh install can photograph (sector 0 only) ===")
+        println(
+            "reaching sector 4 costs ${Economy.SECTOR_UNLOCK_STARS}* in each of sectors 0-3 " +
+                "= ${Economy.SECTOR_UNLOCK_STARS * 4}* total, so the headline catalogue is a late-game shoot",
+        )
+
+        var bestGain = 0.0
+        var bestLine = "none found"
+        for (c in earlyCoords()) {
+            val spec = c.spec()
+            var angle = 0
+            while (angle < 3600) {
+                for (power in SystemGenerator.SOLVER_POWERS) {
+                    val res = LiveShot(
+                        spec.bodies, spec.stations, 0, angle, power,
+                        ProjectileType.STANDARD.id, maxTicks = Tuning.MAX_TICKS,
+                    ).runToCompletion()
+                    if (!res.stationHits.contains(1)) continue
+                    if (res.slingshotGain > bestGain && res.minSurfaceDist < 60.0) {
+                        bestGain = res.slingshotGain
+                        bestLine = "$c (d${c.difficulty})  aim=$angle power=$power  " +
+                            "gain=%.0f  passes %.0fu from a surface".format(
+                                res.slingshotGain, res.minSurfaceDist,
+                            )
+                    }
+                }
+                angle += SystemGenerator.SOLVER_ANGLE_STEP
+            }
+        }
+        println("EARLY SLINGSHOT  $bestLine")
+
+        val gambit = earlyCoords().maxByOrNull { Integer.bitCount(it.spec().gambitMasks[0]) }
+        println(
+            "EARLY GAMBITS    " + (gambit?.let {
+                "$it (d${it.difficulty})  ${Integer.bitCount(it.spec().gambitMasks[0])} offered"
+            } ?: "none"),
+        )
+        val debris = earlyCoords().firstOrNull { c ->
+            val engine = MatchEngine(c.spec(), GameMode.CAMPAIGN)
+            var made = 0
+            var angle = 0
+            while (angle < 3600 && !engine.over) {
+                val res = engine.beginShot(angle, 700, ProjectileType.STANDARD.id).runToCompletion()
+                if (res.wreckAt != null) { engine.commit(res); made++ }
+                angle += SystemGenerator.SOLVER_ANGLE_STEP
+            }
+            made >= 3
+        }
+        println("EARLY DEBRIS     " + (debris?.toString() ?: "none in sector 0"))
+        assertTrue("sector 0 must offer a photographable slingshot", bestGain > 0.0)
+    }
+
     @Test
     fun findTheScreenshotMoments() {
         println("=== screenshot seed catalogue (docs/STORE_LISTING.md) ===")

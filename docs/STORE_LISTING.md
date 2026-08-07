@@ -71,6 +71,21 @@ Regenerate any time with
 any generator change**, because these coordinates are only true for the
 generation the code produces today.
 
+> ⚠️ **Read this before planning the shoot: the headline table is a LATE-GAME
+> shoot.** Campaign content is gated, and the first published catalogue ignored
+> that — naming a coordinate is not the same as making it reachable.
+> - A **level** needs ≥1★ on the level before it, so levels must be cleared in
+>   order (any rating will do).
+> - A **sector** needs **20★** in the sector before it (of 36 available).
+>
+> So *sector 4, level 11* costs **80★ across sectors 0–3**, plus clearing ten
+> levels of sector 4 — roughly 30–40 levels of play before the money shot can
+> be taken. That is fine if you are playing anyway (owner items 3, 8 and 9 all
+> want hands on the game), but it is not a five-minute job.
+>
+> **If you want to shoot immediately, use the early table below.** Two of the
+> shots are available on the very first level of a fresh install.
+
 | # | Shot | Go to | Aim |
 |---|---|---|---|
 | 1 | Mid-flight slingshot around a world, trail glowing (**the money shot** — retake until beautiful) | **sector 4, level 11** | angle `3060`, power `300` → gain 230, passes 25u from a surface, 279 ticks |
@@ -82,6 +97,19 @@ generation the code produces today.
 | 7 | Duel HANDOFF "Shot locked in 🔒" code card (the differentiator — show the code) | any duel | not seed-dependent |
 | 8 | Season ladder with both lanes visible and a tier or two collected | Season screen | not seed-dependent |
 | 9 | Campaign sector map with mixed star ratings | Campaign screen | not seed-dependent |
+
+### Reachable on a fresh install (no grinding)
+
+| Shot | Go to | Aim | Unlock cost |
+|---|---|---|---|
+| The gambit dialog, all four declarations offered | **sector 0, level 1** | — | **none — first level** |
+| **Debris**: a board wearing your own misses | **sector 0, level 1** | — | **none — first level** |
+| Slingshot (smaller than the headline one: gain 132 vs 230) | **sector 0, level 11** | angle `2500`, power `500` → passes 31u from a surface | clear sector 0 levels 1–10, any rating |
+
+Everything else — the best slingshot, the Capture ring, the double-keeper
+field, the high-anchor-leverage board — lives deeper and needs the star cost
+above. Shots 7–9 (duel handoff, season ladder, sector map) are not gated at
+all, though the season ladder looks better with a tier or two collected.
 
 > ⚠️ **Shot 2 used to say "binary-star field".** There is no such thing in this
 > game — the generator emits at most one star, and its double-keeper path adds

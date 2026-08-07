@@ -6,6 +6,17 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.9] — 2026-08-07
+- ⚠️ **Self-audit: the screenshot catalogue named coordinates the owner cannot reach.** 0.18.1 shipped a table of exact levels and aims so the shoot would not need hunting — and ignored that campaign content is **gated**. A level needs ≥1★ on the one before it; a sector needs **20★** in the sector before it. So the headline entry, *sector 4 level 11*, costs **80★ across sectors 0–3** plus clearing ten levels of sector 4 — roughly 30–40 levels of play before the money shot can be photographed.
+- **Every coordinate was accurate and the table was still close to unusable for its stated purpose** ("go straight to these levels — do not grind"). That is the same failure shape as the binary star it replaced: a claim can point at a real thing and still not point at something the reader can act on.
+- ✅ **Fixed by measuring the early game and publishing both.** The headline table now carries the unlock arithmetic explicitly, and a second table lists what a **fresh install** can shoot:
+  - **The gambit dialog with all four declarations — sector 0, level 1.** No unlock cost at all.
+  - **A debris board — sector 0, level 1.** Also free.
+  - **A real slingshot — sector 0, level 11**, aim `2500` power `500` (gain 132 against the headline's 230), for the price of clearing ten levels at any rating.
+- So the owner can start shooting in minutes and retake the money shot later while playing anyway — which owner items 3, 8 and 9 all want regardless.
+- PR body refreshed for 0.19.8's behaviour change (the duel-code onboarding), per the standing rule that a stale body is only worth churning when behaviour moves.
+- 242 tests green (168 `:core` + 74 `:app`). Lint clean.
+
 ## [0.19.8] — 2026-08-07
 - **The game's differentiator had no first-use guidance.** A code duel is the one thing this game does that nothing else does — serverless PVP that fits in a text message — and the Duel screen explained every *button* while never explaining the **shape** of the thing: that it is a turn-by-turn exchange, not a single sent shot. A player who fires, texts a code, and then receives one back had no way to know that is normal, or that it goes in the box further down the same screen.
 - **Added a first-use card that states the loop in three steps**, then what ends it: stations take `STATION_HP` damage, first one down loses, **or it is a draw if both survive `DUEL_MAX_TURNS` turns**. Also states the two facts a newcomer would otherwise have to infer — each code carries the whole match so far (so a returned code is not a reset), and both players get every shell (D-29).
