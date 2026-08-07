@@ -59,7 +59,16 @@ class HelpAccuracyTest {
         // Each of these is a mechanic a player will meet without warning. The
         // list is the point: it grows when the game does, and the test fails
         // if a future mechanic ships with no explanation anywhere in the app.
-        for (topic in listOf("Anchors", "Call your shot", "Expedition", "Season", "Duels", "Campaign")) {
+        //
+        // ⚠️ The list is also this guard's blind spot, and it has already been
+        // hit once: debris shipped in 0.18.0 — a permanent obstacle that
+        // appears on the player's own board when they miss — and Help said
+        // nothing about it for a whole version, because "wreckage" was not in
+        // this list and so there was nothing to fail. **Adding a mechanic
+        // means adding a line here**, or the guard cannot see the omission.
+        for (topic in listOf(
+            "Anchors", "Call your shot", "Expedition", "Season", "Duels", "Campaign", "wreck",
+        )) {
             assertMentions(topic)
         }
         // All four objectives, by the names the HUD uses.

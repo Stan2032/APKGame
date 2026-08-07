@@ -312,10 +312,16 @@ private fun MatchUI(
     }
 
     // Duels issue the top preview to both players; elsewhere it is earned —
-    // and a Dark run takes it away for one leg, which is the only place in the
-    // game where firing blind is a rule rather than a claim (D-23, D-34).
+    // and a Dark run takes it away for one leg (D-23, D-34).
+    //
+    // Blind practice is checked FIRST and beats everything, including a duel's
+    // guaranteed top tier. That ordering is the point: it is a self-imposed
+    // handicap the player switched on, so it must not be overridden by a rule
+    // whose purpose is to stop anyone being *disadvantaged*. It pays nothing,
+    // so choosing it can only cost you (D-23).
     val previewTicks = Economy.previewTicks(
         when {
+            profile.blindPractice -> Economy.PREVIEW_NONE
             c.launch.mode == GameMode.DUEL -> Economy.MAX_PREVIEW_LEVEL
             c.launch.expeditionLeg != null ->
                 Expedition.previewLevelFor(c.launch.expeditionLeg, profile.previewLevel)
@@ -332,8 +338,11 @@ private fun MatchUI(
     }
     val previewPaths = remember(
         c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig, previewBodies,
+        previewTicks,
     ) {
-        if (c.phase == Phase.AIMING && c.isMyTurn) {
+        // No trace means none: skip the simulation entirely rather than run it
+        // for zero ticks, so blind really is blind and costs nothing to be.
+        if (previewTicks > 0 && c.phase == Phase.AIMING && c.isMyTurn) {
             Preview.trajectories(
                 previewBodies, c.engine.stations, c.engine.currentShooter,
                 c.aimAngleDeci, c.aimPower, c.selectedType, previewTicks, c.anchors.toList(),

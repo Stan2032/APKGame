@@ -70,6 +70,26 @@ fun SettingsScreen(profile: Profile, repo: ProfileRepository, onNavigate: (Nav) 
         }
 
         SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    CardTitle("Blind practice")
+                    // Deliberately states that it pays nothing. The whole reason
+                    // this can exist at all is that it is unscored (D-23), and a
+                    // player who switched it on expecting a reward would have
+                    // been misled by the game rather than by themselves.
+                    Subtitle(
+                        "Fly with no aim trace, everywhere — including duels. " +
+                            "Pays nothing: no bonus, no extra stars. Just harder.",
+                    )
+                }
+                Switch(
+                    checked = profile.blindPractice,
+                    onCheckedChange = { on -> repo.update { it.copy(blindPractice = on) } },
+                )
+            }
+        }
+
+        SectionCard {
             Column {
                 CardTitle("Send feedback")
                 Subtitle("Sent through an app you choose. The game sends nothing itself.")

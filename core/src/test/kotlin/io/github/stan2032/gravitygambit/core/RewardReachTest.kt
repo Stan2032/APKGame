@@ -20,6 +20,66 @@ import org.junit.Test
  */
 class RewardReachTest {
 
+    /**
+     * Blind practice is the D-23 idea shipping in the only form that survives
+     * the objection, and what makes it survivable is that **it pays nothing**.
+     * Blind was cut from the scored Gambits because nothing in a `TurnInput`
+     * records whether the sender looked at their preview, so a peer would have
+     * to take the claim on trust. A self-imposed handicap that grants no
+     * reward has nothing to take on trust and nothing to cheat at.
+     *
+     * If a future change ever makes it pay — a bonus, a multiplier, an extra
+     * star — it stops being self-imposed difficulty and becomes an
+     * unverifiable claim worth money, which is precisely the hole D-23 closed.
+     * `Profile` is checked structurally here so that the flag cannot quietly
+     * grow a payout.
+     */
+    @Test
+    fun blindPracticePaysNothingAndIsPurelyASetting() {
+        val plain = Profile()
+        val blind = Profile(blindPractice = true)
+
+        assertEquals(
+            "blind practice must not be reachable except as a setting the player sets",
+            false, plain.blindPractice,
+        )
+        // Every reward function in the game takes what it needs explicitly, and
+        // none of them takes a Profile — so there is structurally nowhere for a
+        // blind-practice bonus to enter. Stated as a check on the reward
+        // surface rather than as a comment, because a comment cannot fail.
+        val rewardTakesProfile = Season::class.java.declaredMethods.any { m ->
+            m.parameterTypes.any { it == Profile::class.java }
+        }
+        assertEquals(
+            "a Season reward function now takes a Profile, so blind practice could pay (D-23)",
+            false, rewardTakesProfile,
+        )
+        assertEquals(
+            "turning blind practice on must change nothing but the aim trace",
+            plain.copy(blindPractice = true), blind,
+        )
+    }
+
+    /**
+     * "No aim trace" has to mean zero ticks, not "the tier you did not pay
+     * for". Tier 0 is the base 90-tick trace every player owns, and until
+     * 0.19.0 both the Dark run mutator and this constant conflated the two.
+     */
+    @Test
+    fun theNoPreviewTierActuallyYieldsNoPreview() {
+        assertEquals(
+            "PREVIEW_NONE must yield zero ticks, or 'blind' is just 'unupgraded'",
+            0, Economy.previewTicks(Economy.PREVIEW_NONE),
+        )
+        assertTrue(
+            "tier 0 is the base trace, not blindness — they must differ",
+            Economy.previewTicks(0) > 0,
+        )
+        // A negative tier must not fall through to the top branch, which is how
+        // "blind" would silently become "best possible preview".
+        assertEquals(0, Economy.previewTicks(-5))
+    }
+
     @Test
     fun everyModeThatPaysSeasonXpIsOneTheScreenCanName() {
         // Campaign, daily, expedition: all pay. Hot-seat duel does not.

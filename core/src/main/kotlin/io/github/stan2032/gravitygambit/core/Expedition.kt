@@ -301,6 +301,13 @@ object Expedition {
     fun payout(run: Run): Int = 20 + 12 * run.depth + run.score / 40
 
     /** The aim-preview tier permitted on [leg], overriding what the player owns. */
+    /**
+     * A Dark run means **no aim trace**, which is what the mutator has always
+     * said and what it did not do until 0.19.0: it returned tier 0, the base
+     * 90-tick preview every player owns, so the run removed a *purchase*
+     * rather than the trace. `Economy.PREVIEW_NONE` is the tier that actually
+     * means none.
+     */
     fun previewLevelFor(leg: Leg, owned: Int): Int =
-        if (leg.mutator == Mutator.BLIND) 0 else owned
+        if (leg.mutator == Mutator.BLIND) Economy.PREVIEW_NONE else owned
 }

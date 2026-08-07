@@ -260,8 +260,22 @@ class ExpeditionTest {
 
         // Dark run is D-23's Blind, legitimate here because a run is solo and
         // nothing is sent: it binds only the player who chose it.
+        //
+        // Asserted in TICKS, not in tier number, and that distinction is the
+        // whole point. This test used to say `previewLevelFor(blind) == 0`,
+        // which looks like "blind" and is not: tier 0 is the base 90-tick
+        // trace every player owns, so the mutator was removing a *purchase*
+        // while its own description promised "No aim trace on this system".
+        // The test pinned the implementation instead of the claim, so it
+        // guarded the bug rather than catching it (0.19.0).
         val blind = base.copy(mutator = Expedition.Mutator.BLIND)
-        assertEquals(0, Expedition.previewLevelFor(blind, owned = Economy.MAX_PREVIEW_LEVEL))
+        assertEquals(
+            "a Dark run promises no aim trace, so it must yield zero preview ticks",
+            0,
+            Economy.previewTicks(
+                Expedition.previewLevelFor(blind, owned = Economy.MAX_PREVIEW_LEVEL),
+            ),
+        )
         assertEquals(
             "an ordinary leg must not touch the player's preview tier",
             Economy.MAX_PREVIEW_LEVEL, Expedition.previewLevelFor(base, Economy.MAX_PREVIEW_LEVEL),

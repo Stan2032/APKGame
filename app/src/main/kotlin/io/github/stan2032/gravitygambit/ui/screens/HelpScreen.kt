@@ -53,6 +53,14 @@ fun HelpScreen(onNavigate: (Nav) -> Unit) {
                 "that makes an impossible shot yours rather than lucky.",
         )
         HelpCard(
+            "🪨 Misses leave wreckage",
+            "A shot that dies against a world leaves a wreck there for the rest of the match, " +
+                "on the side it came from — so a line you keep failing on closes up behind you. " +
+                "Wreckage blocks, but it has no gravity: it will not bend a shot, and it never " +
+                "counts toward a called shot. Wrecks never form on a station, and one never " +
+                "forms on another.",
+        )
+        HelpCard(
             "🎲 Call your shot",
             "Declare a constraint before you fire — under 40% power, through the pull of two " +
                 "different worlds, the long way round — and a shot that keeps it pays far more. " +

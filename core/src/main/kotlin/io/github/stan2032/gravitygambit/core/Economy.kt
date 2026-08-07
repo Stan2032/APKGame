@@ -58,6 +58,23 @@ data class Profile(
      * only object to the second into silence.
      */
     val musicEnabled: Boolean = true,
+    /**
+     * **Blind practice**: fly with no aim trace at all, by choice, everywhere.
+     *
+     * This is D-23's idea finally shipping in the one form that survives the
+     * objection. *Blind* was cut from the scored Gambits because nothing in a
+     * `TurnInput` records whether the sender looked at their preview, so a
+     * peer verifying a share code would have to take the claim on trust — a
+     * hole in a game whose premise is that nothing is (D-2, D-4).
+     *
+     * The objection is about **verification by a stranger**, and it simply
+     * does not apply here: this pays nothing. No bonus, no multiplier, no
+     * star, nothing recorded and nothing transmitted. It is self-imposed
+     * difficulty for its own sake, which is exactly what D-23 said the idea
+     * was good for. Because it grants nothing, there is nothing to cheat at,
+     * and it stays honest in duels too — turning it on can only cost you.
+     */
+    val blindPractice: Boolean = false,
     val lastDuelCode: String = "",
     /** Ad Pass subscription state (reconciled against Play Billing on connect). */
     val adPassActive: Boolean = false,
@@ -134,9 +151,25 @@ object Economy {
     /** Cost to move preview tier 0->1 and 1->2. */
     val PREVIEW_UPGRADE_COSTS = listOf(250, 600)
 
-    fun previewTicks(level: Int): Int = when (level) {
-        0 -> 90
-        1 -> 180
+    /**
+     * A preview tier meaning **no aim trace at all**, as distinct from tier 0
+     * which is the base 90-tick trace every player starts with.
+     *
+     * This did not exist until 0.19.0 and its absence was a live bug: the
+     * Expedition *Dark run* told the player "No aim trace on this system" and
+     * then handed them tier 0 — a full base preview. The mutator was removing
+     * a *purchase*, not the trace, while the copy promised the trace. Blind
+     * practice needs the same thing, so both now go through this.
+     */
+    const val PREVIEW_NONE = -1
+
+    fun previewTicks(level: Int): Int = when {
+        // Explicit, not an `else` fall-through: a negative tier landing in the
+        // top branch is exactly how "blind" would silently become "best
+        // possible preview", which is the inverse of the intended rule.
+        level <= PREVIEW_NONE -> 0
+        level == 0 -> 90
+        level == 1 -> 180
         else -> 270
     }
 
