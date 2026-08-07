@@ -18,9 +18,20 @@ seconds to 5 minutes; mastery is unbounded.
    serverless PVP, and a global daily challenge.
 3. **Generated, but guaranteed.** Every level is machine-proven solvable
    before a human ever sees it, with difficulty *measured*, not guessed.
-4. **Modes feed each other.** Campaign stars unlock duel weapons; duels pay
-   the campaign economy; the daily feeds cosmetics. No dead ends.
-5. **Fair monetization.** Cosmetics and convenience only. Never power.
+4. **Modes feed each other.** Campaign stars unlock shells; duels and
+   Expedition pay the shared economy; the daily feeds cosmetics. No dead ends.
+   ⚠️ This pillar read "campaign stars unlock **duel** weapons" until 0.17.1 —
+   false since D-29, which issues every shell to both duellists. The same
+   wrong claim appeared twice in this file, in the pillars and in the
+   interlock list, which is how a headline sentence survives an audit of the
+   section below it.
+5. **Fair monetization: nothing bought can decide a duel.** Amended from
+   "cosmetics and convenience only, never power" (D-13): that wording was
+   right in spirit and the game did not honour it — the preview upgrade and
+   the Breaker's damage both reached PVP. Purchases *may* now grant real
+   progression (shells, aim traces, the season pass); the invariant is
+   specifically that **none of it reaches PVP**, which duel normalization
+   enforces structurally rather than by promise.
 
 ## Why this concept (the argument)
 
@@ -68,11 +79,20 @@ stardust and teaches advanced play by naming it.
 ## Modes and how they interlock
 
 - **Campaign** — endless generated sectors of 12 levels. Destroy the target
-  core in ≤4 shots; 1 shot = ★★★. Stars gate projectile unlocks and sector
-  progression.
+  core in ≤4 shots. **★★★ is one shot *and* a shot that did something** — a
+  kept declaration, a real slingshot gain, or a style bonus; a plain one-shot
+  kill with no flourish is ★★ (`MatchEngine.starsEarned`). This line read
+  "1 shot = ★★★" until 0.17.1, which is the same false rule the in-app Help
+  screen carried until 0.16.1: fixed there, missed here. Stars gate projectile
+  unlocks and sector progression.
 - **Daily Challenge** — one seed worldwide per UTC day (difficulty 6, five
   shots, target relocates after each hit). Streaks; Wordle-style share text
   that embeds a *verifiable* replay code.
+- **Expedition** — a run: chained systems on one tank of fuel, with a route
+  choice and sometimes a condition between them. Additive to the campaign
+  rather than replacing it (D-32b). Travel costs more the deeper you go,
+  which is what makes runs provably end (D-34); nothing is saved mid-run.
+  Pays **salvage**, a run-only currency that buys permanent fittings (D-38).
 - **Duels (PVP)** — same generated system, alternating shots, 100 HP
   stations, friendly fire on.
   - *Hot-seat*: two players, one phone. Party mode.
@@ -85,9 +105,14 @@ stardust and teaches advanced play by naming it.
 **Interlocks** (each checked against the code, 2026-08-06 — two of the three
 this section used to claim were not true):
 
-- **Campaign stars → duel arsenal.** True, and the strongest link: the Heavy,
-  Splitter and Retro shells need 12/30/50 campaign stars *and* stardust before
-  they can be carried into a duel.
+- **Campaign stars → PVE arsenal.** The Heavy, Splitter and Retro shells need
+  12/30/50 campaign stars *and* stardust. ⚠️ This entry said "**duel** arsenal"
+  and called it the strongest link — which **D-29 made false two paragraphs
+  below, in this same section**, when duels started issuing every shell to
+  both players. A document that contradicts itself inside one section is worse
+  than one merely out of date, because both halves look authoritative.
+  Corrected 0.17.1. The unlock ladder is real and still matters everywhere a
+  duel is not.
 - **Daily streak → stardust.** True as of 0.9.0. It was not before: the streak
   was rendered on the home screen and read by nothing. A defended streak now
   multiplies the daily payout (×1.2 at 3 days, ×1.4 at 7, ×1.6 at 14 and then
@@ -162,7 +187,11 @@ them:
 1. **Only what the physics can see.** A duel travels as a code that the
    receiving device re-simulates, so a declaration has to be decidable from
    the flight. "Fire without looking at the aim preview" is a good challenge
-   and is not decidable from anything — it would have to be believed. Cut.
+   and is not decidable from anything — it would have to be believed. Cut
+   from Gambits (D-23) — **but it shipped after all**, as Expedition's *Dark
+   run* condition (0.15.0). The objection was always about verification *by a
+   stranger*, and a solo run sends nothing to anyone: the idea was good, only
+   the scoring was unverifiable.
 2. **Only what this arena can pay.** The generator proves, per seat, which
    declarations have at least one winning shot that honours them, and the game
    offers only those. Measurement found levels where no route passes two
@@ -172,9 +201,20 @@ them:
 ## Economy (see docs/MONETIZATION.md for pricing)
 
 Stardust flows in from every mode; flows out to projectile unlocks, aim-trace
-upgrades, and cosmetic trails. IAP: two stardust packs and a cosmetics
-bundle, priced at pocket change. No ads in v1 — the Data-Safety story
-("collects nothing, works offline") is itself a conversion feature.
+upgrades, and cosmetic trails. IAP: **four one-time products** — two stardust
+packs, a cosmetics bundle, and the per-season `season_pass` — plus two Ad Pass
+subscriptions, all priced at pocket change. (This line said "two stardust
+packs and a cosmetics bundle" until 0.17.1; `season_pass` shipped in 0.12.0.
+Cross-check against `Economy.Iap.ALL_PRODUCT_IDS` rather than any prose list.)
+
+**Salvage is a second currency and deliberately not stardust** (D-38). It is
+earned only by finishing Expedition runs and spent only on permanent run
+fittings. Stardust is buyable with real money, so pricing run upgrades in it
+would let money buy Expedition *depth* — and depth is a personal best, which
+is worth nothing if it can be topped up at the till.
+
+No ads in v1 — the Data-Safety story ("collects nothing, works offline") is
+itself a conversion feature.
 
 ## v1 scope (this repository)
 
