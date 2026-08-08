@@ -111,6 +111,15 @@ tested a fraction of the app. It predated anchors, gambits, all three
 objectives, the season track and duel normalization — so a green run of it
 told you almost nothing.*
 
+*Extended 2026-08-07 (0.19.11), and the reason is uncomfortable: **the
+rewrite above went stale in exactly the way it criticised.** Written at
+0.13.2, it predated Expedition, outfitting, salvage, debris, Blind practice
+and reduced-motion support — a green run tested none of them, and nothing
+anywhere said so. A checklist omitting a feature fails silently by
+construction, which is why `ReleaseChecklistTest` now derives the required
+entries from the code (mutators, fittings, body kinds) rather than trusting
+this list to keep up.*
+
 ### 0. Before touching the device
 - [ ] `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug` green.
 - [ ] `python3 tools/verify_release_apk.py` passes (permission allowlist,
@@ -137,6 +146,12 @@ told you almost nothing.*
 - [ ] Code duel round-trip between two devices (or a second profile): code
       out, code in, verification passes, the opponent's shot replays, both
       sides agree on HP.
+- [ ] **Expedition run reaches an end state**: launch a run, take legs at a
+      junction, and keep going until the tank runs dry. The run summary
+      appears and pays **salvage**. A run must end by *fuel*, not by hitting
+      the leg cap — if you reach leg 40 with fuel to spare, `travelCost` has
+      stopped clocking the run and the termination proof (D-34) has a hole
+      the tests did not catch.
 
 ### 3. The mechanics added since 0.2.0
 - [ ] **Anchors**: place, flip attract↔repel, remove; the aim preview visibly
@@ -153,6 +168,30 @@ told you almost nothing.*
 - [ ] **Season**: the ladder scrolls to your tier, collecting pays out, and
       the match summary shows `+N season XP`.
 
+### 3b. The mechanics added since 0.13.0 (this section is why the list was extended)
+- [ ] **Expedition junction**: three routes offered, each stating its cost
+      **before** it is taken; an Uncharted route always names its condition.
+- [ ] **Run mutators**, each doing what its card says:
+      - *Dark run* — **no aim trace at all**. Not a shorter one: if you can
+        still see a trace, this is the 0.19.0 bug returning (it used to hand
+        back the base 90-tick preview while promising none).
+      - *Thin reserves* — each shot costs 1 more fuel.
+      - *Rich seam* — double fuel for clearing the system.
+- [ ] **Outfitting bay**: appears only after a first run has finished; buying
+      a **reserve tank** visibly raises the fuel the launch button promises;
+      **salvage rig** softens a wreck; **survey array** shows the next
+      junction. Salvage is spent, never stardust.
+- [ ] **Debris**: miss into a world and a wreck stays there for the rest of
+      the match, on the side the shot came from. It must **block without
+      pulling** — a shot passing near one is not bent — and no wreck forms on
+      a station or on another wreck. The aim trace must fly *around* wrecks;
+      a preview that ignores them is drawing a board the shot will not meet.
+- [ ] **Blind practice** (Settings): switch on → no aim trace anywhere,
+      **including duels**, and the screen says it pays nothing. Switch off →
+      the trace returns.
+- [ ] **Duel first-use card**: on a profile that has never done a code duel,
+      the Duel screen explains the exchange; it disappears once you have one.
+
 ### 4. The invariant that must never regress (D-29)
 - [ ] On a **fresh profile with nothing unlocked**, start a duel: all four
       shells are selectable and the aim trace is at its longest. If either is
@@ -161,6 +200,11 @@ told you almost nothing.*
 ### 5. Presentation and accessibility
 - [ ] Impact: the board shakes on a kill, the HUD does not, and the shake
       stops (no lingering wobble).
+- [ ] **Reduced motion** (D-35 — Developer options → Animator duration scale →
+      **Off**): the board must **not** shake, and the summary stars must
+      appear **instantly and complete** rather than not at all. Information
+      never hides just because decoration is off. Everything else behaves
+      normally. This has never been checked on a device.
 - [ ] TalkBack: the aim buttons, the anchor bar and the gambit rows are all
       announced and activatable — several are raw pointer targets whose
       semantics are declared by hand.
