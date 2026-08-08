@@ -22,8 +22,11 @@ and the Play policy surface minimal.
 Ads themselves are **rewarded-only and opt-in** (never interstitials, never
 forced after matches), currently shipped disabled behind a no-op provider.
 The Ad Pass is deliberately priced to net more per subscriber than that
-player's ad views ever could — full policy, math and the AdMob integration
-playbook live in [ADS.md](ADS.md).
+player's ad views ever could. That is enforced rather than asserted: one
+shared daily budget (`AdRewards.DAILY_REWARDED_VIEWS`) governs every rewarded
+surface, and `AdPassInvariantTest` derives it from the pass price on every
+build. Full policy, math and the AdMob integration playbook live in
+[ADS.md](ADS.md).
 
 Notes:
 - Stardust buys *nothing* a player can't earn by playing; packs are a

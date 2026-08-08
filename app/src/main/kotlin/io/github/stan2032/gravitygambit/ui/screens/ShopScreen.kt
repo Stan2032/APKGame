@@ -176,9 +176,15 @@ fun ShopScreen(
                     CardTitle("Free stardust")
                     val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
                     val used = if (profile.lastAdWatchDay == today) profile.adWatchesToday else 0
+                    // The count is the SHARED daily budget, so a player who
+                    // doubled a couple of matches sees it move here too. Said
+                    // out loud, because a number that ticks down on its own
+                    // reads as a bug if the screen never explains it.
                     Subtitle(
                         "Watch a short ad, entirely optional, and pocket " +
-                            "✦ ${AdRewards.WATCH_STARDUST}. ($used/${AdRewards.DAILY_WATCH_CAP} today)"
+                            "✦ ${AdRewards.WATCH_STARDUST}. ($used/${AdRewards.DAILY_WATCH_CAP} " +
+                            "today — shares a ${AdRewards.DAILY_REWARDED_VIEWS}-ad daily limit " +
+                            "with doubling a match reward)"
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(

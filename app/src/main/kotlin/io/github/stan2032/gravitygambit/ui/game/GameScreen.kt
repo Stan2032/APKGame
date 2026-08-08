@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
 import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
+import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
 import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.Gambit
@@ -1143,21 +1144,31 @@ private fun SummaryOverlay(
         }
         // Opt-in reward doubling: appears only when an ad is actually loaded,
         // never for Ad Pass holders, and never blocks the flow (docs/ADS.md).
+        // It draws on the SAME daily budget as the shop surface. Until 0.19.15
+        // it drew on nothing at all — a `remember` flag was its only limit —
+        // which is precisely how the Ad Pass stopped out-earning the ads it
+        // replaces (D-53). The count is shown because a button that can run
+        // out should say so before it does, not after.
         val adsAvailable by ads.available.collectAsState()
         val activity = LocalActivity.current
         var doubled by remember { mutableStateOf(false) }
-        if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled && activity != null) {
+        val adDay = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+        val viewsLeft = AdRewards.DAILY_REWARDED_VIEWS -
+            (if (profile.lastAdWatchDay == adDay) profile.adWatchesToday else 0)
+        if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled &&
+            viewsLeft > 0 && activity != null
+        ) {
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {
                     ads.show(activity) {
                         val bonus = c.dustEarned
-                        repo.update { p -> p.copy(stardust = p.stardust + bonus) }
+                        repo.spendRewardedView(adDay) { p -> p.copy(stardust = p.stardust + bonus) }
                         doubled = true
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Double it — watch a short ad (optional)") }
+            ) { Text("Double it — watch a short ad (optional) · $viewsLeft left today") }
         }
         Spacer(Modifier.height(16.dp))
 

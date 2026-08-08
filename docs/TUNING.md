@@ -63,7 +63,7 @@ Declared before firing; kept ⇒ payout multiplier, broken ⇒ the shot is waste
 ## Economy (Economy.kt — replay-safe, tune freely)
 - First clear 25+10d+10★; re-clear 5+2★; star improvement 10/★. Daily ✦ = (score/10 cap 60) × streak multiplier (×1.2 at 3 days, ×1.4 at 7, ×1.6 at 14, then capped), first play/day only. Duel **code** W/L 60/10; **hot-seat pays 0** — one person holds both seats.
 - Sinks: Breaker ★12/✦250 · Triad ★30/✦600 · Retro ★50/✦900; preview 90→180→270 @ ✦250/✦600; trails 300–900.
-- Sector gate 20/36★. Ad: watch ✦40 ×5/day; Pass ×2 + ✦50/day (keep Pass ≥ max ad yield — ADS.md math).
+- Sector gate 20/36★. Ad: ✦40/watch, 6 rewarded views/day shared across all surfaces (shop sub-cap 4); Pass ×2 + ✦50/day. The 6 is **derived** from the pass price by `AdEconomics`, not tuned by hand — change it and `AdPassInvariantTest` fails (ADS.md math).
 - Target pacing: early sector ≈ 3–4 levels per unlock-step; ~2 weeks casual to full arsenal.
 
 ## Feel heuristics (playtest checklist)

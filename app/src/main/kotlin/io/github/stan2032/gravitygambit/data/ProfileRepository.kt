@@ -221,24 +221,52 @@ class ProfileRepository(private val context: Context) {
     }
 
     /**
-     * Grants the opt-in rewarded-ad payout, respecting the daily cap.
-     * Returns the stardust granted (0 if capped). Called only after the ad
-     * provider confirms the reward was earned.
+     * Spends one of the day's rewarded views and applies [reward] if there was
+     * one left. Returns true if a view was spent.
+     *
+     * **Every rewarded surface goes through here**, and that is the entire
+     * point. D-53 happened because the post-match doubler granted its reward
+     * with a bare `update { }` and no single number knew it existed, so the
+     * revenue arithmetic went on believing one cap governed everything. A
+     * surface that cannot pay out without first taking a view from this budget
+     * cannot silently escape it again.
+     *
+     * [subCap] is an optional per-surface limit *below* the shared budget, for
+     * surfaces that should not be able to consume the whole day on their own.
+     * It can only ever make the answer stricter — revenue is governed by
+     * [AdRewards.DAILY_REWARDED_VIEWS] alone.
      */
-    fun recordAdWatch(epochDay: Long): Int {
+    fun spendRewardedView(
+        epochDay: Long,
+        subCap: Int = AdRewards.DAILY_REWARDED_VIEWS,
+        reward: (Profile) -> Profile,
+    ): Boolean {
+        val limit = minOf(subCap, AdRewards.DAILY_REWARDED_VIEWS)
         val snapshot = profile.value
-        val watchesToday = if (snapshot.lastAdWatchDay == epochDay) snapshot.adWatchesToday else 0
-        if (watchesToday >= AdRewards.DAILY_WATCH_CAP) return 0
+        val viewsToday = if (snapshot.lastAdWatchDay == epochDay) snapshot.adWatchesToday else 0
+        if (viewsToday >= limit) return false
         update { p ->
             val current = if (p.lastAdWatchDay == epochDay) p.adWatchesToday else 0
-            if (current >= AdRewards.DAILY_WATCH_CAP) p
-            else p.copy(
-                stardust = p.stardust + AdRewards.WATCH_STARDUST,
+            if (current >= limit) p
+            else reward(p).copy(
                 adWatchesToday = current + 1,
                 lastAdWatchDay = epochDay,
             )
         }
-        return AdRewards.WATCH_STARDUST
+        return true
+    }
+
+    /**
+     * The shop's "free stardust" surface: a fixed payout, held to its own
+     * sub-cap so it cannot spend the day's whole budget and leave the
+     * post-match doubler with nothing. Returns the stardust granted (0 if
+     * capped). Called only after the ad provider confirms the reward.
+     */
+    fun recordAdWatch(epochDay: Long): Int {
+        val spent = spendRewardedView(epochDay, subCap = AdRewards.DAILY_WATCH_CAP) { p ->
+            p.copy(stardust = p.stardust + AdRewards.WATCH_STARDUST)
+        }
+        return if (spent) AdRewards.WATCH_STARDUST else 0
     }
 
     /** Ad Pass daily drop; call on app open. Returns the bonus granted (0 if already claimed/inactive). */

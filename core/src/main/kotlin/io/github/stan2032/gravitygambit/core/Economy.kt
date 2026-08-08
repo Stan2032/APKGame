@@ -274,14 +274,82 @@ object AdRewards {
     /** Stardust per opt-in rewarded view (shop "free stardust" button). */
     const val WATCH_STARDUST = 40
 
-    /** Daily cap on rewarded views, resets at UTC midnight. */
-    const val DAILY_WATCH_CAP = 5
+    /**
+     * Total rewarded views a player can be paid for in one day across **every**
+     * surface, resetting at UTC midnight. This is the single number that
+     * governs ad revenue, and it is not a taste decision — [AdEconomics]
+     * derives it from the Ad Pass price, and `AdPassInvariantTest` recomputes
+     * it. Raising it breaks the owner's standing directive that the pass must
+     * out-earn the ads it replaces (D-13/D-53), and the test says so by name.
+     */
+    const val DAILY_REWARDED_VIEWS = 6
+
+    /**
+     * Sub-cap on the shop's "free stardust" button alone. It exists so one
+     * surface cannot eat the whole day's budget and leave the post-match
+     * doubler dead: the remainder ([DAILY_REWARDED_VIEWS] − this) is what a
+     * player who maxed the shop still has left to double a match with.
+     * Revenue is governed by the budget above, never by this.
+     */
+    const val DAILY_WATCH_CAP = 4
 
     /** Ad Pass perk: match rewards multiplier (applied to campaign/daily/duel payouts). */
     const val PASS_REWARD_MULTIPLIER = 2
 
     /** Ad Pass perk: automatic daily stardust drop (no watching required). */
     const val PASS_DAILY_BONUS = 50
+}
+
+/**
+ * What a rewarded view is actually worth, and what the pass actually costs.
+ *
+ * These are assumptions about the outside world rather than game rules, and
+ * they live in code rather than in prose because
+ * [AdRewards.DAILY_REWARDED_VIEWS] is *computed* from them. D-53 happened
+ * because the numbers behind the invariant lived only in a document, where
+ * nothing could notice when reality moved away from them. Now the arithmetic
+ * runs on every build: change a price, an eCPM, or a cap, and
+ * `AdPassInvariantTest` recomputes the whole thing and rejects the pair that
+ * no longer holds.
+ *
+ * Sources are public rewarded-video benchmarks for tier-1 markets and Play's
+ * published fee schedule; both are cited in docs/ADS.md. Every figure is
+ * deliberately chosen at the end of its range that makes the invariant
+ * *hardest* to satisfy, so satisfying it means satisfying it everywhere.
+ */
+object AdEconomics {
+    /** Top of the plausible rewarded eCPM range, USD per 1000 views. */
+    const val MAX_ECPM_USD = 25.0
+
+    /** Play's cut on the small-developer tier (first $1M/year). */
+    const val PLAY_FEE = 0.15
+
+    /** Suggested `ad_pass_monthly` price, USD. The cheaper monthly-equivalent
+     *  of the two pass products, so it is the one the invariant binds on. */
+    const val PASS_MONTHLY_USD = 4.99
+
+    /** The longest month, because more days means more ad revenue to beat. */
+    const val DAYS_PER_MONTH = 31
+
+    /** Net USD kept from a single rewarded view, at the top of the eCPM range. */
+    fun netPerView(): Double = MAX_ECPM_USD / 1000.0 * (1.0 - PLAY_FEE)
+
+    /** Net USD from a player watching [viewsPerDay] every day for a month. */
+    fun monthlyAdNet(viewsPerDay: Int): Double = netPerView() * viewsPerDay * DAYS_PER_MONTH
+
+    /** Net USD kept from one month of Ad Pass. */
+    fun monthlyPassNet(): Double = PASS_MONTHLY_USD * (1.0 - PLAY_FEE)
+
+    /**
+     * The largest daily view budget whose maximum monthly ad revenue the pass
+     * still beats. [AdRewards.DAILY_REWARDED_VIEWS] must equal this; the test
+     * is what makes "must" mean something.
+     */
+    fun affordableDailyViews(): Int {
+        var n = 0
+        while (monthlyAdNet(n + 1) <= monthlyPassNet()) n++
+        return n
+    }
 }
 
 /**
