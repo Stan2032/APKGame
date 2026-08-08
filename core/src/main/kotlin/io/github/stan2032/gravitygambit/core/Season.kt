@@ -169,6 +169,73 @@ object Season {
         else -> Reward(RewardKind.STARDUST, amount = 60 + 4 * tier)
     }
 
+    /**
+     * What tier [tier] actually pays [owner], which is not always what
+     * [reward] advertises.
+     *
+     * [premiumReward] is a pure function of tier, so **every season pays the
+     * same eight unlocks** — HEAVY/SPLITTER/RETRO, aurora/quantum/prism, and
+     * two preview tiers. The pass is a per-season consumable
+     * ([Profile.rolledIntoSeason] clears `seasonPassOwned`), so a player buys
+     * it again in season two and reaches those tiers already owning
+     * everything in them. Grants de-duplicate, so those eight tiers pay
+     * **nothing**: 6588 stardust-equivalent against season one's 10988, or
+     * 60% of the value at the same price.
+     *
+     * A tier that shows a reward and pays nothing is the worst version of
+     * this — so a redundant unlock is paid out at **the item's own shop
+     * price**, taken from [Economy] rather than invented. Owning a thing
+     * already is not a reason to be given less.
+     *
+     * The ladder is rendered through this too, so the offer tells the truth
+     * *before* the money is spent, not after.
+     */
+    fun effectiveReward(tier: Int, premium: Boolean, owned: Owned): Reward? {
+        val base = reward(tier, premium) ?: return null
+        val refund = redundantValue(base, owned) ?: return base
+        return Reward(RewardKind.STARDUST, amount = refund)
+    }
+
+    /**
+     * Exactly the three ownership facts a reward needs in order to know
+     * whether it is redundant — and deliberately **not** a [Profile].
+     *
+     * `RewardReachTest` asserts that no reward function here takes a Profile,
+     * because that is the structural argument that blind practice can never
+     * pay (D-23): if the reward surface cannot see `blindPractice`, no bonus
+     * can be wired to it, and no comment has to be trusted. Widening the
+     * signature to a whole Profile would have dissolved that guarantee for a
+     * convenience. This carries what is needed and nothing that could become a
+     * multiplier, and the test now pins its field list too.
+     */
+    class Owned(
+        val trails: Set<String>,
+        val projectiles: Set<Int>,
+        val previewLevel: Int,
+    )
+
+    /**
+     * The shop price of [r] when [owner] already has it, or null when it still
+     * lands. Null is also returned when the item cannot be priced — better to
+     * grant a redundant unlock than to pay zero — and
+     * `SeasonLadderValueTest` asserts that fallback can never actually fire.
+     */
+    private fun redundantValue(r: Reward, owned: Owned): Int? = when (r.kind) {
+        RewardKind.STARDUST -> null
+        RewardKind.TRAIL ->
+            if (r.trailId in owned.trails) {
+                Economy.TRAILS.firstOrNull { it.id == r.trailId }?.cost
+            } else null
+        RewardKind.PROJECTILE ->
+            if (r.amount in owned.projectiles) {
+                Economy.PROJECTILE_UNLOCKS.firstOrNull { it.typeId == r.amount }?.cost
+            } else null
+        RewardKind.PREVIEW_TIER ->
+            if (owned.previewLevel >= r.amount) {
+                Economy.PREVIEW_UPGRADE_COSTS.getOrNull(r.amount - 1)
+            } else null
+    }
+
     /** Every tier from 1..[tier] that has an unclaimed reward on this lane. */
     fun claimableTiers(tier: Int, premium: Boolean, claimed: Set<Int>): List<Int> =
         (1..tier.coerceAtMost(TIERS)).filter { it !in claimed && reward(it, premium) != null }

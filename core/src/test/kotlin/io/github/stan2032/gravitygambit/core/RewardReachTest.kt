@@ -54,6 +54,23 @@ class RewardReachTest {
             "a Season reward function now takes a Profile, so blind practice could pay (D-23)",
             false, rewardTakesProfile,
         )
+        // 0.19.17 needed the ladder to know what the player already owns, and
+        // the obvious signature — passing a Profile — would have dissolved the
+        // guarantee above for a convenience. Instead `Season.Owned` carries
+        // exactly the three ownership facts. That only holds while it stays
+        // narrow, so its field list is pinned: adding `blindPractice` (or any
+        // other profile state) to it fails here rather than quietly reopening
+        // the door this test exists to keep shut.
+        assertEquals(
+            "Season.Owned has gained a field. It is the one thing the reward surface can see " +
+                "about a player, so it must carry ownership facts only — anything else becomes " +
+                "somewhere a bonus can be wired in, which is exactly what D-23 forbids.",
+            listOf("previewLevel", "projectiles", "trails"),
+            Season.Owned::class.java.declaredFields
+                .filterNot { it.isSynthetic }
+                .map { it.name }
+                .sorted(),
+        )
         assertEquals(
             "turning blind practice on must change nothing but the aim trace",
             plain.copy(blindPractice = true), blind,

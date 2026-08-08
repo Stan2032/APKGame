@@ -113,6 +113,19 @@ data class Profile(
      * xp, claims and pass ownership. Applied on read as well as on write, so a
      * player who was away for a month never sees last season's tier.
      */
+    /**
+     * The three ownership facts the season ladder needs, and nothing else.
+     *
+     * The narrowing lives here rather than in [Season] on purpose: no reward
+     * function may take a whole Profile, or the structural guarantee that
+     * blind practice cannot pay (D-23) becomes a promise instead of a fact.
+     */
+    fun seasonOwnership(): Season.Owned = Season.Owned(
+        trails = ownedTrails.toSet(),
+        projectiles = unlockedProjectiles.toSet(),
+        previewLevel = previewLevel,
+    )
+
     fun rolledIntoSeason(epochDay: Long): Profile {
         val id = Season.indexFor(epochDay)
         if (id == seasonId) return this

@@ -252,10 +252,13 @@ private fun TierLadder(tier: Int, p: Profile) {
                     fontWeight = if (t == tier) FontWeight.Bold else FontWeight.Normal,
                 )
                 Spacer(Modifier.height(4.dp))
-                RewardCell(Season.reward(t, premium = false), reached, t in claimedFree, false)
+                // effectiveReward: a tier whose unlock this player already owns
+                // shows the stardust it will really pay, so the ladder tells
+                // the truth BEFORE the pass is bought rather than after (D-58).
+                RewardCell(Season.effectiveReward(t, false, p.seasonOwnership()), reached, t in claimedFree, false)
                 Spacer(Modifier.height(6.dp))
                 RewardCell(
-                    Season.reward(t, premium = true),
+                    Season.effectiveReward(t, true, p.seasonOwnership()),
                     reached && p.seasonPassOwned,
                     t in claimedPremium,
                     true,

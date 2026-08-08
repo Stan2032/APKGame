@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.17] — 2026-08-08
+- ⚠️ **A second season pass was worth 60% of the first, at the same price.** Found by working the last open agent item with no stated blocker — *"consider a second premium lane theme per season"* — which turned out to name a monetization defect rather than a content gap.
+- `Season.premiumReward` is a pure function of tier, so **every season pays the same eight unlocks**. The pass is a per-season consumable (`rolledIntoSeason` clears `seasonPassOwned`), so a returning player buys it again and reaches those tiers already owning their contents. Grants de-duplicate — `.distinct()` on trails and projectiles, `maxOf` on preview level — so **eight of fifty tiers paid literally nothing**, and the ladder went on displaying them as rewards right up to the moment they were claimed.
+- **Measured**: 6588 stardust-equivalent against season one's 10988. Same $4.99.
+- **Fix**: `Season.effectiveReward` pays a redundant unlock out at **the item's own shop price**, taken from `Economy` rather than invented. Both the claim path and the ladder render through it, so the offer is honest *before* the money is spent rather than after.
+- **A guard caught the obvious fix and was right to.** Passing a whole `Profile` broke `RewardReachTest`'s assertion that no Season reward function takes one — the structural argument that blind practice can never pay (D-23). Rather than relax it, the narrow `Season.Owned` carries exactly three ownership facts, the conversion lives beside `Profile`, and the guard was **strengthened** to pin `Owned`'s field list so adding `blindPractice` to it fails.
+- ⚠️ **Method note, and the sharpest one yet.** The first draft of the value-parity test priced every trail at its catalogue cost regardless of ownership, so it totalled 10988 for **both** seasons *with the bug still present* — it would have passed on the exact defect it was written to catch. Caught only by checking it rejects. Second time in three versions that verifying rejection found the guard itself broken: **a new guard is a hypothesis until you have watched it fail.**
+- 258 tests green (184 `:core` + 74 `:app`), **0 skipped**. Lint clean.
+
 ## [0.19.16] — 2026-08-08
 - **All six file-reading guards could have gone silent at once, and the build would have stayed green.** Found by turning 0.19.15's own lesson — *a test that reports safety without testing anything is worse than no test* — on the tests that lesson was written in.
 - Every guard that reads a file it does not own walks up four levels from `user.dir` to find the repo root, then **`assumeTrue`s the result** rather than asserting it. Reasonable per-test; nasty in aggregate: a renamed module, a changed Gradle working directory, or a guard copied into a differently-shaped project silently disables **all six at once**, and a skip reports as success.

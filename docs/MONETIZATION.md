@@ -15,7 +15,7 @@ and the Play policy surface minimal.
 | `stardust_small` | Consumable | +600 ✦ | $0.99 |
 | `stardust_large` | Consumable | +2200 ✦ | $2.99 |
 | `cosmic_pack` | Non-consumable | every cosmetic trail, current & future | $2.49 |
-| `season_pass` | Consumable (per season) | The season's premium lane: shells, trails, preview tiers, bigger stardust drops — additive to the free lane and retroactive to every tier already earned | $4.99/season |
+| `season_pass` | Consumable (per season) | The season's premium lane: shells, trails, preview tiers, bigger stardust drops — additive to the free lane, retroactive to every tier already earned, and **worth the same in season five as in season one** (a tier whose unlock you already own pays that item's shop price instead; D-58) | $4.99/season |
 | `ad_pass_weekly` | Subscription | 2× match rewards, ✦50/day, never any ads | $1.99/wk |
 | `ad_pass_monthly` | Subscription | same — the headline offer | $4.99/mo |
 

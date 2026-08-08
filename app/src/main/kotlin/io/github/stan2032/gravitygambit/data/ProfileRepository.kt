@@ -190,8 +190,11 @@ class ProfileRepository(private val context: Context) {
         val premium = if (!snapshot.seasonPassOwned) emptyList() else {
             Season.claimableTiers(tier, premium = true, snapshot.seasonClaimedPremium.toSet())
         }
-        val granted = free.mapNotNull { Season.reward(it, false) } +
-            premium.mapNotNull { Season.reward(it, true) }
+        // effectiveReward, not reward: a premium tier whose unlock this player
+        // already owns pays that item's shop price instead of granting a
+        // duplicate that de-duplicates away to nothing (D-58).
+        val granted = free.mapNotNull { Season.effectiveReward(it, false, snapshot.seasonOwnership()) } +
+            premium.mapNotNull { Season.effectiveReward(it, true, snapshot.seasonOwnership()) }
         if (granted.isEmpty()) return emptyList()
 
         update { p ->
