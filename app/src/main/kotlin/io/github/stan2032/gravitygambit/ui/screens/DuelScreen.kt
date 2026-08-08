@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Profile
 import io.github.stan2032.gravitygambit.core.Seeds
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.core.ShareCodec
 import io.github.stan2032.gravitygambit.ui.DangerRed
 import io.github.stan2032.gravitygambit.ui.GameLaunch
@@ -30,10 +31,47 @@ import io.github.stan2032.gravitygambit.ui.Nav
 fun DuelScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
     ScreenFrame(title = "Duel — PVP", onBack = { onNavigate(Nav.Home) }) {
 
+        // First-use coaching for the code exchange, mirroring the aim hint on
+        // the first campaign level (GameScreen). Each card below explains its
+        // own button, but nobody explains the *shape* of the thing: that a code
+        // duel is a turn-by-turn exchange rather than a single sent shot. A
+        // player who fires, texts a code and then receives one back has no way
+        // to know that is normal, or that it goes in the box further down.
+        //
+        // Shown from profile state rather than a stored "seen" flag — the same
+        // approach as the aim hint, and it costs no new Profile field. It
+        // disappears the moment there is any evidence of a code duel: a result
+        // either way, or a code of one's own.
+        if (profile.duelWins == 0 && profile.duelLosses == 0 && profile.lastDuelCode.isEmpty()) {
+            SectionCard {
+                Column {
+                    CardTitle("How a code duel works")
+                    Subtitle(
+                        "1. Create a challenge and take your shot.\n" +
+                            "2. Text your friend the code. Their phone replays your shot exactly, " +
+                            "then they fire back and send a new code.\n" +
+                            "3. Paste theirs below. Each code carries the whole match so far.\n\n" +
+                            "Stations take ${Tuning.STATION_HP} damage. First one down loses — or " +
+                            "it's a draw if you both survive ${Tuning.DUEL_MAX_TURNS} turns. " +
+                            "No account, no server, and both players get every shell.",
+                    )
+                }
+            }
+        }
+
         SectionCard {
             Column {
                 CardTitle("Hot-seat duel")
-                Subtitle("Two players, one phone. First station down loses.")
+                // "First station down loses" was true and incomplete: a duel
+                // also ends at Tuning.DUEL_MAX_TURNS with both alive, and
+                // MatchEngine.duelWinner() returns null there — a draw the
+                // screen never mentioned. Reachable by two players who keep
+                // missing, which is exactly who is playing their first duel.
+                Subtitle(
+                    "Two players, one phone. First station down loses; " +
+                        "${Tuning.DUEL_MAX_TURNS} shots with both still standing is a draw. " +
+                        "Pays no stardust or season XP — one player holding both seats is not a match."
+                )
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {
                     onNavigate(

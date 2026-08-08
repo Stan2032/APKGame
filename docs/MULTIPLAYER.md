@@ -9,8 +9,9 @@ complete match is fully described by:
 seed (8 bytes) + per-turn quantized inputs (8 bytes each) + verification hash (8 bytes)
 ```
 
-That's the entire netcode. ~30 bytes of header + 8 bytes per shot, base64url
-encoded with a CRC — a 20-turn duel is ≈ 230 characters of text.
+That's the entire netcode. 26 bytes of frame + 10 bytes per shot + 5 per
+anchor, base64url
+encoded with a CRC. Measured: **52 characters opens a duel**; a 20-turn exchange is ~330; the longest match the rules permit (30 turns with every anchor spent) is ~1039. `ShareCodeSizeTest` holds the worst case under a 1200-character budget.
 
 ## Transport: any messenger the players already use
 
@@ -35,6 +36,11 @@ have. Consequences:
 3. Re-simulates every turn through the same `MatchEngine`.
 4. Compares the resulting 64-bit trajectory/outcome hash against the claimed
    hash. Mismatch → reject with "the physics noticed."
+
+The declaration a player made rides inside that hash too, so a finished shot
+cannot be re-declared after the fact to claim a bigger payout (docs/VISION.md
+§3.2). This is also the reason gambits are limited to constraints the flight
+itself reveals — see "What can and cannot be a scored rule" below.
 
 A cheater cannot claim a hit that didn't happen: the only way to produce a
 valid code is to actually find inputs whose *simulation* produces the claimed

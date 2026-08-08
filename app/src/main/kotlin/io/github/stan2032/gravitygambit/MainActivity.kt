@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
 import io.github.stan2032.gravitygambit.billing.BillingManager
 import io.github.stan2032.gravitygambit.ui.App
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var billing: BillingManager
     private lateinit var sound: SoundManager
+    private val ambience = AmbienceTrack()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,8 +25,26 @@ class MainActivity : ComponentActivity() {
         sound = SoundManager(this)
         setContent {
             GravityGambitTheme {
-                App(repo = app.profileRepo, billing = billing, sound = sound)
+                App(repo = app.profileRepo, billing = billing, sound = sound, ambience = ambience)
             }
         }
+    }
+
+    // A drone that keeps playing after the player leaves the app is a bug
+    // before it is a mood; SoundPool needs no equivalent because it only ever
+    // fires one-shots.
+    override fun onPause() {
+        super.onPause()
+        ambience.pause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ambience.resume()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ambience.release()
     }
 }

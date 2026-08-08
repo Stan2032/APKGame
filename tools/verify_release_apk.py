@@ -61,8 +61,34 @@ def build_tool(name):
     sys.exit(f"FAIL: could not find {name} in {sdk}/build-tools")
 
 
+DEBUG_SIGNER_MARKERS = ("CN=Android Debug", "O=Android")
+
+
+def signer_of(apk):
+    """
+    The certificate subject the APK is signed with, or None if unreadable.
+
+    Worth checking because the one launch mistake that costs real time is
+    uploading a **debug-signed** artifact: `app/build.gradle.kts` deliberately
+    falls back to the debug key so release builds stay installable for testing
+    (docs/RELEASE.md §Signing), which means an unsigned-for-upload AAB looks
+    exactly like a signed one until Play refuses it.
+    """
+    try:
+        out = subprocess.run(
+            [build_tool("apksigner"), "verify", "--print-certs", apk],
+            capture_output=True, text=True,
+        ).stdout
+    except SystemExit:
+        return None
+    m = re.search(r"Signer #1 certificate DN:\s*(.+)", out)
+    return m.group(1).strip() if m else None
+
+
 def main():
-    apk = sys.argv[1] if len(sys.argv) > 1 else "app/build/outputs/apk/release/app-release.apk"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    require_upload_key = "--require-upload-key" in sys.argv
+    apk = args[0] if args else "app/build/outputs/apk/release/app-release.apk"
     if not os.path.exists(apk):
         sys.exit(f"FAIL: {apk} not found — run ./gradlew :app:assembleRelease first")
 
@@ -104,6 +130,26 @@ def main():
     print(f"permissions: {len(found)} (all allowlisted)" if not unexpected else "permissions: MISMATCH")
     print(f"serializers kept: {len(REQUIRED_CLASSES) - sum(1 for c in REQUIRED_CLASSES if c not in dex)}/{len(REQUIRED_CLASSES)}")
     print(f"apk size: {size/1024/1024:.2f}MB (budget {MAX_APK_BYTES/1024/1024:.0f}MB)")
+
+    signer = signer_of(apk)
+    debug_signed = signer is not None and any(m in signer for m in DEBUG_SIGNER_MARKERS)
+    if signer is None:
+        print("signed by: UNKNOWN (apksigner unavailable — signing not verified)")
+    elif debug_signed:
+        print(f"signed by: DEBUG KEY — {signer}  (installable for testing, rejected by Play)")
+    else:
+        print(f"signed by: {signer}")
+
+    # Only an upload build is required to carry the upload key. Ordinary CI
+    # has no keystore and must stay green, so this is opt-in rather than
+    # always-on — but when it is asked for, it is the difference between
+    # finding out here and finding out from a Play Console rejection.
+    if require_upload_key and (signer is None or debug_signed):
+        failures.append(
+            "This build is not signed with the upload key, but --require-upload-key was set.\n"
+            "  Set GG_KEYSTORE_FILE / GG_KEYSTORE_PASSWORD / GG_KEY_ALIAS / GG_KEY_PASSWORD\n"
+            "  (docs/RELEASE.md §Signing) and rebuild. Do NOT upload this artifact."
+        )
 
     if failures:
         print("\n".join("FAIL: " + f for f in failures))

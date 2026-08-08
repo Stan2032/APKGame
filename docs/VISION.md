@@ -103,7 +103,7 @@ odds, roguelike ascensions, speedrun categories) and costs nothing to
 produce. It converts mastery into *stakes*, which is what "gambit" means.
 Verification is free — the simulation already knows what happened.
 
-### 3.3 Consequence — misses reshape the field
+### 3.3 Consequence — misses reshape the field — **shipped 0.18.0** (measured 0.17.2)
 
 A shot that dies leaves **debris**: a small permanent body at its death
 point. Miss twice and you have complicated your own board.
@@ -112,7 +112,81 @@ Why: every shot now matters even when it fails, tension escalates within a
 match instead of resetting, and in duels the arena visibly degrades into
 something neither player designed — a shared story.
 
-### 3.4 Resonance — the system has a rhythm
+**What measurement changed** (`DebrisMeasurementTest`, D-39). The paragraph
+above is kept because the *intent* survives, but three of its assumptions did
+not, and the rule has to be written from the numbers instead:
+
+- **"Miss twice" is far off.** Inside a realistic aim cone, **57–80% of
+  misses die on a body**, so a match litters constantly rather than
+  occasionally. (The uniform solver grid says the opposite — 86% leave the
+  field — because it includes firing away from the target. That sample is not
+  the player, and taking it at face value would have killed the mechanic on a
+  false negative.)
+- **Debris can never appear in open space.** A shot has essentially one way
+  to die on the board: hitting a body (18,000 samples → 2,625 body deaths, 1
+  own-station death, 0 timeouts). So debris always lands against something
+  already solid. It cannot block an empty lane, and no wording of "at its
+  death point" changes that.
+- **It cannot be conserved matter.** Adding the shell's cross-section to the
+  body it struck grows a radius-100 planet to 100.12 and moves the solve rate
+  by *nothing* across 16 hits. Debris has to be sized for legibility.
+
+What makes it work is that a lump is **directional** — it sits on the side
+the shot came from, so it obstructs the approach you keep taking, which is
+the real content of "the arena degrades into something neither player
+designed". Growing a radius instead would be isotropic and say nothing.
+
+Sizing, measured against solvability: at radius 12 a level keeps 50–100% of
+its winning shots after 30 lumps; at radius 20, 33–67%. Recommended:
+**radius ~12, mass 0**.
+
+> **Correction (0.18.2).** This paragraph used to end "**nothing stranded the
+> player** in 27 configurations". That was true of the nine levels sampled and
+> false in general — widening to 30 levels found two that a littered board
+> makes unwinnable, the earliest at **13 wrecks** (D-42). The severity is
+> bounded and worth stating precisely rather than softening: campaign caps at
+> 4 shots (≤3 wrecks) and daily at 5 (≤4), so **neither can reach it**, and
+> objectives are campaign-only (D-27) so no objective can be stranded. Only a
+> duel reaches 13+, and there an unwinnable board is a **draw at the turn cap**
+> — a defined outcome — not a dead end. A sample size is part of a claim.
+
+**What shipped (0.18.0).** A wreck at the impact point — radius 12, massless,
+on body impact only. Four rules the measurement did not settle, decided here:
+
+- **A station kill leaves nothing.** That is an outcome, not a crash — and it
+  keeps the pathological case out, since a lump on your own launch point
+  would be a self-inflicted dead end.
+- **One wreck per turn**, even from a Triad's three shards. Per-shard litter
+  would triple a duel's accumulation and carry it past the 30 lumps actually
+  measured.
+- **Litter cannot breed litter**: a wreck settles against a world, never
+  against another wreck, so accumulation stays linear in turns.
+- **Debris is inert for scoring.** It is skipped in the deflector count and
+  the graze bonus, because a massless lump cannot bend anything and a
+  declaration must never be honoured by a deflection that never happened.
+
+It cost the share code **zero bytes**: a wreck is a pure function of turns the
+code already carries, so a verifier re-derives it. It still cost a protocol
+version (v9) — the same (seed, turns) now produces a different match.
+
+Objectives were re-proved under litter before this shipped, since three of the
+four are not won by hitting a station and a wreck could fence a capture ring
+or block a gate. 29 objective systems (13 Capture, 12 Thread, 4 Courier)
+littered at the reachable campaign envelope: **none became unwinnable** (D-27).
+That result survives the 0.18.2 correction above, and is in fact what makes the
+correction tolerable — the campaign envelope is 3 wrecks against an earliest
+stranding of 13.
+
+**Should a wreck also pull? No — measured, not assumed** (D-42). Giving debris
+mass would make misses genuinely *reshape* the field rather than merely
+obstruct it, which is closer to this section's original ambition. It was
+measured across 30 levels at five masses and it strands, **non-monotonically**:
+1e4 → 3/30, 2.5e4 → 2/30, 5e4 → 0/30, 1e5 → 1/30, 2e5 → 2/30. There is no
+"safe if small" threshold to tune toward, because small is not safer — the
+signature of a compounding mechanic, where each wreck steers where the next one
+lands. A mechanic whose safety cannot be tuned is not worth having for a nudge.
+
+### 3.4 Resonance — the system has a rhythm — **half shipped 0.14.0**
 
 Pulsars already breathe on fixed periods. Make that a *timing* mechanic:
 fire in phase and the assist amplifies; fire out of phase and it fights you.
@@ -122,20 +196,69 @@ sonifies each pulse so the field can be learned **by ear**.
 Why: adds a timing skill orthogonal to aiming, and gives the game a sonic
 identity — "the level has a beat" is something no competitor has.
 
-### 3.5 Objectives beyond destruction
+**Shipped:** the ear half. The generated pad gives a pulsar a voice that
+swells at its real gravity period, phase-locked to the shot (docs/AUDIO.md
+§2). The field can now be learned by ear before it is a rule.
+
+**Still open — and further away than this section implies.** The *mechanic*
+is not merely unrewarded, it is **unreachable**: a player cannot fire "in
+phase", because every shot resets the pulsar. `massAt(tick)` reads
+`LiveShot`'s own counter, which starts at 0 for every shot, so every shot ever
+fired meets a pulsar at its heaviest. Phase varies *within* a flight — which
+is what makes a pulsar worth flying past — but never *between* shots.
+Demonstrated at match level: an identical aim fired as turn one and as turn
+two is bit-identical, same hash and tick count (`ResonanceReachTest`, D-45).
+
+Making it real means pulsar phase must depend on match time rather than shot
+time. That changes what every existing pulsar level does — a **protocol
+break**, not a tuning change — and it touches **27% of systems** (98/360
+measured, none below difficulty 4). Making it a *choice* rather than an
+artefact of turn order needs a timing input in `TurnInput`, folded into the
+hash, since a phase the sender picks but never transmits is unverifiable in
+exactly the way D-23 cut Blind for.
+
+**The polyrhythm half has no subject at all.** Two pulsars with different
+periods requires two pulsars, and the generator makes **0 in 360** systems
+with more than one. Periods are the second problem.
+Polyrhythm needs multiple pulsars with different periods, which the pad
+already supports (each gets its own tremolo) but the generator does not yet
+produce. Note the constraint D-33 exposes: a second period only stays
+phase-locked across loop repeats if it also divides the loop length, so
+periods must be chosen from divisors of 7 seconds rather than freely.
+
+### 3.5 Objectives beyond destruction — **SHIPPED (Capture, Courier, Thread)**
 
 Procedurally selected win conditions per system:
 - **Breach** (current) — destroy the core.
-- **Capture** — achieve a stable orbit for N ticks without collision.
-- **Thread** — pass through gates in order.
-- **Courier** — strike a moving comet, not a fixed station.
+- **Capture** ✅ — hold a ring around the marked world for 240 unbroken ticks.
+  The build taught the design rather than the reverse. A shot arriving from far
+  away is on a **hyperbolic** trajectory: with a single dominant body and
+  nothing to dissipate energy it *must* leave again, however well aimed.
+  Measured across twelve generated levels, the best dwell any unbraked shot
+  achieved was **191 ticks**, and every refined optimum pinned itself against
+  the slowest launch the game permits — the search was asking to go slower than
+  physics allows. Fire a RETRO shell and burn at the right moment and the same
+  levels yield **339–818**. So Capture is an orbital-insertion puzzle, it hands
+  the player a RETRO shell whatever their loadout, and it is the first thing in
+  the game that gives that shell a reason to exist.
+- **Thread** ✅ — fly through the gates *in order*. The order is the objective:
+  a path that clips all three in the wrong sequence has threaded nothing.
+  Gates are not scattered and hoped over — the generator flies a real
+  trajectory first and hangs the gates on it, so a solution provably exists
+  before the level is offered, then re-derives one independently, because "we
+  built it from a path" and "a player can find a path" are different claims.
+- **Courier** ✅ — strike the marked drifting comet, not a fixed station: the
+  target moves, so the shot has to be led. Cheap to add because comets already
+  existed — but *not* cheap to assume: of 36 sampled levels only 11 carried a
+  comet, and **two of those comets could not be hit at all**. Presence is not
+  proof, which is why nothing ships without one.
 - **Survivor** — get the shot home again after a flyby.
 
 Why: this is the multi-faceted variety the project always intended;
 procgen supplies layouts, objectives supply *reasons*, and the combination
 multiplies rather than adds.
 
-### 3.6 Expedition — the compulsive spine *(replaces the sector grind)*
+### 3.6 Expedition — the compulsive spine — **shipped 0.15.0–0.16.0**
 
 A **run** is a chain of systems. You carry hull, fuel, and anchors between
 them. Between systems you choose your route (safe/rich/unknown) and take a
@@ -143,18 +266,62 @@ mutator (*binary star ahead*, *anchors doubled*, *debris persists across
 systems*). Death ends the run; a meta-currency persists and unlocks
 starting options.
 
+**What shipped, and where it departs from the paragraph above** (D-34):
+
+- **Fuel only, not hull-and-fuel-and-anchors.** Three resources need three
+  sets of rules, three readouts and three failure states to earn their place,
+  and a player cannot hold three trend lines in their head between shots.
+- **Travel cost is the clock.** The first draft escalated the *shot* cost;
+  the test for it failed at once and taught the design — a per-shot cost
+  cannot clock a player who fires one shot, so a perfect run reached the leg
+  cap with a full tank. Travel cost rises without bound against refunds that
+  are bounded, so past a computed depth every leg is a net loss however
+  perfectly it is played. Runs end by arithmetic, not by hoping the
+  difficulty curve outruns the player.
+- **Death does not end the run; the tank does.** A wreck costs fuel and
+  advances you. Ending on one bad system would make the opening minute the
+  whole game and would punish precisely the player who took the hard route.
+- **Mutators are run rules, not generator requests** — for now. A *binary
+  star ahead* has to ask the generator for a layout it may not be able to
+  produce in band, and the fallback would leave the run claiming a condition
+  that never applied: the exact failure D-24 and D-27 exist to prevent.
+  Field-shaping mutators are deferred until the generator can *prove* one
+  took.
+- **The meta-currency is stardust**, the one the game already has. Minting an
+  unspendable token before the thing it buys exists would be a number that
+  goes up and means nothing.
+
+One thing the spec did not anticipate: Expedition is where **Blind** finally
+becomes legal. D-23 cut it from Gambits because no peer can verify that a
+sender did not look at their preview — an objection entirely about
+verification by a stranger, which does not apply to a solo run that sends
+nothing. It ships as the *Dark run* mutator.
+
 Why: "one more run" is the strongest known retention loop, and it makes
-generated content feel like a journey instead of a list. The current
-12-levels-per-sector campaign is a checklist and should be **replaced** by
-this, not supplemented.
+generated content feel like a journey instead of a list.
+
+> **Amended 2026-08-06 (D-32b).** This section originally argued Expedition
+> should **replace** the 12-levels-per-sector campaign. The owner's decision is
+> that it is **additive**: the campaign stays as the teaching and progression
+> spine, Expedition becomes a third PVE mode. The replacement would have
+> invalidated the stars, sector gating and unlock ladder that the season track
+> and the shop both reference, and forced a save migration — for a tidiness
+> gain. Two overlapping PVE modes is the accepted cost.
 
 ---
 
 ## 4. What we kill or demote
 
 Being honest about subtraction:
-- **Sector/level checklist campaign** → becomes Expedition. Levels as a grid
-  of numbered tiles is the most generic possible framing.
+- ~~**Sector/level checklist campaign** → becomes Expedition.~~ **Reversed by
+  D-32b**, and this line survived the amendment to §3.6 by two versions — the
+  kind of leftover that makes a doc argue with itself. The campaign stays: it
+  is the teaching spine, and the stars, sector gating and unlock ladder it
+  produces are referenced by the season track and the shop. Expedition is a
+  third PVE mode alongside it (shipped 0.15.0). The original complaint — that
+  a grid of numbered tiles is the most generic possible framing — is still
+  fair, and is now answered by *having somewhere else to be* rather than by
+  deleting the grid.
 - **"Style bonuses" as passive trivia** → folded into Gambits, where the
   player *chooses* them in advance instead of being told afterwards.
 - **Projectile types as shop unlocks** → become run-time choices inside an
@@ -172,10 +339,10 @@ Each stage is independently shippable and playable; none blocks a playtest.
 |---|---|---|
 | **A** | Anchors (engine + UI + solver awareness), protocol v3 | The inversion. Everything else is better once the player authors the field. |
 | **B** ✅ | Gambits (declare/verify/score) — shipped 0.9.0 | Cheap once anchors exist; makes the name true; adds stakes immediately. |
-| **C** | Objectives (Capture, Thread, Courier) | Multiplies existing procgen without new art. |
-| **D** | Expedition run structure + mutators | Needs B and C to have something to string together. |
-| **E** | Resonance + audio sonification | Best after Expedition, so it lands as depth rather than noise. |
-| **F** | Debris/consequence | Tune last; it interacts with every other system. |
+| **C** ✅ | Objectives — Capture, Courier and Thread all shipped | Multiplies existing procgen without new art. |
+| **D** | Expedition run structure + mutators (**additive**, not a campaign replacement — D-32b). **Shipped 0.15.0 (engine) + 0.16.0 (junction UI).** | Needs B and C to have something to string together. |
+| **E** | Resonance + audio sonification — **sonification half shipped 0.14.0**, resonance *mechanic* still open | Taken early against the plan, because the game had no music at all and the pulsar pad answers both problems at once (D-33). The gameplay half still wants Expedition first. |
+| **F** ✅ | Debris/consequence — **shipped 0.18.0** (protocol v9) | Tuned last exactly as planned, and the interaction with every other system is what the work turned out to be: objectives re-proved under litter, debris excluded from gambit and graze scoring, the aim preview taught to fly the littered board. |
 
 Protocol note: A changes `TurnInput`; C and F change simulation outcomes.
 Both are replay-protocol bumps, which is free *now* (nothing has shipped)

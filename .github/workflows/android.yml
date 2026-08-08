@@ -1,15 +1,35 @@
 name: Android CI
 
+# Runs once per change, not twice. When this repo had a single branch that
+# was also its default, `push: ["**"]` was the only way to get any CI at all.
+# Now that changes reach `main` through pull requests (D-20), a push to a
+# feature branch with an open PR fired BOTH events — two identical ~5 minute
+# builds per push, on different refs, so the concurrency group below could not
+# collapse them. PRs verify the proposed change; pushes to main verify the
+# merged result. That is the whole surface.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  # Kept so a branch without a PR yet can still be checked deliberately.
+  #
+  # ⚠️ Do NOT dispatch manually while the branch has an open PR. The dispatch
+  # and the automatic `pull_request` run land in the same concurrency group
+  # below, so one of the pair is cancelled — which looks exactly like a
+  # failure and costs a run to diagnose. This happened on 2026-08-07 after a
+  # spell where GitHub stopped delivering `pull_request` events for this
+  # branch: manual dispatch was the right workaround then, and became the
+  # problem the moment delivery resumed. Check for an automatic run before
+  # reaching for this.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # head_ref on pull_request events, ref_name on push: both resolve to a plain
+  # branch name, so a superseding run cancels its predecessor.
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -33,6 +53,39 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Release signing, if and only if the repository has the secrets.
+      #
+      # Deliberately self-activating rather than a flag someone has to
+      # remember: the keystore does not exist yet (it is a human task with
+      # multi-day lead time), and the failure mode we are guarding against is
+      # a future push that quietly starts producing upload-ready artifacts
+      # nobody noticed were upload-ready — or, worse, keeps producing
+      # debug-signed ones after the secrets are added because a step was
+      # never turned on. Add the four secrets and the next run signs.
+      #
+      # GG_KEYSTORE_BASE64 is `base64 -w0 upload-keystore.jks` (docs/RELEASE.md
+      # §Signing). The file lands outside the workspace so it can never be
+      # swept into an artifact upload, and is shredded in a step that runs
+      # even when the build fails.
+      - name: Decode upload keystore (skipped when secrets are absent)
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.GG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No signing secrets — release artifacts will carry the DEBUG key and cannot be uploaded to Play."
+            exit 0
+          fi
+          install -d -m 700 "$RUNNER_TEMP/signing"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/signing/upload-keystore.jks"
+          chmod 600 "$RUNNER_TEMP/signing/upload-keystore.jks"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "GG_KEYSTORE_FILE=$RUNNER_TEMP/signing/upload-keystore.jks" >> "$GITHUB_ENV"
+          echo "GG_KEYSTORE_PASSWORD=${{ secrets.GG_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "GG_KEY_ALIAS=${{ secrets.GG_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "GG_KEY_PASSWORD=${{ secrets.GG_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
       - name: Run engine tests (determinism, PVP verification, generator)
         run: ./gradlew :core:test
 
@@ -51,8 +104,20 @@ jobs:
       - name: Build release APK (sideload testing)
         run: ./gradlew :app:assembleRelease
 
-      - name: Audit release APK (permissions allowlist, R8 keep rules, size)
-        run: python3 tools/verify_release_apk.py
+      # --require-upload-key only when we actually signed, so an unsigned repo
+      # stays green while a signed one can never hand back a debug-key artifact
+      # that looks upload-ready.
+      - name: Audit release APK (permissions allowlist, R8 keep rules, size, signer)
+        run: |
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            python3 tools/verify_release_apk.py --require-upload-key
+          else
+            python3 tools/verify_release_apk.py
+          fi
+
+      - name: Shred the keystore
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/signing"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -66,10 +131,14 @@ jobs:
           name: gravity-gambit-release-apk
           path: app/build/outputs/apk/release/app-release.apk
 
+      # The AAB is the only artifact anyone uploads to Play, so its *name*
+      # carries whether it can be. A debug-signed bundle is indistinguishable
+      # from a real one in a downloads folder, and finding out from a Console
+      # rejection costs an hour you spend doubting the build rather than the key.
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: gravity-gambit-release-aab
+          name: gravity-gambit-release-aab${{ steps.signing.outputs.signed == 'true' && '' || '-DEBUGKEY-DO-NOT-UPLOAD' }}
           path: app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload test reports on failure

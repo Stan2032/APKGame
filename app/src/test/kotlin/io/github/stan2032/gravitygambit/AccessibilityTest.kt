@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
@@ -15,6 +16,7 @@ import io.github.stan2032.gravitygambit.ui.GravityGambitTheme
 import io.github.stan2032.gravitygambit.ui.screens.CampaignScreen
 import io.github.stan2032.gravitygambit.ui.screens.HomeScreen
 import io.github.stan2032.gravitygambit.ui.screens.SettingsScreen
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +61,30 @@ class AccessibilityTest {
         }
         compose.onNodeWithText("Haptic feedback").assertExists()
         compose.onNodeWithText("Sound effects").assertExists()
+        // Ambience is its own switch, not a mode of the sound one: a player
+        // who wants impacts but not a drone must be able to say so.
+        compose.onNodeWithText("System ambience").assertExists()
+        compose.onNodeWithText("Blind practice").assertExists()
+    }
+
+    @Test
+    fun blindPracticeSaysOnScreenThatItPaysNothing() {
+        // The only reason this feature can exist is that it is unscored — a
+        // self-imposed handicap nobody has to take on trust, which is the
+        // objection that cut Blind from the scored declarations (D-23). A
+        // player who switched it on expecting a reward would have been misled
+        // by the game rather than by themselves, so the screen has to say so.
+        val repo = ProfileRepository(ApplicationProvider.getApplicationContext())
+        compose.setContent {
+            GravityGambitTheme { SettingsScreen(profile = Profile(), repo = repo, onNavigate = {}) }
+        }
+        val saysItPaysNothing = compose
+            .onAllNodesWithText("Pays nothing", substring = true)
+            .fetchSemanticsNodes().isNotEmpty()
+        assertTrue(
+            "Blind practice must state that it pays nothing, or it reads as a reward (D-23)",
+            saysItPaysNothing,
+        )
     }
 
     @Test

@@ -6,9 +6,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import io.github.stan2032.gravitygambit.core.Anchor
+import io.github.stan2032.gravitygambit.core.Body
 import io.github.stan2032.gravitygambit.core.BodyKind
+import io.github.stan2032.gravitygambit.core.Gate
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.Rng
 import io.github.stan2032.gravitygambit.core.Station
@@ -18,9 +21,12 @@ import io.github.stan2032.gravitygambit.core.Vec2
 import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.BodyPalettes
 import io.github.stan2032.gravitygambit.ui.DangerRed
+import io.github.stan2032.gravitygambit.ui.DebrisCore
+import io.github.stan2032.gravitygambit.ui.DebrisRim
 import io.github.stan2032.gravitygambit.ui.OkGreen
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -183,6 +189,17 @@ class RenderCache(spec: SystemSpec, tr: WorldTransform) {
                     rimColor = DangerRed,
                     hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
                 )
+                // Debris is never generated, so it never reaches this cache —
+                // it accumulates during the match and is drawn by drawDebris
+                // from live match state. The branch exists because the compiler
+                // is right to insist every kind is accounted for.
+                BodyKind.DEBRIS -> BodyVisual(
+                    kind = b.kind, center = center, radius = radius,
+                    glowBrush = null,
+                    surfaceBrush = SolidColor(DebrisCore),
+                    rimColor = DebrisRim,
+                    hasRing = false, ringColor = Color.Transparent, ringRx = 0f, ringRy = 0f,
+                )
             }
         }
 
@@ -264,10 +281,44 @@ fun DrawScope.drawMovingBodies(
     }
 }
 
+/**
+ * Wrecks left by shots that died on a world (VISION §3.3). Drawn from live
+ * match state rather than from [RenderCache], because debris is the one thing
+ * on the board the seed did not author — it appears as the match is played, so
+ * there is nothing to cache at system load.
+ *
+ * It has to read as *spent*: no glow, no rim light, a cold silhouette against
+ * bodies that all emit something. A player must be able to tell at a glance
+ * that this lump blocks but does not pull, because that is exactly what it
+ * does — debris is massless (D-39).
+ */
+fun DrawScope.drawDebris(debris: List<Body>, tr: WorldTransform, cache: RenderCache) {
+    for (b in debris) {
+        val c = tr.o(b.x, b.y)
+        val r = tr.r(b.radius)
+        drawCircle(DebrisCore, r, c)
+        // Chips break the silhouette so a wreck never reads as a small planet.
+        // Angles are derived from its own position, so a given wreck looks the
+        // same every frame and every replay without storing anything.
+        val seed = (b.x * 7.0 + b.y * 13.0).toFloat()
+        for (k in 0..2) {
+            val a = seed + k * 2.0944f
+            drawCircle(
+                DebrisCore,
+                r * 0.42f,
+                c + Offset(cos(a) * r * 0.82f, sin(a) * r * 0.82f),
+            )
+        }
+        drawCircle(DebrisRim, r * 1.04f, c, style = Stroke(cache.thin))
+    }
+}
+
 fun DrawScope.drawBodies(cache: RenderCache, t: Float) {
     for (b in cache.bodyVisuals) when (b.kind) {
         // Drawn per-frame at their live positions by drawMovingBodies.
         BodyKind.COMET -> Unit
+        // Never present in this cache; drawn by drawDebris from match state.
+        BodyKind.DEBRIS -> Unit
         BodyKind.PULSAR -> {
             // Gravity you can see breathing: the halo swells on the same
             // period as the mass, so timing a shot is a visual read.
@@ -548,6 +599,127 @@ fun DrawScope.drawAnchors(
         drawCircle(color, base, c)
         drawCircle(Color.White.copy(alpha = 0.9f * emphasis), base * 0.42f, c)
     }
+}
+
+/**
+ * The capture ring: the annulus the shot must hold to win a Capture system
+ * (docs/VISION.md §3.5). Drawn as the band it actually is rather than a single
+ * circle, because "get inside this band and stay there" is the literal rule —
+ * a player should be able to see the target, not be told it.
+ *
+ * Fills toward gold as the run builds so the four seconds are legible without
+ * a number.
+ */
+fun DrawScope.drawCaptureRing(
+    body: Body,
+    tick: Int,
+    progress: Float,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    val c = tr.o(body.xAt(tick), body.yAt(tick))
+    val inner = tr.r(body.radius + Tuning.CAPTURE_RING_INNER)
+    val outer = tr.r(body.radius + Tuning.CAPTURE_RING_OUTER)
+    val tint = lerp(AccentCyan, StarYellow, progress)
+
+    drawCircle(tint.copy(alpha = 0.05f + 0.10f * progress), outer, c)
+    drawCircle(tint.copy(alpha = 0.55f), inner, c, style = Stroke(cache.thin))
+    drawCircle(tint.copy(alpha = 0.55f), outer, c, style = Stroke(cache.thin))
+
+    // A sweep that closes as the run builds: the ring is filling with time.
+    if (progress > 0f) {
+        val mid = (inner + outer) / 2f
+        drawArc(
+            color = StarYellow.copy(alpha = 0.85f),
+            startAngle = -90f, sweepAngle = 360f * progress, useCenter = false,
+            topLeft = c - Offset(mid, mid), size = Size(mid * 2, mid * 2),
+            style = Stroke((outer - inner) * 0.5f),
+        )
+    }
+
+    // Slow marker ticks so the band reads as a target, not decoration.
+    for (k in 0 until 12) {
+        val a = (k / 12f) * 6.2831855f + t * 0.12f
+        val ca = StrictMath.cos(a.toDouble()).toFloat()
+        val sa = StrictMath.sin(a.toDouble()).toFloat()
+        drawLine(
+            tint.copy(alpha = 0.30f),
+            Offset(c.x + ca * inner, c.y + sa * inner),
+            Offset(c.x + ca * (inner + (outer - inner) * 0.18f), c.y + sa * (inner + (outer - inner) * 0.18f)),
+            strokeWidth = cache.thin,
+        )
+    }
+}
+
+/**
+ * Thread gates. The *next* one is lit and the rest are dim, because the order
+ * is the objective — a player who cannot see which gate is next is being asked
+ * to guess the puzzle rather than solve it. Passed gates go green and stay
+ * green, so progress is legible mid-flight.
+ */
+fun DrawScope.drawGates(
+    gates: List<Gate>,
+    passed: Int,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    for (i in gates.indices) {
+        val g = gates[i]
+        val a = tr.o(g.x1, g.y1)
+        val b = tr.o(g.x2, g.y2)
+        val done = i < passed
+        val next = i == passed
+        val color = when {
+            done -> OkGreen
+            next -> StarYellow
+            else -> AccentCyan
+        }
+        val alpha = when {
+            done -> 0.55f
+            next -> 0.85f + 0.15f * sin(t * 3f)
+            else -> 0.30f
+        }
+        // Posts at the ends, opening between them: a gate reads as a gap.
+        drawLine(color.copy(alpha = alpha), a, b, strokeWidth = cache.thin)
+        val post = tr.r(9.0)
+        drawCircle(color.copy(alpha = alpha), post, a)
+        drawCircle(color.copy(alpha = alpha), post, b)
+        if (next) {
+            drawCircle(color.copy(alpha = 0.25f), post * 2.1f, a)
+            drawCircle(color.copy(alpha = 0.25f), post * 2.1f, b)
+        }
+    }
+}
+
+/**
+ * The Courier target: a reticle on the comet you have been sent to strike.
+ * Comets already look like comets, so the mark has to say *this one* — a
+ * counter-rotating bracket that no other body wears.
+ */
+fun DrawScope.drawMarkedTarget(
+    body: Body,
+    tick: Int,
+    t: Float,
+    tr: WorldTransform,
+    cache: RenderCache,
+) {
+    val c = tr.o(body.xAt(tick), body.yAt(tick))
+    val r = tr.r(body.radius) * 2.6f
+    drawCircle(StarYellow.copy(alpha = 0.12f), r * 1.5f, c)
+    for (k in 0 until 4) {
+        val a = (k / 4f) * 6.2831855f - t * 0.5f
+        val ca = StrictMath.cos(a.toDouble()).toFloat()
+        val sa = StrictMath.sin(a.toDouble()).toFloat()
+        drawLine(
+            StarYellow.copy(alpha = 0.9f),
+            Offset(c.x + ca * r, c.y + sa * r),
+            Offset(c.x + ca * r * 1.45f, c.y + sa * r * 1.45f),
+            strokeWidth = cache.med,
+        )
+    }
+    drawCircle(StarYellow.copy(alpha = 0.5f), r, c, style = Stroke(cache.thin))
 }
 
 /**

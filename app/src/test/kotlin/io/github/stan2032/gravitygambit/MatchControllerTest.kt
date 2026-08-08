@@ -1,6 +1,10 @@
 package io.github.stan2032.gravitygambit
 
 import io.github.stan2032.gravitygambit.core.Gambit
+import io.github.stan2032.gravitygambit.core.Objective
+import io.github.stan2032.gravitygambit.core.ProjectileType
+import io.github.stan2032.gravitygambit.core.SystemGenerator
+import io.github.stan2032.gravitygambit.core.Tuning
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.MatchRecord
 import io.github.stan2032.gravitygambit.core.Seeds
@@ -236,6 +240,115 @@ class MatchControllerTest {
             c.gambitChoices,
         )
         for (g in c.gambitChoices) assertTrue(g in Gambit.declarable)
+    }
+
+    /**
+     * A Capture system must be winnable through the whole presentation path,
+     * not merely in the engine: the shell has to be issued, the brake has to
+     * be reachable, and holding the ring has to end the match as a win.
+     */
+    @Test
+    fun aCaptureSystemIsWinnableThroughTheController() {
+        // Find a generated capture system the same way the campaign would.
+        var launch: GameLaunch? = null
+        var spec: io.github.stan2032.gravitygambit.core.SystemSpec? = null
+        outer@ for (sector in 0 until 6) {
+            for (level in 0 until 12) {
+                val d = Seeds.campaignDifficulty(sector, level)
+                val s = SystemGenerator.generate(Seeds.campaign(sector, level), d, GameMode.CAMPAIGN)
+                if (s.objective == Objective.CAPTURE) {
+                    spec = s
+                    launch = GameLaunch(
+                        mode = GameMode.CAMPAIGN, seed = Seeds.campaign(sector, level),
+                        difficulty = d, sector = sector, level = level,
+                    )
+                    break@outer
+                }
+            }
+        }
+        assertNotNull("no capture system generated — the objective is dead", launch)
+
+        val c = MatchController.create(launch!!)!!
+        assertEquals(Objective.CAPTURE, c.objective)
+        assertEquals(
+            "the brake must be reachable or the system cannot be won",
+            ProjectileType.RETRO.id, c.effectiveType,
+        )
+
+        // Find the winning inputs with bare simulations first — cheap — then
+        // drive only that one through the controller. Brute-forcing the whole
+        // grid through the real per-tick playback path took 56 seconds for an
+        // assertion that needs exactly one solution.
+        var solution: Triple<Int, Int, Int>? = null
+        outer2@ for (angle in 0 until 3600 step SystemGenerator.CAPTURE_ANGLE_STEP) {
+            for (power in SystemGenerator.CAPTURE_POWERS) {
+                for (burn in SystemGenerator.CAPTURE_BURN_TICKS) {
+                    val r = io.github.stan2032.gravitygambit.core.LiveShot(
+                        spec!!.bodies, spec.stations, 0, angle, power,
+                        ProjectileType.RETRO.id, presetBrakeTick = burn,
+                        maxTicks = Tuning.SOLVER_MAX_TICKS, markedBody = spec.markedBody,
+                    ).runToCompletion()
+                    if (r.captureDwell >= Tuning.CAPTURE_TICKS) {
+                        solution = Triple(angle, power, burn); break@outer2
+                    }
+                }
+            }
+        }
+        assertNotNull("the generator proved this winnable but nothing wins it", solution)
+
+        val (angle, power, burn) = solution!!
+        c.aimAngleDeci = angle
+        c.aimPower = power
+        c.fire()
+        var frames = 0
+        while (c.phase == Phase.FLYING && frames++ < 4000) {
+            if (c.liveShot?.tick == burn) c.brakeNow()
+            c.advanceBy(1)
+        }
+        if (c.phase == Phase.RESOLVING) c.postResolve()
+        assertTrue("a proved-winnable capture system was not winnable in play", c.engine.campaignWon)
+    }
+
+    /**
+     * Camera shake is presentation, and must stay that way: it is a pure
+     * function of animation progress, it decays to nothing well before the
+     * explosion ends, and nothing about it can reach the simulation.
+     */
+    @Test
+    fun cameraShakeIsBoundedDecayingAndPurelyVisual() {
+        val e = io.github.stan2032.gravitygambit.ui.game.Explosion(
+            Vec2(500.0, 800.0), big = true, seed = 7L,
+        )
+        val cap = io.github.stan2032.gravitygambit.ui.game.Explosion.BIG_SHAKE
+        var previousPeak = Double.MAX_VALUE
+        var p = 0f
+        while (p <= 1f) {
+            val x = e.shakeX(p)
+            val y = e.shakeY(p)
+            assertTrue("shake left the board at p=$p", kotlin.math.abs(x) <= cap)
+            assertTrue("shake left the board at p=$p", kotlin.math.abs(y) <= cap)
+            p += 0.01f
+        }
+        assertEquals(
+            "shake must be over before the explosion is",
+            0.0,
+            e.shakeX(io.github.stan2032.gravitygambit.ui.game.Explosion.SHAKE_FADE),
+            1e-9,
+        )
+        assertEquals(0.0, e.shakeX(1f), 1e-9)
+
+        // Pure function of progress: the same input twice gives the same shake,
+        // so a replay never diverges visually either.
+        assertEquals(e.shakeX(0.2f), e.shakeX(0.2f), 0.0)
+        // And two explosions do not shake identically.
+        val other = io.github.stan2032.gravitygambit.ui.game.Explosion(
+            Vec2(500.0, 800.0), big = true, seed = 8L,
+        )
+        assertTrue(
+            "different explosions should not share a shake phase",
+            kotlin.math.abs(e.shakeX(0.1f) - other.shakeX(0.1f)) > 1e-9,
+        )
+        previousPeak.let { }
     }
 
     @Test

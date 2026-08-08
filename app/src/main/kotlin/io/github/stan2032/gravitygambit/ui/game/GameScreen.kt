@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -66,10 +67,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stan2032.gravitygambit.ads.RewardedAdsProvider
+import io.github.stan2032.gravitygambit.audio.AmbienceTrack
 import io.github.stan2032.gravitygambit.audio.SoundManager
+import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Expedition
 import io.github.stan2032.gravitygambit.core.Gambit
 import io.github.stan2032.gravitygambit.core.GameMode
+import io.github.stan2032.gravitygambit.core.Objective
 import io.github.stan2032.gravitygambit.core.Preview
 import io.github.stan2032.gravitygambit.core.ProjectileType
 import io.github.stan2032.gravitygambit.core.Seeds
@@ -87,6 +92,7 @@ import io.github.stan2032.gravitygambit.ui.PanelColor
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
 import io.github.stan2032.gravitygambit.ui.TextPrimary
+import io.github.stan2032.gravitygambit.ui.animationsEnabled
 import io.github.stan2032.gravitygambit.ui.ShareMessages
 import io.github.stan2032.gravitygambit.ui.screens.FeedbackDialog
 import io.github.stan2032.gravitygambit.ui.shareText
@@ -103,6 +109,9 @@ fun GameScreen(
     ads: RewardedAdsProvider,
     sound: SoundManager,
     onNavigate: (Nav) -> Unit,
+    ambience: AmbienceTrack = remember { AmbienceTrack() },
+    /** Reports an Expedition leg's outcome to the run that owns it (D-34). */
+    onLegFinished: (shots: Int, stars: Int, cleared: Boolean) -> Unit = { _, _, _ -> },
 ) {
     var controller by remember(launch) { mutableStateOf<MatchController?>(null) }
     var failed by remember(launch) { mutableStateOf(false) }
@@ -112,10 +121,14 @@ fun GameScreen(
         if (created == null) failed = true else controller = created
     }
 
-    val exitTarget: Nav = when (launch.mode) {
+    val exitTarget: Nav = when {
+        // A leg exits to the junction it came from, never to the star map.
+        launch.expeditionLeg != null -> Nav.Expedition
+        else -> when (launch.mode) {
         GameMode.CAMPAIGN -> Nav.Campaign
         GameMode.DAILY -> Nav.Home
         GameMode.DUEL -> Nav.Duel
+        }
     }
 
     when {
@@ -127,7 +140,7 @@ fun GameScreen(
             BackHandler { onNavigate(exitTarget) }
             CenteredMessage("Charting the system…", "solving gravity, guaranteeing a route", null)
         }
-        else -> MatchUI(controller!!, profile, repo, ads, sound, exitTarget, onNavigate)
+        else -> MatchUI(controller!!, profile, repo, ads, sound, ambience, exitTarget, onNavigate, onLegFinished)
     }
 }
 
@@ -155,16 +168,24 @@ private fun MatchUI(
     repo: ProfileRepository,
     ads: RewardedAdsProvider,
     sound: SoundManager,
+    ambience: AmbienceTrack,
     exitTarget: Nav,
     onNavigate: (Nav) -> Unit,
+    onLegFinished: (shots: Int, stars: Int, cleared: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
+    val motionOk = animationsEnabled()
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var showQuit by remember { mutableStateOf(false) }
     var timeSec by remember { mutableStateOf(0f) }
+
+    // The pad is a property of the system, so it is set from the system and
+    // not from the screen: a rematch on the same seed keeps playing without a
+    // rebuild, and a new seed rebuilds off the main thread (AmbienceTrack).
+    LaunchedEffect(c) { ambience.setSystem(c.spec) }
 
     // Global clock for ambient animation (twinkle, pulses).
     LaunchedEffect(Unit) {
@@ -179,6 +200,10 @@ private fun MatchUI(
         when (c.phase) {
             Phase.FLYING -> {
                 sound.play(SoundManager.Sfx.FIRE, volume = if (c.isReplaying) 0.7f else 1f)
+                // Restart the pad at sample zero so a pulsar's tremolo tracks
+                // the pull the shot is actually flying through. No-op without a
+                // pulsar; the launch report covers the seek where there is one.
+                ambience.resyncPulsarPhase()
                 // Time-based pacing: ticks derive from wall clock, not frame
                 // count, so playback speed is identical on 60/90/120Hz panels.
                 var startNanos = -1L
@@ -209,7 +234,12 @@ private fun MatchUI(
                     val start = withFrameNanos { it }
                     var p = 0f
                     while (isActive && p < 1f) {
-                        p = ((withFrameNanos { it } - start) / 1e9f / 0.7f).coerceAtMost(1f)
+                        val elapsed = (withFrameNanos { it } - start) / 1e9f
+                        // Hit-stop: hold the first frames still. A beat of
+                        // stillness on impact is the cheapest way to make a hit
+                        // read as a hit rather than as an animation starting.
+                        p = if (elapsed < Explosion.HIT_STOP_SECONDS) 0f
+                        else ((elapsed - Explosion.HIT_STOP_SECONDS) / 0.7f).coerceAtMost(1f)
                         c.explosionProgress = p
                     }
                 }
@@ -227,18 +257,44 @@ private fun MatchUI(
         if (c.phase == Phase.OVER && !c.rewardsApplied) {
             c.rewardsApplied = true
             val s = c.summary ?: return@LaunchedEffect
-            c.dustEarned = when (c.launch.mode) {
+            // Season XP rides on the same handshake as stardust, so a match
+            // can never pay one and not the other.
+            val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+            // Baseline through the rollover: the first match of a new season
+            // starts from that season's zero, not from last season's total.
+            val xpBefore = profile.rolledIntoSeason(today).seasonXp
+            val leg = c.launch.expeditionLeg
+            c.dustEarned = if (leg != null) {
+                // An Expedition leg pays nothing on its own: the run banks
+                // once, at the end (D-34). Paying per leg would make a run
+                // strictly better than the campaign for the same systems while
+                // also being the thing that risks them, and would write
+                // campaign stars for a sector the player never visited.
+                onLegFinished(c.engine.shotsUsed, s.stars, s.win)
+                0
+            } else when (c.launch.mode) {
                 GameMode.CAMPAIGN -> repo.recordCampaign(
                     c.launch.sector, c.launch.level, c.launch.difficulty, s.stars,
+                    epochDay = today,
+                    gambitsKept = c.engine.gambitKept.indices.count { i ->
+                        c.engine.gambitKept[i] &&
+                            c.engine.results[i].input.gambitId != Gambit.NONE.id
+                    },
+                    objectiveMet = c.engine.objectiveMet,
                 )
                 GameMode.DAILY -> repo.recordDaily(c.launch.epochDay, s.score)
                 GameMode.DUEL -> {
                     val winner = c.engine.duelWinner()
                     if (!c.launch.hotseat && winner != null) {
-                        repo.recordDuel(win = winner == c.localPlayer, codeDuel = true)
+                        repo.recordDuel(
+                            win = winner == c.localPlayer, codeDuel = true, epochDay = today,
+                        )
                     } else 0
                 }
             }
+            // Derived rather than plumbed back through three record methods:
+            // the repository already wrote it, so read the difference.
+            c.seasonXpEarned = (repo.profile.value.seasonXp - xpBefore).coerceAtLeast(0)
         }
     }
 
@@ -256,12 +312,40 @@ private fun MatchUI(
         if (canvasSize.width > 0) WorldTransform(canvasSize.width.toFloat(), canvasSize.height.toFloat()) else null
     }
 
-    val previewTicks = Economy.previewTicks(profile.previewLevel)
+    // Duels issue the top preview to both players; elsewhere it is earned —
+    // and a Dark run takes it away for one leg (D-23, D-34).
+    //
+    // Blind practice is checked FIRST and beats everything, including a duel's
+    // guaranteed top tier. That ordering is the point: it is a self-imposed
+    // handicap the player switched on, so it must not be overridden by a rule
+    // whose purpose is to stop anyone being *disadvantaged*. It pays nothing,
+    // so choosing it can only cost you (D-23).
+    val previewTicks = Economy.previewTicks(
+        when {
+            profile.blindPractice -> Economy.PREVIEW_NONE
+            c.launch.mode == GameMode.DUEL -> Economy.MAX_PREVIEW_LEVEL
+            c.launch.expeditionLeg != null ->
+                Expedition.previewLevelFor(c.launch.expeditionLeg, profile.previewLevel)
+            else -> profile.previewLevel
+        }
+    )
     val anchorSig = c.anchors.joinToString { "${'$'}{it.x},${'$'}{it.y},${'$'}{it.attract}" }
-    val previewPaths = remember(c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig) {
-        if (c.phase == Phase.AIMING && c.isMyTurn) {
+    // Wrecks are part of the board the preview must fly, or the line drawn on
+    // screen is a trajectory through a field the shot will not meet — the
+    // preview would be quietly lying about the one thing the player is using
+    // it to judge (VISION §3.3).
+    val previewBodies = remember(c.spec, c.engine.debris.size) {
+        if (c.engine.debris.isEmpty()) c.spec.bodies else c.spec.bodies + c.engine.debris
+    }
+    val previewPaths = remember(
+        c.aimAngleDeci, c.aimPower, c.selectedType, c.hpTick, c.phase, anchorSig, previewBodies,
+        previewTicks,
+    ) {
+        // No trace means none: skip the simulation entirely rather than run it
+        // for zero ticks, so blind really is blind and costs nothing to be.
+        if (previewTicks > 0 && c.phase == Phase.AIMING && c.isMyTurn) {
             Preview.trajectories(
-                c.spec.bodies, c.engine.stations, c.engine.currentShooter,
+                previewBodies, c.engine.stations, c.engine.currentShooter,
                 c.aimAngleDeci, c.aimPower, c.selectedType, previewTicks, c.anchors.toList(),
             )
         } else emptyList()
@@ -354,11 +438,37 @@ private fun MatchUI(
             val cch = cache ?: return@Canvas
             // timeSec read here = draw-phase-only invalidation for ambience.
             val time = timeSec
+            // The board shakes; the HUD does not. Shaking the readouts would
+            // make the numbers unreadable at exactly the moment they matter.
+            // Shake is decoration, so it obeys the system's animation setting
+            // (ui/Motion.kt). A player who has turned animations off for
+            // motion sensitivity still sees the explosion, the trail and every
+            // number — they just do not get the board thrown around.
+            val ex = if (motionOk) c.explosion else null
+            val sx = if (ex == null) 0f else t.r(ex.shakeX(c.explosionProgress))
+            val sy = if (ex == null) 0f else t.r(ex.shakeY(c.explosionProgress))
+            translate(sx, sy) {
             drawSpaceBackdrop(cch, time)
             drawBodies(cch, time)
             // Comets drift, so they draw at their live simulation position —
             // exactly where the physics says they are.
             drawMovingBodies(c.spec, cch, c.liveShot?.tick ?: 0, time, t)
+            // Wrecks from this match's own misses. Not in the cache: the seed
+            // did not author them, the match did (VISION §3.3).
+            if (c.engine.debris.isNotEmpty()) drawDebris(c.engine.debris, t, cch)
+            if (c.spec.gates.isNotEmpty()) {
+                drawGates(c.spec.gates, c.gatesPassed, time, t, cch)
+            }
+            if (c.spec.markedBody >= 0) {
+                val marked = c.spec.bodies[c.spec.markedBody]
+                val tick = c.liveShot?.tick ?: 0
+                when (c.objective) {
+                    Objective.CAPTURE ->
+                        drawCaptureRing(marked, tick, c.captureProgress ?: 0f, time, t, cch)
+                    Objective.COURIER -> drawMarkedTarget(marked, tick, time, t, cch)
+                    else -> Unit
+                }
+            }
             drawStations(c.engine.stations, c.engine.hp, c.launch.mode, time, t, cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawPreview(previewPaths, t)
@@ -377,6 +487,7 @@ private fun MatchUI(
                 if (!shot.done) drawProjectilesGlow(shot::visitProjectiles, t)
             }
             c.explosion?.let { drawExplosion(it, c.explosionProgress, t, cch) }
+            }
             drawVignette(cch)
             if (c.phase == Phase.AIMING && c.isMyTurn) {
                 drawAim(
@@ -520,6 +631,24 @@ private fun ColumnScope.HudContent(c: MatchController) {
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             )
         }
+        if (c.objective != Objective.BREACH) {
+            Spacer(Modifier.height(6.dp))
+            val progress = c.captureProgress ?: 0f
+            Text(
+                when {
+                    c.phase == Phase.FLYING && progress > 0f ->
+                        "Holding orbit… ${(progress * 100).toInt()}%"
+                    c.objective == Objective.THREAD && c.gatesPassed > 0 ->
+                        "Gate ${c.gatesPassed} of ${c.spec.gates.size}"
+                    else -> c.objective.brief
+                },
+                color = if (progress > 0f || c.gatesPassed > 0) StarYellow else AccentCyan,
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .background(PanelColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
         c.lastResult?.let { res ->
             if (c.phase == Phase.RESOLVING) {
                 // The verdict on a declaration comes first: it is the thing the
@@ -596,14 +725,30 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                     FineTune("+", "More power") { c.nudgePower(10 * it) }
                 }
                 Spacer(Modifier.height(8.dp))
+                if (c.objective.forcesRetro) {
+                    // The shell is issued, not chosen: a capture is impossible
+                    // without a brake, so offering the other three would be
+                    // offering three ways to fail.
+                    Text(
+                        "Retro shell issued — burn to drop into orbit",
+                        color = TextDim, fontSize = 12.sp,
+                    )
+                } else
                 // Flow, not Row: at large system font sizes four chips no
                 // longer fit one line and must wrap rather than clip.
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // In a duel every shell is issued to both players, so what
+                    // either of them bought cannot decide the match.
+                    val available = if (c.launch.mode == GameMode.DUEL) {
+                        Economy.duelLoadout()
+                    } else {
+                        profile.unlockedProjectiles
+                    }
                     for (type in ProjectileType.entries) {
-                        val unlocked = profile.unlockedProjectiles.contains(type.id)
+                        val unlocked = available.contains(type.id)
                         val selected = c.selectedType == type.id
                         if (selected) {
                             Button(onClick = {}, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
@@ -631,7 +776,7 @@ private fun ColumnScope.ControlsContent(c: MatchController, profile: Profile, so
                 }
             }
             c.phase == Phase.FLYING && !c.isReplaying &&
-                ProjectileType.byId(c.selectedType).canBrake && !c.brakeUsed -> {
+                ProjectileType.byId(c.effectiveType).canBrake && !c.brakeUsed -> {
                 Button(
                     onClick = {
                         sound.play(SoundManager.Sfx.BRAKE)
@@ -971,11 +1116,12 @@ private fun SummaryOverlay(
         Spacer(Modifier.height(4.dp))
         Text(s.subtitle, color = TextPrimary, fontSize = 14.sp)
         if (c.launch.mode == GameMode.CAMPAIGN && s.stars > 0) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "★".repeat(s.stars) + "☆".repeat(3 - s.stars),
-                color = StarYellow, fontSize = 30.sp, letterSpacing = 6.sp,
-            )
+            Spacer(Modifier.height(10.dp))
+            // Stars land one at a time rather than appearing as text: this is
+            // the one screen where the game says well done, and it is a
+            // listed store screenshot (StarBurst).
+            StarBurst(stars = s.stars)
+            Spacer(Modifier.height(2.dp))
         }
         if (c.dustEarned > 0) {
             Spacer(Modifier.height(6.dp))
@@ -985,23 +1131,44 @@ private fun SummaryOverlay(
                 color = StarYellow, fontSize = 14.sp,
             )
         }
+        // A track nobody watches filling is a track nobody plays for, so the
+        // season moves in the same breath as the stardust does.
+        if (c.seasonXpEarned > 0) {
+            val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+            val season = profile.rolledIntoSeason(today)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "+${c.seasonXpEarned} season XP · tier ${season.seasonTier}",
+                color = AccentCyan, fontSize = 13.sp,
+            )
+        }
         // Opt-in reward doubling: appears only when an ad is actually loaded,
         // never for Ad Pass holders, and never blocks the flow (docs/ADS.md).
+        // It draws on the SAME daily budget as the shop surface. Until 0.19.15
+        // it drew on nothing at all — a `remember` flag was its only limit —
+        // which is precisely how the Ad Pass stopped out-earning the ads it
+        // replaces (D-53). The count is shown because a button that can run
+        // out should say so before it does, not after.
         val adsAvailable by ads.available.collectAsState()
         val activity = LocalActivity.current
         var doubled by remember { mutableStateOf(false) }
-        if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled && activity != null) {
+        val adDay = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+        val viewsLeft = AdRewards.DAILY_REWARDED_VIEWS -
+            (if (profile.lastAdWatchDay == adDay) profile.adWatchesToday else 0)
+        if (c.dustEarned > 0 && adsAvailable && !profile.adPassActive && !doubled &&
+            viewsLeft > 0 && activity != null
+        ) {
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {
                     ads.show(activity) {
                         val bonus = c.dustEarned
-                        repo.update { p -> p.copy(stardust = p.stardust + bonus) }
+                        repo.spendRewardedView(adDay) { p -> p.copy(stardust = p.stardust + bonus) }
                         doubled = true
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Double it — watch a short ad (optional)") }
+            ) { Text("Double it — watch a short ad (optional) · $viewsLeft left today") }
         }
         Spacer(Modifier.height(16.dp))
 

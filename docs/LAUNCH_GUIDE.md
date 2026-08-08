@@ -90,9 +90,31 @@ The repo already builds a Play-ready `.aab`; it just needs your signing key.
    Output: `app/build/outputs/bundle/release/app-release.aab`
 4. Sanity-check the artifact before uploading:
    ```bash
-   ./gradlew :app:assembleRelease && python3 tools/verify_release_apk.py
+   ./gradlew :app:assembleRelease && python3 tools/verify_release_apk.py --require-upload-key
    ```
-   (Alternatively grab the AAB from any green CI run — see `RELEASE.md`.)
+   The line to read is **`signed by:`**. If it says `DEBUG KEY`, the four
+   variables above did not reach Gradle — the build falls back to the debug
+   key on purpose so release builds stay installable for testing, which is
+   exactly what makes a debug-signed bundle so easy to upload by mistake.
+   With `--require-upload-key` the check fails rather than letting you find
+   out from a Console rejection.
+
+5. **While you have the keystore open, add the CI secrets** — it takes two
+   minutes now and saves repeating steps 3–4 by hand for every future
+   release. Repo → Settings → Secrets and variables → Actions → New
+   repository secret, four of them:
+
+   | Secret | Value |
+   |---|---|
+   | `GG_KEYSTORE_BASE64` | `base64 -w0 upload-keystore.jks` (macOS: `base64 -i upload-keystore.jks \| tr -d '\n'`) |
+   | `GG_KEYSTORE_PASSWORD` | store password |
+   | `GG_KEY_ALIAS` | `upload` |
+   | `GG_KEY_PASSWORD` | key password |
+
+   Nothing else to change: CI detects them and signs from the next run on.
+   Until then it labels the bundle artifact
+   `gravity-gambit-release-aab-DEBUGKEY-DO-NOT-UPLOAD`, so you can always
+   tell from the download which one you are holding.
 
 ---
 
@@ -158,13 +180,27 @@ Personal accounts created after 13 Nov 2023 must pass this before production.
 In-app products can only be created **after** an AAB containing the Billing
 library has been uploaded (already true from Phase 4).
 
-1. Console → **Monetize → Products → In-app products → Create product**, three times:
+1. Console → **Monetize → Products → In-app products → Create product**, **four times**:
 
    | Product ID (must match exactly) | Type | Price | Name / description |
    |---|---|---|---|
-   | `stardust_small` | One-time | $0.99 | 600 Stardust |
-   | `stardust_large` | One-time | $2.99 | 2,200 Stardust |
-   | `cosmic_pack` | One-time | $2.49 | Cosmic Pack — every trail, forever |
+   | `stardust_small` | Consumable | $0.99 | 600 Stardust |
+   | `stardust_large` | Consumable | $2.99 | 2,200 Stardust |
+   | `cosmic_pack` | One-time entitlement | $2.49 | Cosmic Pack — every trail, forever |
+   | `season_pass` | **Consumable** (bought per season) | $4.99 | Season Pass — the premium lane for this season |
+
+   > ⚠️ **`season_pass` was missing from this guide until 0.19.10**, and its
+   > absence is *silent*: the app asks billing for it, billing has never heard
+   > of it, and the Season screen simply **hides the offer** rather than
+   > erroring (that hiding is deliberate — it is what makes the app safe to
+   > ship before products exist, and `SeasonScreenTest` asserts it). Follow the
+   > old list and the game's main recurring revenue product would not exist,
+   > with nothing anywhere to tell you. The authority is
+   > `Economy.Iap.ALL_PRODUCT_IDS` — **cross-check against the code, not this
+   > table**.
+   >
+   > It is a **consumable**, not a one-time purchase, because it is bought per
+   > season rather than owned forever.
 
 2. Console → **Monetize → Products → Subscriptions → Create subscription**, twice:
 
@@ -224,8 +260,8 @@ Pricing rationale, and why the Ad Pass is priced to out-earn ads:
 A first game from an unknown developer typically earns very little at launch —
 downloads come from people you tell, not from search. What actually moves
 revenue here, in order: the **daily streak** (retention), **duel codes**
-(each one is an install pitch to a friend), and **cosmetics visible in your
-opponent's replay**. Judge the game after 200+ installs, not 20, and use
+(each one is an install pitch to a friend), and the **season pass** (the only
+recurring product, and the one most worth watching). Judge the game after 200+ installs, not 20, and use
 `feedback/inbox/` to decide what to build next rather than guessing.
 
 ## Fast checklist (print this)
@@ -237,7 +273,7 @@ opponent's replay**. Judge the game after 200+ installs, not 20, and use
 [ ] AAB uploaded to internal testing + played on a real phone
 [ ] All App content forms complete
 [ ] 12+ testers opted in, 14 consecutive days   ← the bottleneck
-[ ] 5 IAP products created AND ACTIVATED
+[ ] 6 IAP products created AND ACTIVATED (4 one-time + 2 subs)
 [ ] License testing verified purchases work
 [ ] Screenshots captured on device
 [ ] Applied for production access → approved

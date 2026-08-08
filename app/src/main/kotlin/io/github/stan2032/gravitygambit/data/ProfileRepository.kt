@@ -6,6 +6,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.stan2032.gravitygambit.core.AdRewards
 import io.github.stan2032.gravitygambit.core.Economy
+import io.github.stan2032.gravitygambit.core.Expedition
+import io.github.stan2032.gravitygambit.core.Outfitting
+import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.core.Profile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,12 +42,29 @@ class ProfileRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Add season XP, rolling into the current season first so a player who was
+     * away for a month never earns into a season that has ended.
+     */
+    private fun Profile.plusSeasonXp(epochDay: Long, xp: Int): Profile {
+        val rolled = rolledIntoSeason(epochDay)
+        return rolled.copy(seasonXp = rolled.seasonXp + xp)
+    }
+
     /** Ad Pass holders earn multiplied match rewards (docs/ADS.md). */
     private fun withPassMultiplier(base: Int): Int =
         if (profile.value.adPassActive) base * AdRewards.PASS_REWARD_MULTIPLIER else base
 
     /** Returns stardust earned (for the summary UI); applies stars + reward atomically. */
-    fun recordCampaign(sector: Int, level: Int, difficulty: Int, stars: Int): Int {
+    fun recordCampaign(
+        sector: Int,
+        level: Int,
+        difficulty: Int,
+        stars: Int,
+        epochDay: Long,
+        gambitsKept: Int = 0,
+        objectiveMet: Boolean = false,
+    ): Int {
         if (stars <= 0) return 0
         val snapshot = profile.value
         val mapKey = "$sector:$level"
@@ -57,9 +77,11 @@ class ProfileRepository(private val context: Context) {
             Economy.campaignReward(difficulty, stars, firstClear = false)
         }
         val earned = withPassMultiplier(base)
+        val xp = Season.campaignXp(difficulty, stars, firstClear = prev == 0) +
+            Season.flourishXp(gambitsKept, objectiveMet)
         update { p ->
             val old = p.campaignStars[mapKey] ?: 0
-            p.copy(
+            p.plusSeasonXp(epochDay, xp).copy(
                 stardust = p.stardust + earned,
                 campaignStars = p.campaignStars + (mapKey to maxOf(old, stars)),
             )
@@ -87,22 +109,24 @@ class ProfileRepository(private val context: Context) {
             val dayKey = epochDay.toString()
             val best = maxOf(p.dailyBest[dayKey] ?: 0, score)
             val streak = Economy.dailyStreakAfter(p.lastDailyDay, p.dailyStreak, epochDay)
-            p.copy(
-                stardust = p.stardust + earned,
-                dailyBest = p.dailyBest + (dayKey to best),
-                dailyStreak = streak,
-                lastDailyDay = epochDay,
-            )
+            p.plusSeasonXp(epochDay, if (firstPlayToday) Season.dailyXp(score, streak) else 0)
+                .copy(
+                    stardust = p.stardust + earned,
+                    dailyBest = p.dailyBest + (dayKey to best),
+                    dailyStreak = streak,
+                    lastDailyDay = epochDay,
+                )
         }
         return earned
     }
 
     /** Returns stardust earned. Hot-seat duels award nothing (self-farm guard). */
-    fun recordDuel(win: Boolean, codeDuel: Boolean): Int {
+    fun recordDuel(win: Boolean, codeDuel: Boolean, epochDay: Long): Int {
         if (!codeDuel) return 0
         val earned = withPassMultiplier(Economy.duelReward(win, codeDuel = true))
+        val xp = Season.duelXp(win, codeDuel = true)
         update { p ->
-            p.copy(
+            p.plusSeasonXp(epochDay, xp).copy(
                 stardust = p.stardust + earned,
                 duelWins = p.duelWins + (if (win) 1 else 0),
                 duelLosses = p.duelLosses + (if (win) 0 else 1),
@@ -112,24 +136,140 @@ class ProfileRepository(private val context: Context) {
     }
 
     /**
-     * Grants the opt-in rewarded-ad payout, respecting the daily cap.
-     * Returns the stardust granted (0 if capped). Called only after the ad
-     * provider confirms the reward was earned.
+     * Bank a finished Expedition run: stardust, season XP, and the personal
+     * best. Returns the stardust for the summary.
+     *
+     * Paid once at the end rather than per leg, so depth is the unit the mode
+     * rewards (D-34) — per-leg payment would make a run strictly worse than
+     * playing the same systems in the campaign, since a run also risks them.
      */
-    fun recordAdWatch(epochDay: Long): Int {
+    fun recordExpedition(run: Expedition.Run, epochDay: Long): Int {
+        val earned = withPassMultiplier(Expedition.payout(run))
+        val xp = Season.expeditionXp(run.depth, run.wrecks)
+        // Salvage is deliberately NOT multiplied by the Ad Pass. It buys run
+        // upgrades, and Expedition depth is a personal best — letting a
+        // subscription accelerate it would make the number partly bought
+        // (Outfitting).
+        val salvage = Outfitting.salvageFor(run)
+        update { p ->
+            p.plusSeasonXp(epochDay, xp).copy(
+                stardust = p.stardust + earned,
+                expeditionSalvage = p.expeditionSalvage + salvage,
+                expeditionRuns = p.expeditionRuns + 1,
+                expeditionBestDepth = maxOf(p.expeditionBestDepth, run.depth),
+                expeditionBestScore = maxOf(p.expeditionBestScore, run.score),
+            )
+        }
+        return earned
+    }
+
+    /** Buy the next tier of an outfit, if salvage allows. Returns true when it happened. */
+    fun buyOutfit(outfit: Outfitting.Outfit): Boolean {
         val snapshot = profile.value
-        val watchesToday = if (snapshot.lastAdWatchDay == epochDay) snapshot.adWatchesToday else 0
-        if (watchesToday >= AdRewards.DAILY_WATCH_CAP) return 0
+        val result = Outfitting.buy(snapshot.expeditionSalvage, snapshot.expeditionOutfits, outfit)
+            ?: return false
+        update { p ->
+            // Re-checked inside the atomic update rather than trusting the
+            // snapshot, so two rapid taps cannot both spend the same salvage.
+            val fresh = Outfitting.buy(p.expeditionSalvage, p.expeditionOutfits, outfit) ?: return@update p
+            p.copy(expeditionSalvage = fresh.first, expeditionOutfits = fresh.second)
+        }
+        return result.let { true }
+    }
+
+    // ---- Season track ----
+
+    /**
+     * Collect every unclaimed reward the player has already reached, on both
+     * lanes they are entitled to. Returns what was granted, for the UI to show.
+     */
+    fun claimSeason(epochDay: Long): List<Season.Reward> {
+        val snapshot = profile.value.rolledIntoSeason(epochDay)
+        val tier = snapshot.seasonTier
+        val free = Season.claimableTiers(tier, premium = false, snapshot.seasonClaimedFree.toSet())
+        val premium = if (!snapshot.seasonPassOwned) emptyList() else {
+            Season.claimableTiers(tier, premium = true, snapshot.seasonClaimedPremium.toSet())
+        }
+        // effectiveReward, not reward: a premium tier whose unlock this player
+        // already owns pays that item's shop price instead of granting a
+        // duplicate that de-duplicates away to nothing (D-58).
+        val granted = free.mapNotNull { Season.effectiveReward(it, false, snapshot.seasonOwnership()) } +
+            premium.mapNotNull { Season.effectiveReward(it, true, snapshot.seasonOwnership()) }
+        if (granted.isEmpty()) return emptyList()
+
+        update { p ->
+            var next = p.rolledIntoSeason(epochDay)
+            for (r in granted) next = next.applyReward(r)
+            next.copy(
+                seasonClaimedFree = (next.seasonClaimedFree + free).distinct(),
+                seasonClaimedPremium = (next.seasonClaimedPremium + premium).distinct(),
+            )
+        }
+        return granted
+    }
+
+    private fun Profile.applyReward(r: Season.Reward): Profile = when (r.kind) {
+        Season.RewardKind.STARDUST -> copy(stardust = stardust + r.amount)
+        Season.RewardKind.TRAIL -> copy(ownedTrails = (ownedTrails + r.trailId).distinct())
+        // Grants apply to Campaign/Daily; a duel issues the top tier to
+        // everyone regardless, so this can never widen a PVP gap.
+        Season.RewardKind.PREVIEW_TIER -> copy(previewLevel = maxOf(previewLevel, r.amount))
+        Season.RewardKind.PROJECTILE ->
+            copy(unlockedProjectiles = (unlockedProjectiles + r.amount).distinct())
+    }
+
+    /** Called after Play confirms the season-pass purchase for the current season. */
+    fun grantSeasonPass(epochDay: Long) {
+        update { p -> p.rolledIntoSeason(epochDay).copy(seasonPassOwned = true) }
+    }
+
+    /**
+     * Spends one of the day's rewarded views and applies [reward] if there was
+     * one left. Returns true if a view was spent.
+     *
+     * **Every rewarded surface goes through here**, and that is the entire
+     * point. D-53 happened because the post-match doubler granted its reward
+     * with a bare `update { }` and no single number knew it existed, so the
+     * revenue arithmetic went on believing one cap governed everything. A
+     * surface that cannot pay out without first taking a view from this budget
+     * cannot silently escape it again.
+     *
+     * [subCap] is an optional per-surface limit *below* the shared budget, for
+     * surfaces that should not be able to consume the whole day on their own.
+     * It can only ever make the answer stricter — revenue is governed by
+     * [AdRewards.DAILY_REWARDED_VIEWS] alone.
+     */
+    fun spendRewardedView(
+        epochDay: Long,
+        subCap: Int = AdRewards.DAILY_REWARDED_VIEWS,
+        reward: (Profile) -> Profile,
+    ): Boolean {
+        val limit = minOf(subCap, AdRewards.DAILY_REWARDED_VIEWS)
+        val snapshot = profile.value
+        val viewsToday = if (snapshot.lastAdWatchDay == epochDay) snapshot.adWatchesToday else 0
+        if (viewsToday >= limit) return false
         update { p ->
             val current = if (p.lastAdWatchDay == epochDay) p.adWatchesToday else 0
-            if (current >= AdRewards.DAILY_WATCH_CAP) p
-            else p.copy(
-                stardust = p.stardust + AdRewards.WATCH_STARDUST,
+            if (current >= limit) p
+            else reward(p).copy(
                 adWatchesToday = current + 1,
                 lastAdWatchDay = epochDay,
             )
         }
-        return AdRewards.WATCH_STARDUST
+        return true
+    }
+
+    /**
+     * The shop's "free stardust" surface: a fixed payout, held to its own
+     * sub-cap so it cannot spend the day's whole budget and leave the
+     * post-match doubler with nothing. Returns the stardust granted (0 if
+     * capped). Called only after the ad provider confirms the reward.
+     */
+    fun recordAdWatch(epochDay: Long): Int {
+        val spent = spendRewardedView(epochDay, subCap = AdRewards.DAILY_WATCH_CAP) { p ->
+            p.copy(stardust = p.stardust + AdRewards.WATCH_STARDUST)
+        }
+        return if (spent) AdRewards.WATCH_STARDUST else 0
     }
 
     /** Ad Pass daily drop; call on app open. Returns the bonus granted (0 if already claimed/inactive). */

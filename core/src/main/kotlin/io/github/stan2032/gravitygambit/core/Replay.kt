@@ -7,8 +7,12 @@ import java.util.zip.CRC32
 /**
  * A complete, self-contained match record: everything needed to reconstruct and
  * VERIFY a match on any device. This is the entire multiplayer "protocol" —
- * ~30 bytes + 8 bytes per turn — small enough to travel through any messenger,
- * which is how PVP works with zero servers (see docs/MULTIPLAYER.md).
+ * 26 bytes of frame + 10 bytes per turn + 5 per anchor, base64url'd. Measured
+ * 2026-08-06: 52 characters for a plain opening challenge, 1039 for the
+ * longest match the rules allow (30 turns, every anchor spent). Small enough
+ * to travel through any messenger, which is how PVP works with zero servers
+ * (docs/MULTIPLAYER.md). `ShareCodeSizeTest` holds it to that budget, because
+ * every protocol version so far has spent bytes.
  */
 data class MatchRecord(
     val mode: Int,
@@ -26,11 +30,19 @@ object ShareCodec {
      * v2 added moving bodies, pulsars and slingshot scoring; v3 added player
      * anchors to TurnInput; v4 changed what a seed generates (curated layouts,
      * longer solver horizon); v5 added the declared gambit, which is hashed as
-     * an input and can nullify a hit. Each changes what a code means, so
-     * superseded versions are refused rather than silently mis-verified
-     * (docs/TUNING.md §Versioning).
+     * an input and can nullify a hit; v6 added objectives, v7 a second one
+     * (Courier) and v8 a third (Thread, which adds gates to the spec) —
+     * each again changing what a seed generates. **v9 added debris**: a shot
+     * that dies on a world leaves a wreck that later shots must fly around,
+     * so the same (seed, turns) now produces a different match. Note the
+     * difference from its predecessors — v9 spends **zero bytes**, because
+     * debris is derived by re-simulating turns the code already carries rather
+     * than transmitted; what changed is the *meaning* of a code, not its
+     * shape. Each version changes what a code means, so superseded versions
+     * are refused rather than silently mis-verified (docs/TUNING.md
+     * §Versioning).
      */
-    private const val VERSION = 5
+    private const val VERSION = 9
 
     fun encode(record: MatchRecord): String {
         val anchorBytes = record.turns.sumOf { it.anchors.size * 5 }

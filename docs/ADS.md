@@ -34,27 +34,79 @@ its zero-network privacy posture.
 | `ad_pass_weekly` | $1.99/week | 2× match stardust, ✦ 50 daily drop, no ads ever |
 | `ad_pass_monthly` | $4.99/month | same, better rate — the one to promote |
 
-### The pricing math (the user's requirement: pass must out-earn ads)
+### The pricing math (the owner's requirement: pass must out-earn ads)
 
-Assumptions from public rewarded-video benchmarks: $10–25 eCPM in tier-1
-markets, ~50% lower elsewhere. Our heaviest possible watcher does
-5 shop views + ~5 post-match doubles = **10 views/day**:
+**The invariant:** *pass revenue (net, monthly) ≥ the maximum ad revenue one
+player can generate across **every** rewarded surface.* Owner directive from
+the first brief, recorded as D-13.
+
+> **History.** 0.19.12 found this invariant broken and the old math claiming it
+> held (D-53). The prose assumed "5 shop views + ~5 post-match doubles = 10
+> views/day, all governed by `DAILY_WATCH_CAP`". Only the shop was capped: the
+> post-match "Double it" button paid out with a bare `repo.update { }`, never
+> touched `adWatchesToday`, and was limited only by a `remember` flag — once
+> per match, **unlimited per day**. The ceiling was the player's match count.
+> 0.19.15 fixed the cause rather than the arithmetic (D-56): there is now one
+> budget, every surface spends from it, and the numbers below are computed in
+> code rather than written down here.
+
+#### One budget, spent by every surface
+
+| Surface | Reward | Governed by |
+|---|---|---|
+| Shop "free stardust" | `AdRewards.WATCH_STARDUST` (40✦) | shared budget, plus its own `DAILY_WATCH_CAP` sub-cap |
+| Post-match "Double it" | doubles that match's stardust | shared budget (naturally ≤1 per match) |
+
+- `AdRewards.DAILY_REWARDED_VIEWS` = 6 — **total** paid views per day, every
+  surface, resetting at UTC midnight. This is the only number that governs
+  revenue.
+- `AdRewards.DAILY_WATCH_CAP` = 4 — the shop alone, so it cannot spend the
+  whole day and leave the doubler advertised but worthless. The asymmetry is
+  deliberate and in the player's favour: doubling is the earned, contextual
+  surface, so if a player spends their whole budget there, good.
+- Both surfaces call `ProfileRepository.spendRewardedView`, which is the only
+  way stardust can be granted for an ad. A payout that does not go through it
+  fails `AdSurfaceInventoryTest`.
+
+#### Where 6 comes from
+
+It is not chosen by taste. `AdEconomics` holds the world-assumptions and
+derives the cap; `AdPassInvariantTest` recomputes it on every build and fails
+if the constant and the arithmetic disagree in *either* direction — too high
+breaks the directive, too low withholds rewards the economics allow.
+
+| Constant | Value | Why this end of the range |
+|---|---|---|
+| `AdEconomics.MAX_ECPM_USD` | 25.0 | top of the tier-1 rewarded band ($10–25; ~50% lower elsewhere) |
+| `AdEconomics.PLAY_FEE` | 0.15 | Play's small-developer tier (first $1M/year) |
+| `AdEconomics.PASS_MONTHLY_USD` | 4.99 | the cheaper monthly-equivalent of the two pass products, so it binds |
+| `AdEconomics.DAYS_PER_MONTH` | 31 | the longest month means the most ad revenue to beat |
 
 ```
-10 views/day × 30 days × ($10–25 / 1000) ≈ $3.00–7.50/month gross
-→ after network/store cuts, realistically $2–5/month per HEAVY user
-Average users watch far less: $0.30–1.50/month typical.
+net per view = $25.00 / 1000 × 0.85            = $0.02125
+pass, net    = $4.99 × 0.85                    = $4.2415 / month
+6 views/day  = $0.02125 × 6 × 31               = $3.9525  ≤ $4.2415  ✓
+7 views/day  = $0.02125 × 7 × 31               = $4.6113  >  $4.2415  ✗
 ```
 
-- `ad_pass_monthly` at $4.99 → ~$4.24 net after Play's 15% (small-dev tier):
-  **beats the average watcher by 3–10×, matches or beats even the
-  theoretical maximum watcher.**
-- `ad_pass_weekly` at $1.99 → ~$6.75/month-equivalent net: prices impatience,
-  out-earns everything.
+So 6 is the largest budget the pass covers, and it covers it against a player
+who hits the cap **every single day for the longest month at the top eCPM**.
+A real player is nowhere near that — typical watchers generate $0.30–1.50/month
+— so against the average the pass wins by roughly 3–10×.
 
-Keep this invariant when tuning: *pass price(net, monthly-equivalent) ≥
-DAILY_WATCH_CAP-driven maximum ad revenue.* If you raise the watch cap or
-add reward surfaces, re-run this math (constants live in `AdRewards`).
+Nothing here is live yet: ads ship disabled behind a no-op provider (D-12).
+
+**When adding a surface**, the only question is what spends the view. Route it
+through `spendRewardedView` and the budget governs it automatically; the
+failure in D-53 was a surface added without anyone asking, while the math went
+on assuming one cap covered everything.
+
+**If the price changes** in Play Console, change `AdEconomics.PASS_MONTHLY_USD`
+(currently `AdEconomics.PASS_MONTHLY_USD` = 4.99, matching the `ad_pass_monthly`
+row above) to match and let the test tell you the new budget. Raising the price to buy a
+bigger budget fights the cheap-IAP directive (D-13) and is an owner call; so is
+abandoning the invariant, which would be a change to what was asked for and
+belongs in DECISIONS.md before it belongs in code.
 
 ## How to integrate a real ad network later (AdMob playbook)
 

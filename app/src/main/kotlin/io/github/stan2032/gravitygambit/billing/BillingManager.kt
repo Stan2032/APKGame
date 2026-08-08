@@ -27,7 +27,10 @@ import kotlinx.coroutines.flow.StateFlow
  * Design constraints:
  *  - The game must be 100% functional with billing unavailable (no Play
  *    services, no configured products): the shop then shows earnable items only.
- *  - Purchases are cosmetics/stardust only — no gameplay power. Grants are
+ *  - Purchases cover cosmetics, stardust and the season pass. None of it
+ *    can reach PVP: duels issue every shell and the top aim trace to both
+ *    players regardless of what either owns (Economy.duelLoadout, D-29).
+ *    Grants are
  *    applied through [ProfileRepository] and consumed/acknowledged properly so
  *    Play doesn't auto-refund.
  */
@@ -160,6 +163,24 @@ class BillingManager(
                     client.acknowledgePurchase(ack) { }
                 }
                 repo.setAdPassActive(true)
+                continue
+            }
+            if (productId == Iap.SEASON_PASS) {
+                // Consumable, deliberately: the pass is bought per season, so
+                // consuming it is what lets the same product be bought again
+                // when the next one starts. Consume first, grant after — a
+                // failed consume means Play redelivers rather than us
+                // double-granting, same rule as the stardust packs.
+                val consume = ConsumeParams.newBuilder()
+                    .setPurchaseToken(purchase.purchaseToken)
+                    .build()
+                client.consumeAsync(consume) { r, _ ->
+                    if (r.responseCode == BillingClient.BillingResponseCode.OK) {
+                        repo.grantSeasonPass(
+                            java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+                        )
+                    }
+                }
                 continue
             }
             val grant = Iap.CONSUMABLE_GRANTS[productId]

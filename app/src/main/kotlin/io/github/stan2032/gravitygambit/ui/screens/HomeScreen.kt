@@ -38,6 +38,7 @@ import io.github.stan2032.gravitygambit.core.Seeds
 import io.github.stan2032.gravitygambit.ui.AccentCyan
 import io.github.stan2032.gravitygambit.ui.AccentPurple
 import io.github.stan2032.gravitygambit.ui.GameLaunch
+import io.github.stan2032.gravitygambit.core.Season
 import io.github.stan2032.gravitygambit.ui.Nav
 import io.github.stan2032.gravitygambit.ui.StarYellow
 import io.github.stan2032.gravitygambit.ui.TextDim
@@ -101,6 +102,33 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
             accent = Color(0xFFFF8A65),
         ) { onNavigate(Nav.Duel) }
 
+        // Expedition sits under the three fixed modes: it is the one you
+        // reach for once the campaign has taught you to aim, and the detail
+        // line is a personal best rather than a count, because depth is the
+        // number a run player actually carries around.
+        Entry(
+            glyph = Glyph.ROUTE,
+            title = "Expedition",
+            detail = if (profile.expeditionRuns > 0)
+                "Best: ${profile.expeditionBestDepth} systems deep"
+            else "Chain systems until the fuel runs out",
+            accent = Color(0xFF7FE3B0),
+        ) { onNavigate(Nav.Expedition) }
+
+        // The season sits above the shop: it is the thing that keeps paying,
+        // and it should be the thing a returning player sees first.
+        val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toEpochDay()
+        val season = profile.rolledIntoSeason(today)
+        Entry(
+            glyph = Glyph.TRACK,
+            title = "Season ${season.seasonId + 1}",
+            detail = "Tier ${season.seasonTier} of ${Season.TIERS} · " +
+                "${Season.daysLeft(today)} days left",
+            accent = StarYellow,
+        ) { onNavigate(Nav.Season) }
+
+        Spacer(Modifier.height(10.dp))
+
         Entry(
             glyph = Glyph.SPARK,
             title = "Outfitter",
@@ -118,7 +146,7 @@ fun HomeScreen(profile: Profile, onNavigate: (Nav) -> Unit) {
     }
 }
 
-private enum class Glyph { ORBIT, COMET, DUEL, SPARK }
+private enum class Glyph { ORBIT, COMET, DUEL, SPARK, TRACK, ROUTE }
 
 @Composable
 private fun Entry(
@@ -196,6 +224,39 @@ private fun GlyphMark(glyph: Glyph, accent: Color) {
                     drawLine(accent.copy(alpha = 0.7f), c - Offset(dx, dy), c + Offset(dx, dy), 1.5f)
                 }
                 drawCircle(Color.White, r * 0.22f, c)
+            }
+            // A ladder climbing away: rungs that shorten with distance, which
+            // is what a track of 50 tiers looks like from tier one.
+            Glyph.TRACK -> {
+                for (i in 0 until 4) {
+                    val t = i / 3f
+                    val y = c.y + r * (0.75f - 1.5f * t)
+                    val half = r * (0.85f - 0.45f * t)
+                    drawLine(
+                        accent.copy(alpha = 0.35f + 0.55f * t),
+                        Offset(c.x - half, y), Offset(c.x + half, y), 2f,
+                    )
+                }
+                drawCircle(Color.White, r * 0.16f, Offset(c.x, c.y - r * 0.75f))
+            }
+            // A path that forks: one line in, three out. The whole decision a
+            // run keeps asking, drawn once.
+            Glyph.ROUTE -> {
+                val hub = Offset(c.x - r * 0.55f, c.y)
+                drawLine(accent.copy(alpha = 0.55f), Offset(c.x - r, c.y), hub, 2f)
+                for (i in 0 until 3) {
+                    val dy = r * (i - 1) * 0.72f
+                    drawLine(
+                        accent.copy(alpha = if (i == 1) 0.85f else 0.4f),
+                        hub, Offset(c.x + r * 0.72f, c.y + dy), 1.6f,
+                    )
+                    drawCircle(
+                        if (i == 1) Color.White else accent.copy(alpha = 0.7f),
+                        r * (if (i == 1) 0.17f else 0.12f),
+                        Offset(c.x + r * 0.8f, c.y + dy),
+                    )
+                }
+                drawCircle(StarYellow, r * 0.15f, hub)
             }
         }
     }

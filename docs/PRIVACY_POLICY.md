@@ -29,9 +29,10 @@ account's control — we never see it.
 ## Challenge codes
 
 Multiplayer works by exchanging text codes that you share yourself through
-a messaging app of your choice. Codes contain only game moves (a level
-seed, shot angles/powers and a checksum) — never names, identifiers,
-device information, or location. Your messaging app's own privacy policy
+a messaging app of your choice. Codes contain only game moves — a level
+seed, each shot's angle, power and projectile, any gravity anchors you
+placed, the constraint you declared, and a checksum — never names,
+identifiers, device information, or location. Your messaging app's own privacy policy
 governs the delivery of messages you send.
 
 ## Feedback you choose to send

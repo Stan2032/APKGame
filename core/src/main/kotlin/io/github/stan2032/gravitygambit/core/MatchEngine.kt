@@ -20,6 +20,21 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
     val results = ArrayList<ShotResult>()
 
     /**
+     * Wrecks left by shots that died on a world, in the order they were made
+     * (VISION §3.3, D-39). This is the one piece of board state the *generator*
+     * did not author — it accumulates from play, so it lives on the match
+     * rather than on [SystemSpec].
+     *
+     * It costs the share code **nothing**. Debris is a pure function of turns
+     * already in the payload, and [MatchReplayer] drives the same
+     * [beginShot]/[commit] path, so a verifier re-derives identical wrecks
+     * without a byte being sent. What it does cost is a protocol version: the
+     * same (seed, turns) now produces a different board, so pre-v9 codes mean
+     * something else and are refused.
+     */
+    val debris = ArrayList<Body>()
+
+    /**
      * Whether each shot honoured its declaration, parallel to [results]. Shots
      * with no declaration are always true. Kept here rather than on ShotResult
      * because it is a *rule*, and [LiveShot] only measures.
@@ -42,8 +57,15 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
             GameMode.DUEL -> hp[0] <= 0 || hp[1] <= 0 || shotsUsed >= Tuning.DUEL_MAX_TURNS
         }
 
-    /** CAMPAIGN: did the player breach the target core? */
-    val campaignWon: Boolean get() = hp[1] <= 0
+    /** True once the system's objective has been satisfied. */
+    var objectiveMet = false; private set
+
+    /** CAMPAIGN: has the system's objective been achieved? */
+    val campaignWon: Boolean
+        get() = when (spec.objective) {
+            Objective.BREACH -> hp[1] <= 0
+            Objective.CAPTURE, Objective.COURIER, Objective.THREAD -> objectiveMet
+        }
 
     /** DUEL: winning player index, or null (draw / not over). Shooter survives ties. */
     fun duelWinner(): Int? {
@@ -72,12 +94,18 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         // The shot that actually breached: a hit inside a broken declaration
         // did not land, so it cannot be the winning shot either.
         val winIndex = results.indices.lastOrNull { i ->
-            gambitKept[i] && results[i].stationHits.any { it == 1 }
+            gambitKept[i] && when (spec.objective) {
+                Objective.BREACH -> results[i].stationHits.any { it == 1 }
+                else -> objectiveSatisfiedBy(results[i])
+            }
         }
         val winning = winIndex?.let { results[it] }
         val declared = winning != null && winning.input.gambitId != Gambit.NONE.id
         val workedTheField = winning != null && (
-            declared ||
+            // Neither holding a ring for four seconds nor leading a drifting
+            // comet happens by accident.
+            spec.objective != Objective.BREACH ||
+                declared ||
                 winning.slingshotGain >= Tuning.THREE_STAR_MIN_GAIN ||
                 winning.styleBonus > 0
             )
@@ -88,6 +116,14 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         }
     }
 
+    /** Has this shot achieved what the system asks? Rules, not measurement. */
+    fun objectiveSatisfiedBy(r: ShotResult): Boolean = when (spec.objective) {
+        Objective.BREACH -> r.stationHits.any { it == 1 }
+        Objective.CAPTURE -> r.captureDwell >= Tuning.CAPTURE_TICKS
+        Objective.COURIER -> r.markedBodyHit
+        Objective.THREAD -> spec.gates.isNotEmpty() && r.gatesPassed >= spec.gates.size
+    }
+
     fun beginShot(
         angleDeci: Int,
         power: Int,
@@ -96,8 +132,15 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         anchors: List<Anchor> = emptyList(),
         gambitId: Int = 0,
     ): LiveShot = LiveShot(
-        spec.bodies, stations, currentShooter, angleDeci, power, typeId,
-        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId,
+        // Wrecks are appended, never inserted: markedBody and the gambit
+        // bookkeeping index into this list, so existing indices must not move.
+        if (debris.isEmpty()) spec.bodies else spec.bodies + debris,
+        stations, currentShooter,
+        angleDeci, power,
+        // Capture is impossible without a brake, so the objective issues the
+        // shell rather than assuming the player has unlocked it.
+        if (spec.objective.forcesRetro) ProjectileType.RETRO.id else typeId,
+        presetBrakeTick, Tuning.MAX_TICKS, anchors, gambitId, spec.markedBody, spec.gates,
     )
 
     /** Apply a finished shot to match state. Must be called exactly once per shot. */
@@ -105,6 +148,25 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         val input = result.input
         turns.add(input)
         foldHash(result.hash)
+
+        // Consequence: a shot that died on a world leaves its wreck behind, and
+        // every later shot this match has to fly around it (VISION §3.3).
+        // Folded into the combined hash because it is match state that changes
+        // what happens next — a verifier that derived different debris must not
+        // be able to agree on the outcome by accident.
+        result.wreckAt?.let { at ->
+            debris.add(
+                Body(
+                    x = at.x, y = at.y,
+                    radius = Tuning.DEBRIS_RADIUS,
+                    mass = 0.0,
+                    kind = BodyKind.DEBRIS,
+                    palette = 0,
+                ),
+            )
+            foldHash(StrictMath.round(at.x * 1000.0))
+            foldHash(StrictMath.round(at.y * 1000.0))
+        }
 
         // A declaration is a stake, not a bonus: break it and the shot is
         // wasted outright — the damage does not land. That is what makes
@@ -114,6 +176,11 @@ class MatchEngine(val spec: SystemSpec, val mode: GameMode) {
         gambitKept.add(kept)
         foldHash(if (kept) 1L else 0L)
         val hits = if (kept) result.stationHits else emptyList()
+
+        // The objective can only be met by a shot that kept its declaration —
+        // a wasted shot is wasted for every objective, not just for damage.
+        if (kept && objectiveSatisfiedBy(result)) objectiveMet = true
+        foldHash(if (objectiveMet) 1L else 0L)
 
         val type = ProjectileType.byId(input.typeId)
         when (mode) {

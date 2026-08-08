@@ -35,6 +35,22 @@ class ShotResult(
     val crossedTargetLine: Boolean = false,
     /** Furthest the flight strayed from that line, in world units. */
     val maxDetour: Double = 0.0,
+    /**
+     * Longest unbroken run of ticks the shot spent inside the capture ring of
+     * the marked body ([Objective.CAPTURE]). 0 when no body was marked.
+     */
+    val captureDwell: Int = 0,
+    /** Did a projectile die on the marked body ([Objective.COURIER])? */
+    val markedBodyHit: Boolean = false,
+    /** How many gates were crossed **in order** ([Objective.THREAD]). */
+    val gatesPassed: Int = 0,
+    /**
+     * Where this shot's wreck settles, or null if it left none. Derived from
+     * the flight rather than carried on the wire: a replay re-simulates the
+     * same turns and arrives at the same point, so debris costs the share code
+     * zero bytes (VISION §3.3, D-39).
+     */
+    val wreckAt: Vec2? = null,
 ) {
     /** Velocity taken from the field rather than the launcher. */
     val slingshotGain: Double get() = peakSpeed - launchSpeed
@@ -55,6 +71,18 @@ class LiveShot(
     private val anchors: List<Anchor> = emptyList(),
     /** Declared constraint, judged from the flight afterwards (see [Gambit]). */
     private val gambitId: Int = 0,
+    /**
+     * The body this shot is being measured against, or -1: ring dwell for a
+     * Capture, a direct strike for a Courier. Measurement only — it never
+     * influences the trajectory, so two systems with identical inputs and
+     * different objectives fly identically.
+     */
+    private val markedBody: Int = -1,
+    /**
+     * Ordered gates this shot is measured against ([Objective.THREAD]).
+     * Measurement only — a gate has no mass and never bends anything.
+     */
+    private val gates: List<Gate> = emptyList(),
 ) {
     private val type = ProjectileType.byId(typeId)
 
@@ -98,6 +126,13 @@ class LiveShot(
     private var detourMin = 0.0
     private var detourMax = 0.0
     private var detourSampled = false
+    /** Set when a projectile dies on the marked body ([Objective.COURIER]). */
+    private var markedHit = false
+    /** Index of the next gate to cross; also the count already crossed. */
+    var gatesPassed = 0; private set
+    /** Live, for the HUD: how long the current unbroken ring run has lasted. */
+    var captureRun = 0; private set
+    private var captureBest = 0
     private val lineNx: Double
     private val lineNy: Double
     private val targetX: Double
@@ -106,6 +141,20 @@ class LiveShot(
     /** Set when a projectile dies, for the renderer to draw an explosion. */
     var lastImpact: Vec2? = null; private set
     var lastImpactWasStation = false; private set
+
+    /**
+     * Where this shot's wreck settles, or null if it left no wreck (VISION §3.3).
+     *
+     * First body impact only, and deliberately so on both counts. **Body**,
+     * because a station kill is an outcome rather than a crash and a lump on
+     * your own launch point would be a self-inflicted dead end — measured at 1
+     * own-station death in 18,000 samples, rare but pathological (D-39).
+     * **First**, because a Triad splits into three shards and one turn should
+     * leave one wreck: per-shard litter would triple a duel's accumulation and
+     * carry it past the 30 lumps `DebrisMeasurementTest` actually measured.
+     * Hitting existing debris leaves nothing, so litter cannot breed litter.
+     */
+    var wreckAt: Vec2? = null; private set
 
     init {
         val st = stations[shooter]
@@ -176,10 +225,15 @@ class LiveShot(
         var anyAlive = false
         for (p in projs) {
             if (!p.alive) continue
+            val fromX = p.px
+            val fromY = p.py
             integrate(p)
+            if (gatesPassed < gates.size) sampleGate(fromX, fromY, p.px, p.py)
             collide(p)
             if (p.alive) anyAlive = true
         }
+
+        if (markedBody >= 0) sampleCapture()
 
         if (tick % HASH_STRIDE == 0) {
             for (p in projs) if (p.alive) {
@@ -198,6 +252,15 @@ class LiveShot(
         // game (bodies x projectiles x ticks x thousands of solver sims).
         for (i in bodies.indices) {
             val b = bodies[i]
+            // Debris is skipped whole, before the arithmetic. It is massless,
+            // so it adds nothing to the acceleration anyway — and this is the
+            // single hottest loop in the game, so a duel carrying 30 wrecks
+            // would otherwise pay 30 needless square roots per projectile per
+            // tick to add zero. Skipping also keeps a wreck out of the
+            // deflector count and the graze bonus, which matters for more than
+            // speed: a declaration must never be honoured by something that
+            // cannot deflect (D-39).
+            if (b.kind == BodyKind.DEBRIS) continue
             // Positions and pulsar mass are functions of the tick, so moving
             // bodies stay bit-deterministic (docs/DETERMINISM.md).
             val dx = b.xAt(tick) - p.px
@@ -263,6 +326,60 @@ class LiveShot(
         }
     }
 
+    /**
+     * Holding the ring: any live projectile inside the annulus keeps the run
+     * alive, and the run must be unbroken. Sampled once per tick rather than
+     * per projectile so a splitter cannot bank two runs at once.
+     */
+    private fun sampleCapture() {
+        val b = bodies[markedBody]
+        val bx = b.xAt(tick)
+        val by = b.yAt(tick)
+        val inner = b.radius + Tuning.CAPTURE_RING_INNER
+        val outer = b.radius + Tuning.CAPTURE_RING_OUTER
+        var inside = false
+        for (p in projs) {
+            if (!p.alive) continue
+            val dx = bx - p.px
+            val dy = by - p.py
+            val d2 = dx * dx + dy * dy
+            if (d2 >= inner * inner && d2 <= outer * outer) { inside = true; break }
+        }
+        if (inside) {
+            captureRun++
+            if (captureRun > captureBest) captureBest = captureRun
+        } else {
+            captureRun = 0
+        }
+    }
+
+    /**
+     * Did this tick's movement cross the *next* gate? Strictly in order: a
+     * flight that clips gate 3 before gate 2 has threaded nothing, which is
+     * the entire point of the objective.
+     *
+     * Segment-vs-segment by orientation sign, so it is pure double arithmetic
+     * — no trigonometry, no tolerance constant, and bit-identical everywhere.
+     * Strict inequalities mean a path that merely touches an endpoint does not
+     * count; a gate you grazed is not a gate you went through.
+     */
+    private fun sampleGate(fromX: Double, fromY: Double, toX: Double, toY: Double) {
+        val g = gates[gatesPassed]
+        val d1 = cross(g.x1, g.y1, g.x2, g.y2, fromX, fromY)
+        val d2 = cross(g.x1, g.y1, g.x2, g.y2, toX, toY)
+        if (!((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0))) return
+        val d3 = cross(fromX, fromY, toX, toY, g.x1, g.y1)
+        val d4 = cross(fromX, fromY, toX, toY, g.x2, g.y2)
+        if (!((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))) return
+        gatesPassed++
+        foldHash(6L); foldHash(gatesPassed.toLong()); foldHash(tick.toLong())
+    }
+
+    /** Sign of the cross product (b-a) x (p-a). */
+    private fun cross(
+        ax: Double, ay: Double, bx: Double, by: Double, px: Double, py: Double,
+    ): Double = (bx - ax) * (py - ay) - (by - ay) * (px - ax)
+
     private fun collide(p: Proj) {
         // Bodies (repulsors are intangible anomalies — field only).
         for ((bi, b) in bodies.withIndex()) {
@@ -273,8 +390,13 @@ class LiveShot(
             if (dx * dx + dy * dy < rr * rr) {
                 p.alive = false
                 bodyHits++
+                if (bi == markedBody) markedHit = true
                 if (b.kind == BodyKind.COMET) cometHits++
                 lastImpact = Vec2(p.px, p.py); lastImpactWasStation = false
+                // A wreck settles against a world, never against another wreck.
+                if (wreckAt == null && b.kind != BodyKind.DEBRIS) {
+                    wreckAt = Vec2(p.px, p.py)
+                }
                 foldHash(1L); foldHash(bi.toLong()); foldHash(tick.toLong())
                 return
             }
@@ -382,6 +504,10 @@ class LiveShot(
             deflectorCount = deflectors,
             crossedTargetLine = detourSampled && detourMin < 0.0 && detourMax > 0.0,
             maxDetour = if (!detourSampled) 0.0 else StrictMath.max(-detourMin, detourMax),
+            captureDwell = captureBest,
+            markedBodyHit = markedHit,
+            gatesPassed = gatesPassed,
+            wreckAt = wreckAt,
         )
     }
 

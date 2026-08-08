@@ -53,19 +53,34 @@ carried across sessions are not. (The same trap was avoided once before, with
 the anchor-leverage probe in 0.6.0.)
 
 ## Measured numbers (desktop JVM; phones ~3-6x slower) — `GenerationPerfTest`
-- **Level generation, worst case = difficulty 0** (~100-200ms). Counter-intuitive
-  but correct: easy levels need a *rare* high-hit-rate layout, so the generator
-  burns more candidate attempts; hard levels accept common low-rate layouts and
-  finish in <10ms. Consequence: the first level a new player ever loads is the
-  slowest — it runs on Dispatchers.Default behind the "Charting the system"
-  screen. Halved by solver early-exit (bounds the achievable rate mid-scan and
-  abandons provably out-of-band candidates); duel mode additionally skips the
-  mirror-side solve unless side one is already in band.
-- **Duel generation ~330ms** (campaign worst case ~300ms). Duels solve the
-  aim space from *both* stations, and 0.4.0's comets/pulsars added bodies to
-  every sim. Measured by stashing the anchor-leverage probe: still ~324ms
-  without it, so the probe is not the cause. Open optimisation if duel start
-  ever feels slow — the mirror-side solve is the obvious target.
+- **Level generation, worst case = difficulty 11** (~684ms worst of 4 samples;
+  d0 101, d3 102, d6 77, d9 164). ⚠️ **This entry used to say difficulty 0 was
+  the worst case at 100–200ms, and that is now inverted** — re-measured
+  2026-08-07. The old reasoning (easy levels need a *rare* high-hit-rate
+  layout, so the generator burns more attempts) was sound when written and has
+  been overtaken: the difficulty band narrows as difficulty climbs
+  (`minRate` decays 0.80^d against a ×22 ceiling), so hard levels now burn the
+  attempts instead. Nothing was optimised for the wrong end, but the
+  *statement* had gone stale, and it is the kind that quietly misdirects the
+  next person looking for a hot path.
+  Consequence unchanged: generation runs on Dispatchers.Default behind the
+  "Charting the system" screen. Solver early-exit (bounds the achievable rate
+  mid-scan, abandons provably out-of-band candidates) and duel's skip of the
+  mirror-side solve unless side one is in band both still apply.
+- **Where difficulty-11 time actually goes — measured, not assumed.** Comparing
+  CAMPAIGN against DAILY on identical seeds isolates objective proving, since
+  only campaign assigns objectives (D-27): at d11, layout generation is
+  **~83%** of the cost and all three objective proofs together are ~17%; at d9
+  it is ~70/30. So the hot path is the candidate/solver loop, **not** the
+  objective proofs — which was the opposite of the first guess, and is why the
+  guess was measured before anything was changed.
+- **Duel generation ~343ms.** Duels solve the aim space from *both* stations,
+  and 0.4.0's comets/pulsars added bodies to every sim. Measured by stashing
+  the anchor-leverage probe: still ~324ms without it, so the probe is not the
+  cause. ⚠️ **No longer the slowest path** — the parenthetical here used to
+  read "campaign worst case ~300ms" and campaign d11 now measures 684ms, twice
+  the duel figure. If generation is ever optimised, difficulty 11 is the
+  target, not duels.
 - **Aim preview: ~0.065ms/call** at the highest tier with a splitting shot
   (0.4–1.1ms on a slow runner day — see the warning above). Runs per drag event
   during composition; orders of magnitude under a frame. **Do not "optimize"
@@ -77,6 +92,19 @@ the anchor-leverage probe in 0.6.0.)
   carries the measurements a gambit is judged on, so the added work is four
   comparisons per *winning* sample. The dedicated sweep remains only as a
   second opinion for a seat whose scan came back empty.
+- **Ambience: ~40ms to render, then zero.** One 7-second pad is 154,350
+  samples × ~7 voices, built once per system on Dispatchers.Default while the
+  level is already on screen (`AmbienceTest.renderIsCheapEnoughToBuildOnLevelStart`,
+  desktop budget 400ms). Two choices keep it there. (1) A precomputed sine
+  table, indexed by exact integer modular arithmetic — every voice advances a
+  whole number of table steps per sample, so there is one transcendental call
+  per *table entry* instead of one per sample per voice, with no interpolation
+  and no drift. (2) `MODE_STATIC` with hardware loop points, so after the
+  single write the pad costs **no application CPU at all**, however long it
+  plays. That option only exists because the loop is seamless by construction;
+  a seam would have forced a crossfading streamer and a thread to run it for
+  the whole match. Transient cost is ~1.5MB of float buffers, freed after
+  render; resident cost is the 301KB PCM loop. APK cost is zero (docs/AUDIO.md).
 - The gravity accumulation loop is now indexed rather than iterator-based. It
   is the single hottest loop in the game (bodies x projectiles x ticks x
   thousands of solver sims) and was allocating an iterator per projectile per
@@ -99,6 +127,11 @@ the anchor-leverage probe in 0.6.0.)
 - Quick look: Developer options → Profile HWUI rendering → bars under green line.
 - Numbers: `adb shell dumpsys gfxinfo io.github.stan2032.gravitygambit framestats`.
 - Jank hunting: Android Studio Profiler → System Trace during a Triad shot over
-  a binary-star field (worst case: 3 projectiles + max trail + max bodies).
+  a **double-keeper** field late in a duel (worst case: 3 projectiles + max
+  trail + max bodies + accumulated debris). This used to say "binary-star
+  field", which named a scenario that cannot be reached — the generator emits
+  at most one star (D-41). Sector 4 level 4 is a real double-keeper board;
+  debris makes the worst case worse than it was, since a 30-turn duel can
+  carry 30 wrecks.
 - Regression gate (roadmap with CI device lab): Macrobenchmark
   `frameOverrunMs` P95 < 0 on the same scenario.

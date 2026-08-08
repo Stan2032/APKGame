@@ -10,7 +10,7 @@ codes — no servers, no accounts, fully playable offline.
 |---|---|
 | Platform | Android 8.0+ (minSdk 26), target/compile SDK 36 |
 | Stack | Kotlin 2.1, Jetpack Compose, Play Billing 8, pure-JVM game core |
-| Multiplayer | Hot-seat + asynchronous PVP via ~230-char verified replay codes |
+| Multiplayer | Hot-seat + asynchronous PVP via verified replay codes (52 chars to open a duel, ~1039 at the 30-turn cap) |
 | Monetization | Cosmetic-only IAP (Play Billing), everything earnable in-game |
 | Privacy | No data collection, no analytics, no accounts; our code makes no network calls and the game is fully playable offline |
 
@@ -32,8 +32,9 @@ codes — no servers, no accounts, fully playable offline.
 ./gradlew :app:bundleRelease    # Play-ready AAB
 ```
 
-CI (GitHub Actions) runs all of the above on every push and uploads the
-APK/AAB artifacts. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
+CI (GitHub Actions) runs all of the above on every pull request and on
+pushes to `main`, and uploads the APK/AAB artifacts — download them from the
+run linked on the PR. Engine-only environments: `GG_SKIP_ANDROID=1 ./gradlew :core:test`.
 
 ## Publishing
 

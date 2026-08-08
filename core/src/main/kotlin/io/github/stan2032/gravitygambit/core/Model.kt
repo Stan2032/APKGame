@@ -22,6 +22,22 @@ enum class BodyKind {
     COMET,
     /** Gravity pulses between weak and strong on a fixed period. */
     PULSAR,
+
+    /**
+     * The wreck of a shot that died here. Solid but **massless**: it blocks,
+     * it never pulls (VISION §3.3, D-39).
+     *
+     * Debris is never generated — it only accumulates during a match, from the
+     * impact points of the player's own misses, and it is the one body kind
+     * that is not a fact about the system. Two consequences follow from being
+     * massless and being a wreck rather than a world:
+     * - it contributes no acceleration, so it cannot bend a shot, which is why
+     *   it is excluded from deflector counting and the graze bonus — a
+     *   declaration must not be honoured by something that cannot deflect;
+     * - hitting debris leaves no further debris, so litter cannot breed litter
+     *   and a match stays inside the envelope measured in `DebrisMeasurementTest`.
+     */
+    DEBRIS,
 }
 
 /**
@@ -69,6 +85,20 @@ data class Body(
     }
 }
 
+/**
+ * A gate the shot must fly through, for [Objective.THREAD].
+ *
+ * Stored as two endpoints rather than centre+angle so the simulation never
+ * needs trigonometry to place it — crossing is decided by pure double
+ * arithmetic, which keeps it inside the determinism contract without a
+ * `StrictMath` call in the hot loop. The generator does the trig once.
+ */
+@Serializable
+data class Gate(val x1: Double, val y1: Double, val x2: Double, val y2: Double) {
+    val midX: Double get() = (x1 + x2) / 2.0
+    val midY: Double get() = (y1 + y2) / 2.0
+}
+
 /** A player station. HP and ownership rules live in [MatchEngine]. */
 @Serializable
 data class Station(val x: Double, val y: Double, val owner: Int)
@@ -109,7 +139,24 @@ data class SystemSpec(
      * so the sweep can under-report but never invent. What is offered exists.
      */
     val gambitMasks: List<Int> = listOf(0, 0),
+    /** What this system asks of the player (docs/VISION.md §3.5). */
+    val objectiveId: Int = Objective.BREACH.id,
+    /**
+     * The body this system's objective points at — the world a Capture ring
+     * belongs to, or the comet a Courier must strike. -1 when the objective
+     * does not use one. Generic rather than per-objective, so the next
+     * objective that needs a target does not add a third field.
+     */
+    val markedBody: Int = -1,
+    /**
+     * Ordered gates for [Objective.THREAD]. Its own field rather than being
+     * forced through [markedBody], because a sequence is not a single target
+     * (D-28) — and the *order* is the puzzle, so the list is meaningful.
+     */
+    val gates: List<Gate> = emptyList(),
 ) {
+    val objective: Objective get() = Objective.byId(objectiveId)
+
     /** Declarations this seat is known to be able to honour, in menu order. */
     fun gambitOptionsFor(seat: Int): List<Gambit> {
         val mask = gambitMasks.getOrElse(seat) { 0 }
@@ -200,6 +247,18 @@ object Tuning {
     const val SPLIT_ANGLE_DEG = 8.0
     const val BRAKE_FACTOR = 0.45
 
+    /**
+     * Wreck size, and it is a legibility number rather than a physical one.
+     * Conserving the shell's actual cross-section was measured and is
+     * *invisible*: it grows a radius-100 planet to 100.12 and moves the solve
+     * rate by nothing across 16 hits (D-39). At 12 — about 2.4 Bolt radii — a
+     * lump reads on screen and erodes a level gradually: measured across 30
+     * lumps a level keeps 50–100% of its winning shots, and no configuration
+     * ever left one unwinnable. Raising this is not a free knob; it is bounded
+     * above by `measureStrandingAtFullMatchLength`.
+     */
+    const val DEBRIS_RADIUS = 12.0
+
     const val GRAZE_DIST = 15.0
     const val GRAZE_BONUS = 15
     const val LONGSHOT_TICKS = 360
@@ -235,6 +294,30 @@ object Tuning {
 
     /** Speed gained from the field that a three-star shot must demonstrate. */
     const val THREE_STAR_MIN_GAIN = 45.0
+
+    // ---- Capture objective (docs/VISION.md §3.5; see Objective.kt) ----
+    /**
+     * The ring the shot must hold, as offsets from the target body's surface,
+     * and how long it must hold it.
+     *
+     * 240 ticks (4s) is not a taste: measured across twelve generated levels,
+     * the best an *unbraked* shot ever managed was 191 ticks — a single flyby
+     * transit, not an orbit. Sitting the bar above that means a flyby can
+     * never accidentally satisfy Capture, the same principle that makes
+     * `fallsToNaiveShot` reject levels the obvious shot wins. Braked shots on
+     * those same levels reached 339-818, so the bar is comfortably clearable
+     * by the manoeuvre it is asking for.
+     */
+    const val CAPTURE_RING_INNER = 40.0
+    const val CAPTURE_RING_OUTER = 190.0
+    const val CAPTURE_TICKS = 240
+
+    /**
+     * Gate width for [Objective.THREAD]. Wide enough that a *family* of paths
+     * works rather than exactly one — gates are derived from a real trajectory,
+     * so a narrow gate would make the level a single-solution guess.
+     */
+    const val GATE_HALF_WIDTH = 78.0
 
     // ---- Gambit thresholds (docs/VISION.md §3.2; see Gambit.kt) ----
     /** "Featherweight": power must be under this, on the 0..1000 scale. */

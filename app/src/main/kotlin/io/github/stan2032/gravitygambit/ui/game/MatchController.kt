@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.stan2032.gravitygambit.core.Anchor
 import io.github.stan2032.gravitygambit.core.Gambit
+import io.github.stan2032.gravitygambit.core.Objective
 import io.github.stan2032.gravitygambit.core.GameMode
 import io.github.stan2032.gravitygambit.core.LiveShot
 import io.github.stan2032.gravitygambit.core.MatchEngine
@@ -31,6 +32,41 @@ enum class Phase { AIMING, FLYING, RESOLVING, HANDOFF, OVER }
 
 class Explosion(val at: Vec2, val big: Boolean, seed: Long) {
     class Particle(val dx: Double, val dy: Double, val speed: Double, val hue: Int)
+
+    /** Seeded phase so two explosions never shake identically. */
+    private val phase: Double = Rng(seed xor 0x5A4EL).range(0.0, 6.2831853)
+
+    /**
+     * Camera shake, in world units, as a pure function of the animation
+     * progress — a decaying oscillation rather than random jitter per frame,
+     * so it reads as an impact rather than as a dropped connection.
+     *
+     * Presentation only: the camera never touches the simulation, so shaking
+     * it cannot affect a trajectory, a hash, or a replay.
+     */
+    fun shakeX(progress: Float): Double = shake(progress, 0.0)
+    fun shakeY(progress: Float): Double = shake(progress, 1.7)
+
+    private fun shake(progress: Float, offset: Double): Double {
+        if (progress >= SHAKE_FADE) return 0.0
+        val t = progress / SHAKE_FADE
+        val decay = (1.0 - t) * (1.0 - t)
+        val amp = if (big) BIG_SHAKE else SMALL_SHAKE
+        return amp * decay * StrictMath.sin(phase + offset + t * SHAKE_CYCLES)
+    }
+
+    companion object {
+        /** Shake is over well before the explosion is — it punctuates, not lingers. */
+        const val SHAKE_FADE = 0.45f
+        const val SHAKE_CYCLES = 34.0
+        const val BIG_SHAKE = 26.0
+        const val SMALL_SHAKE = 9.0
+        /**
+         * Frozen frames before the explosion expands. A beat of stillness on
+         * impact is the cheapest way to make a hit feel like it landed.
+         */
+        const val HIT_STOP_SECONDS = 0.075f
+    }
 
     val particles: List<Particle> = buildList {
         val rng = Rng(seed)
@@ -96,6 +132,29 @@ class MatchController private constructor(
      */
     val gambitChoices: List<Gambit>
         get() = spec.gambitOptionsFor(engine.currentShooter)
+
+    val objective: Objective get() = spec.objective
+
+    /**
+     * The shell that will actually fly. Capture *issues* a RETRO regardless of
+     * loadout, so the UI must read this rather than [selectedType] — gating the
+     * burn button on the selection would have left the brake unreachable on
+     * exactly the systems that cannot be won without it.
+     */
+    val effectiveType: Int
+        get() = if (objective.forcesRetro) ProjectileType.RETRO.id else selectedType
+
+    /** 0..1 progress of the ring run in flight; null unless a ring is in play. */
+    val captureProgress: Float?
+        get() {
+            if (objective != Objective.CAPTURE) return null
+            val run = liveShot?.captureRun ?: return 0f
+            return (run.toFloat() / Tuning.CAPTURE_TICKS).coerceIn(0f, 1f)
+        }
+
+    /** Gates crossed so far by the shot in flight (or by the last one). */
+    val gatesPassed: Int
+        get() = liveShot?.gatesPassed ?: lastResult?.gatesPassed ?: 0
 
     /** Did the shot just resolved honour its declaration? Null if none was made. */
     val lastGambitKept: Boolean?
@@ -171,6 +230,8 @@ class MatchController private constructor(
 
     var rewardsApplied = false
     var dustEarned by mutableStateOf(0)
+    /** Season XP this match added, for the summary to show. */
+    var seasonXpEarned by mutableStateOf(0)
 
     private val replayQueue = ArrayDeque(pendingReplays)
 
@@ -372,7 +433,13 @@ class MatchController private constructor(
                 val won = engine.campaignWon
                 Summary(
                     win = won,
-                    title = if (won) "Core breached!" else "Out of shots",
+                    // The verb has to match what was actually asked of you.
+                    title = when {
+                        won && objective == Objective.CAPTURE -> "Orbit held!"
+                        won && objective == Objective.COURIER -> "Comet struck!"
+                        won -> "Core breached!"
+                        else -> "Out of shots"
+                    },
                     subtitle = if (won) "${spec.name} cleared in ${engine.shotsUsed} shot${if (engine.shotsUsed == 1) "" else "s"}"
                     else "The core survives. Study the field and try again.",
                     stars = engine.starsEarned(),
