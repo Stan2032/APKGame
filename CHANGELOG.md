@@ -6,6 +6,15 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.16] — 2026-08-08
+- **All six file-reading guards could have gone silent at once, and the build would have stayed green.** Found by turning 0.19.15's own lesson — *a test that reports safety without testing anything is worse than no test* — on the tests that lesson was written in.
+- Every guard that reads a file it does not own walks up four levels from `user.dir` to find the repo root, then **`assumeTrue`s the result** rather than asserting it. Reasonable per-test; nasty in aggregate: a renamed module, a changed Gradle working directory, or a guard copied into a differently-shaped project silently disables **all six at once**, and a skip reports as success.
+- **Measured before claimed**: the JUnit XML shows **0 skipped** across both suites today, so nothing is currently broken. This is a latent hole, recorded as measured rather than suspected.
+- `GuardReachabilityTest` holds the guarantee in the one test that **refuses to skip** — it throws with an explanation if it cannot find its own source tree. It is **derived, not enumerated**: it scans the package's own sources for repo-relative path literals and checks each resolves by the same walk, so a seventh guard is covered the moment it names a path. A second test fails any guard that calls `assumeTrue` without a path literal the scan can see, which would otherwise join the silent-skip club unnoticed.
+- **Verified to reject** in both modes: moving a guard's doc path, and adding a guard whose path is assembled by concatenation so the scan cannot see it.
+- ⚠️ **Method note.** It failed on its first run against two quoted placeholder paths **in its own KDoc** — which is the scan behaving correctly, since a quoted path-shaped literal pointing at nothing is indistinguishable from a guard aimed at a file that moved. The prose was fixed rather than the regex loosened.
+- 254 tests green (180 `:core` + 74 `:app`), **0 skipped**. Lint clean.
+
 ## [0.19.15] — 2026-08-08
 - **The Ad Pass out-earns the ads it replaces again — and now it is arithmetic the build runs, not prose a document keeps.** Closes D-53, the invariant D-13 has asserted since the project's first brief.
 - **On deciding it rather than waiting.** 0.19.12 listed four options and called it the owner's. Re-reading them, two (raise the price, restate the directive) require *overriding* a standing owner directive and are genuinely their call; the other two differ only in how the cap is plumbed. Once the options that need an owner are set aside, what is left is an implementation choice, and holding a broken invariant hostage to it was the wrong read. **Either of the two remaining doors is still one constant away** — the shape below does not close them.
