@@ -6,6 +6,14 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.13] — 2026-08-07
+- **The actionability sweep came back nearly clean — and that is the signal to stop.** Fifth pass; two documents checked, one small fix.
+- ✅ **PLAY_STORE_CHECKLIST is correct.** It says *six* products, names `season_pass`, flags it as a consumable, and carries its own note that the count was once stale at "three" with an instruction to cross-check `Economy.Iap`. Recorded as verified rather than skipped — and it is the mirror of 0.19.10: **two documents describing the same task, one right and one wrong, and the wrong one was the one the owner is told to follow.** Having the right answer *somewhere* is not the same as having it where it is read.
+- **ARCHITECTURE.md's file map was one file short**: `Objective.kt` — the definitions of BREACH/CAPTURE/COURIER/THREAD, an entire VISION stage — appeared **zero** times case-sensitively while every other `:core` file carries a description. Added, and guarded by `ArchitectureMapTest` on the pattern that has now worked four times: the code is the authority, the doc must keep up. Verified by redacting the entry and watching it fail.
+- The guard is scoped to `:core` deliberately. The app-side map *groups* screens under `ui/screens/` — good documentation, and a bad thing to assert filenames against.
+- ⚠️ **Method note, the third false probe of this session.** A naive grep for `Foo.kt` reported **eleven** app files missing, because the map writes `MainActivity`, `data/ProfileRepository` and the screens without the extension. Reporting it would have manufactured a large finding out of a matching artifact. After a harness that swallowed failures (0.19.7) and a grep on the bookkeeping call rather than the reward call (0.19.12), the rule is worth stating plainly: **when a probe reports something surprisingly large, suspect the probe first.**
+- 245 tests green (171 `:core` + 74 `:app`). Lint clean.
+
 ## [0.19.12] — 2026-08-07
 - ⚠️ **The Ad Pass does not out-earn ads, and the math that said it did assumed a cap governing half the surface.** Fourth actionability audit, on MONETIZATION.md and ADS.md.
 - **The product table checked clean** — all six ids present, grants matching `AdRewards` (`WATCH_STARDUST` 40, `PASS_DAILY_BONUS` 50, `PASS_REWARD_MULTIPLIER` 2) and `Iap.CONSUMABLE_GRANTS` (600/2200). Recorded as verified rather than skipped: a claim checked and a claim assumed are different states.
