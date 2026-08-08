@@ -6,6 +6,14 @@ No version below has shipped to Play yet; versions still mark feature sets.
 
 ## [Unreleased]
 
+## [0.19.14] — 2026-08-07
+- **Guarded how the Ad Pass invariant was allowed to break, rather than what it broke into.** 0.19.12 found the pass no longer out-earns ads; this addresses the mechanism, which is the reusable half.
+- The invariant did not fail because the arithmetic was wrong. It failed because a **second rewarded surface** — the post-match "Double it" button — was added **without anyone deciding what caps it**, while ADS.md went on assuming `DAILY_WATCH_CAP` governed everything. Nothing failed for many versions, because nothing was watching the **set** of surfaces.
+- `AdSurfaceInventoryTest` scans `app/src/main/kotlin` for `ads.show(` call sites and asserts the set is exactly the two known files. Its failure message points at the invariant and demands a stated cap policy before the list changes.
+- **It asserts the inventory, not the policy — deliberately.** Which surfaces should be capped is the open owner decision (four options in ADS.md §pricing), and a test pinning today's answer would entrench the bug it came from. This one keeps passing whichever option is chosen, while still failing the moment a *third* way to show an ad appears.
+- **Verified to reject**: simulating a third surface in `SettingsScreen.kt` fails it; restoring passes. Fifth guard on the same pattern, and the first to guard **source shape** rather than a document.
+- 246 tests green (172 `:core` + 74 `:app`). Lint clean.
+
 ## [0.19.13] — 2026-08-07
 - **The actionability sweep came back nearly clean — and that is the signal to stop.** Fifth pass; two documents checked, one small fix.
 - ✅ **PLAY_STORE_CHECKLIST is correct.** It says *six* products, names `season_pass`, flags it as a consumable, and carries its own note that the count was once stale at "three" with an instruction to cross-check `Economy.Iap`. Recorded as verified rather than skipped — and it is the mirror of 0.19.10: **two documents describing the same task, one right and one wrong, and the wrong one was the one the owner is told to follow.** Having the right answer *somewhere* is not the same as having it where it is read.
